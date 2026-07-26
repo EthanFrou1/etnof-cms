@@ -1,0 +1,6 @@
+{
+  "name": "maps",
+  "displayName": "Maps",
+  "description": "Carte affichant l'adresse configurée (nécessite une clé Google Maps API fournie par le client)",
+  "dependencies": []
+}

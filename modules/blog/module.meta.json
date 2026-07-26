@@ -1,0 +1,6 @@
+{
+  "name": "blog",
+  "displayName": "Blog",
+  "description": "Liste d'articles et page de détail, contenu géré en base de données",
+  "dependencies": []
+}

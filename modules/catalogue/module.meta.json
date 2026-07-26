@@ -1,0 +1,6 @@
+{
+  "name": "catalogue",
+  "displayName": "Catalogue produits",
+  "description": "Catalogue de produits (photos, prix, description, stock) avec panier et commande",
+  "dependencies": []
+}

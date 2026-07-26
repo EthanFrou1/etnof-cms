@@ -1,0 +1,25 @@
+# .NET
+backend/bin/
+backend/obj/
+# Secrets locaux (connection string, mot de passe admin hashé) — voir appsettings.Development.json.example
+backend/appsettings.Development.json
+# Photos produits uploadées via l'admin (module catalogue) — générées à l'exécution, pas versionnées
+backend/wwwroot/uploads/*
+!backend/wwwroot/uploads/.gitkeep
+
+# Node / frontend
+frontend/node_modules/
+frontend/dist/
+# Jonction créée par frontend/scripts/link-repo-node-modules.mjs (postinstall)
+/node_modules/
+# Cache incrémental TypeScript + config Vite compilée générée localement (source : vite.config.ts)
+frontend/*.tsbuildinfo
+frontend/vite.config.js
+frontend/vite.config.d.ts
+
+# Env
+.env
+.env.local
+
+# OS / éditeur
+.DS_Store

@@ -1,0 +1,17 @@
+{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+  "ConnectionStrings": {
+    "Default": "Host=localhost;Port=5432;Database=etnof_cms;Username=etnof;Password=etnof_dev_password"
+  },
+  "Admin": {
+    "PasswordHash": "GENERE_VIA_dotnet_run_--_hash-password_<ton-mot-de-passe>"
+  },
+  "GooglePlaces": {
+    "ApiKey": "<clé API Google Cloud avec Places API activée — sert à la recherche d'établissement sur la page Établissement de l'admin>"
+  }
+}

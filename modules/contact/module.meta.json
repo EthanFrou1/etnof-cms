@@ -1,0 +1,6 @@
+{
+  "name": "contact",
+  "displayName": "Contact",
+  "description": "Formulaire de contact avec sauvegarde des messages en base de données",
+  "dependencies": []
+}

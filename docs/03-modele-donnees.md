@@ -1,0 +1,113 @@
+# 03 — Modèle de données (POC)
+
+Le POC ne couvre que ce qui est nécessaire pour les modules Contact + Maps + Blog (voir roadmap). Rester minimal, ne pas anticiper les futurs modules dans le schéma.
+
+## Entités du POC
+
+### Site
+Représente la config globale du site (une seule ligne en POC, car un déploiement = un client).
+
+| Champ | Type | Note |
+|---|---|---|
+| Id | Guid | |
+| Name | string | Nom du site client |
+| ModulesConfig | jsonb | Miroir de `site.config.json`, utile si on veut un jour un petit back-office pour l'éditer sans toucher au fichier |
+
+### ContactMessage (module Contact)
+| Champ | Type | Note |
+|---|---|---|
+| Id | Guid | |
+| Name | string | |
+| Email | string | |
+| Message | text | |
+| CreatedAt | datetime | |
+
+### BlogPost (module Blog — phase ultérieure du POC)
+| Champ | Type | Note |
+|---|---|---|
+| Id | Guid | |
+| Title | string | |
+| Slug | string | Unique |
+| Content | text | Markdown |
+| PublishedAt | datetime | Nullable (brouillon si null) |
+
+### Product (module Catalogue)
+| Champ | Type | Note |
+|---|---|---|
+| Id | Guid | |
+| ClientSiteId | Guid | |
+| Name | string | |
+| Description | text | |
+| Price | decimal | |
+| Stock | int | |
+| CreatedAt | datetime | |
+
+### ProductImage (module Catalogue)
+| Champ | Type | Note |
+|---|---|---|
+| Id | Guid | |
+| ProductId | Guid | FK vers Product, cascade delete |
+| Path | string | Chemin relatif servi statiquement (`/uploads/{clientSiteId}/{productId}/{fichier}`) |
+| SortOrder | int | Ordre d'affichage des photos |
+
+### Order (module Catalogue)
+| Champ | Type | Note |
+|---|---|---|
+| Id | Guid | |
+| ClientSiteId | Guid | |
+| CustomerId | Guid | FK vers Customer, `ON DELETE RESTRICT` |
+| CustomerName | string | Snapshot au moment de la commande (même logique que `OrderItem.ProductName`) |
+| CustomerEmail | string | Snapshot au moment de la commande |
+| Status | string | `pending` / `fulfilled` / `cancelled` |
+| Total | decimal | Calculé à la création, pas recalculé ensuite |
+| CreatedAt | datetime | |
+
+### Customer (module Catalogue, ajouté le 2026-07-26)
+| Champ | Type | Note |
+|---|---|---|
+| Id | Guid | |
+| ClientSiteId | Guid | |
+| Name | string | |
+| Email | string | Recherché par égalité insensible à la casse au checkout (find-or-create) |
+| Phone | string | |
+| Address | string | |
+| Notes | string | Usage libre agence/client |
+| CreatedAt | datetime | |
+
+Pas de navigation EF `Order.Customer` (évite le cycle de sérialisation JSON déjà rencontré avec `ProductImage.Product` — voir `docs/05-roadmap-poc.md`). Les endpoints qui ont besoin des deux font deux requêtes séparées.
+
+### OrderItem (module Catalogue)
+| Champ | Type | Note |
+|---|---|---|
+| Id | Guid | |
+| OrderId | Guid | FK vers Order, cascade delete |
+| ProductId | Guid | Pas de FK stricte (le produit peut être supprimé après coup) |
+| ProductName | string | Copie du nom au moment de la commande |
+| UnitPrice | decimal | Copie du prix au moment de la commande |
+| Quantity | int | |
+
+Pas de paiement en ligne réel : une commande est enregistrée et décrémente le stock à la validation, mais rien n'est prélevé automatiquement (voir `docs/04-catalogue-modules.md`, entrée Catalogue produits).
+
+### ModulePrice (agence, ajouté le 2026-07-26)
+| Champ | Type | Note |
+|---|---|---|
+| ModuleName | string | Clé primaire — pas de `ClientSiteId`, un prix vaut pour tout le socle |
+| Price | string | Texte libre ("250€", "Offert"...), pas un decimal — affiché sur la card d'un module non autorisé ("Activer pour {Price}"), édité depuis `/admin/dashboard` |
+
+### EstablishmentImage (ajouté le 2026-07-26)
+| Champ | Type | Note |
+|---|---|---|
+| Id | Guid | |
+| ClientSiteId | Guid | Rattaché directement au tenant, pas à un module |
+| Path | string | `/uploads/{clientSiteId}/establishment/{fichier}` |
+| SortOrder | int | |
+
+Photos affichées dans le panneau résumé de la page "Établissement" (`EstablishmentSection.tsx`). Même pattern d'upload que `ProductImage`.
+
+## Note sur le module Maps
+
+Pas de table dédiée pour Maps lui-même. L'adresse qu'il affiche n'est **pas** stockée dans sa config module — elle vit dans `SiteContent.Address` (voir `docs/06-contenu-site.md`), partagée avec d'autres usages potentiels de l'adresse de l'établissement. Seul `apiKey` (propre à l'embed Google Maps) reste dans `ModulesConfigJson.maps`.
+
+## Règle pour la suite
+
+Chaque nouveau module ajouté après le POC ajoute ses propres entités dans ce fichier, sans jamais modifier les entités d'un autre module.
