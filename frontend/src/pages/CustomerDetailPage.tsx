@@ -94,6 +94,13 @@ function CustomerDetailContent({
 
   if (!customer || !form) return <p className="text-gray-text">Chargement…</p>;
 
+  const isDirty =
+    form.name !== customer.name ||
+    form.email !== customer.email ||
+    form.phone !== customer.phone ||
+    form.address !== customer.address ||
+    form.notes !== customer.notes;
+
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -137,8 +144,8 @@ function CustomerDetailContent({
           <button
             type="button"
             onClick={handleSave}
-            disabled={status === "saving"}
-            className="rounded-button bg-brand-gradient px-4 py-2.5 font-semibold text-white hover:opacity-90 disabled:opacity-50"
+            disabled={status === "saving" || !isDirty}
+            className="rounded-button bg-brand-gradient px-4 py-2.5 font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
           >
             Enregistrer
           </button>

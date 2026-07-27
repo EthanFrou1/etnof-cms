@@ -16,7 +16,17 @@ const MODULE_IMAGES: Record<string, string> = {
   maps: "/module-icons/maps.png",
   blog: "/module-icons/blog.png",
   catalogue: "/module-icons/catalogue.png",
+  horaires: "/module-icons/horaires.png",
 };
+
+// Prix stocké en texte libre par Ethan (voir ModulePricingPanel, AgencyDashboardPage.tsx) — parfois
+// avec "EUR" ou "€" déjà tapé, parfois juste un nombre. On n'affiche jamais cette valeur brute : on
+// n'en garde que les chiffres et on ajoute systématiquement "€", pour que l'unité soit toujours la
+// même quelle que soit la façon dont le prix a été saisi.
+function formatPriceEur(rawPrice: string): string {
+  const digits = rawPrice.replace(/[^0-9]/g, "");
+  return digits ? `${digits} €` : "";
+}
 
 type ModuleField = { key: string; label: string; placeholder?: string };
 
@@ -92,7 +102,7 @@ function ModuleCard({
   const enabled = Boolean(config.enabled);
   const displayName = typeof config.displayName === "string" ? config.displayName : name;
   const description = typeof config.description === "string" ? config.description : "";
-  const price = typeof config.price === "string" ? config.price : "";
+  const price = formatPriceEur(typeof config.price === "string" ? config.price : "");
   const imageSrc = MODULE_IMAGES[name];
 
   const statusBadgeClass = enabled ? "bg-green-accent/90 text-white" : "bg-white/80 text-gray-text";
@@ -117,8 +127,10 @@ function ModuleCard({
         <div className={`absolute inset-0 bg-gradient-to-t from-navy/85 via-navy/10 to-transparent ${authorized ? "" : "bg-navy/20"}`} />
 
         {/* Wording d'aide : recouvre l'image et s'affiche au survol de toute la card, plutôt
-            qu'une bulle déclenchée par un badge dédié. */}
-        {description && (
+            qu'une bulle déclenchée par un badge dédié. Seulement pour les modules autorisés : sur
+            les non autorisés le CTA "Activer pour {prix}" occupe déjà le centre de la card en
+            permanence, les deux se chevauchaient (texte illisible derrière/autour du bouton). */}
+        {description && authorized && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-navy/90 p-6 text-center text-sm leading-relaxed text-white opacity-0 transition-opacity duration-200 group-hover:opacity-100">
             {description}
           </div>
@@ -142,44 +154,41 @@ function ModuleCard({
           </div>
         )}
 
+        {/* CTA au milieu de la card plutôt qu'en pied de card — la description passe ici en texte
+            statique (plus au survol) puisqu'un module non autorisé n'a pas d'autre endroit pour
+            l'afficher sans chevaucher ce bouton. */}
+        {!authorized && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-6 text-center">
+            {description && <p className="text-xs leading-relaxed text-white/80">{description}</p>}
+            <a
+              href={activationMailto(clientSiteId, displayName, price)}
+              className="shrink-0 rounded-button bg-brand-gradient px-4 py-2.5 text-sm font-semibold text-white shadow-soft transition-opacity hover:opacity-90"
+            >
+              {price ? `Activer pour ${price}` : "Contacte l'agence pour l'activer"}
+            </a>
+          </div>
+        )}
+
         <span className="absolute bottom-3 left-4 right-4 text-lg font-bold text-white drop-shadow-sm transition-opacity duration-200 group-hover:opacity-0">
           {displayName}
         </span>
       </div>
 
-      {authorized
-        ? fields && fields.length > 0 && (
-            <div className="flex flex-col gap-2 p-4">
-              {fields.map((field) => (
-                <label key={field.key} className="flex flex-col gap-1 text-xs font-medium text-gray-text">
-                  {field.label}
-                  <input
-                    className={fieldInputClass}
-                    placeholder={field.placeholder}
-                    value={values[field.key] ?? ""}
-                    onChange={(e) => onFieldChange(field.key, e.target.value)}
-                  />
-                </label>
-              ))}
-            </div>
-          )
-        : (
-          <div className="flex items-center justify-between gap-3 p-4">
-            {price ? (
-              <>
-                <span className="text-sm font-medium text-gray-text">{price}</span>
-                <a
-                  href={activationMailto(clientSiteId, displayName, price)}
-                  className="shrink-0 rounded-button bg-brand-gradient px-3 py-2 text-xs font-semibold text-white transition-opacity hover:opacity-90"
-                >
-                  Activer pour {price}
-                </a>
-              </>
-            ) : (
-              <span className="text-sm italic text-gray-text/60">Contacte l'agence pour l'activer</span>
-            )}
-          </div>
-        )}
+      {authorized && fields && fields.length > 0 && (
+        <div className="flex flex-col gap-2 p-4">
+          {fields.map((field) => (
+            <label key={field.key} className="flex flex-col gap-1 text-xs font-medium text-gray-text">
+              {field.label}
+              <input
+                className={fieldInputClass}
+                placeholder={field.placeholder}
+                value={values[field.key] ?? ""}
+                onChange={(e) => onFieldChange(field.key, e.target.value)}
+              />
+            </label>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -199,10 +208,28 @@ function fieldsFromModules(modules: ModulesConfig): Record<string, Record<string
   return result;
 }
 
+// Actif (autorisé + activé) avant disponible (autorisé, pas encore activé par le client) avant
+// indisponible (pas autorisé) — ordre demandé par Ethan pour la grille de cards.
+function statusRank(config: ModuleConfig): number {
+  const authorized = config.authorized !== false;
+  const enabled = Boolean(config.enabled);
+  if (authorized && enabled) return 0;
+  if (authorized) return 1;
+  return 2;
+}
+
+const STATUS_FILTERS = [
+  { label: "Tous", rank: null },
+  { label: "Activé", rank: 0 },
+  { label: "Désactivé", rank: 1 },
+  { label: "Disponible", rank: 2 },
+] as const;
+
 export default function ModulesSection({ clientSiteId, password }: ModulesSectionProps) {
   const [modules, setModules] = useState<ModulesConfig | null>(null);
   const [drafts, setDrafts] = useState<Record<string, Record<string, string>>>({});
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
+  const [statusFilter, setStatusFilter] = useState<number | null>(null);
 
   const load = () =>
     adminFetch(API_BASE_URL, `/api/t/${clientSiteId}/admin/modules`, password)
@@ -251,6 +278,12 @@ export default function ModulesSection({ clientSiteId, password }: ModulesSectio
     setTimeout(() => setSaveStatus((current) => (current === "saved" ? "idle" : current)), 1500);
   };
 
+  const visibleModules = modules
+    ? Object.entries(modules)
+        .filter(([, config]) => statusFilter === null || statusRank(config) === statusFilter)
+        .sort(([, a], [, b]) => statusRank(a) - statusRank(b))
+    : [];
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -268,11 +301,28 @@ export default function ModulesSection({ clientSiteId, password }: ModulesSectio
         </div>
       </div>
 
+      <div className="flex flex-wrap gap-2">
+        {STATUS_FILTERS.map((option) => (
+          <button
+            key={option.label}
+            type="button"
+            onClick={() => setStatusFilter(option.rank)}
+            className={`rounded-pill px-3.5 py-1.5 text-sm font-semibold transition-colors ${
+              statusFilter === option.rank
+                ? "bg-brand-gradient text-white"
+                : "bg-white text-gray-text hover:text-navy"
+            }`}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+
       {!modules ? (
         <p className="text-gray-text">Chargement…</p>
       ) : (
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {Object.entries(modules).map(([name, config]) => (
+          {visibleModules.map(([name, config]) => (
             <ModuleCard
               key={name}
               clientSiteId={clientSiteId}

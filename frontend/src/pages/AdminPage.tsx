@@ -3,10 +3,10 @@ import { useModules } from "../hooks/useModules";
 import AdminLoginScreen from "../components/admin/AdminLoginScreen";
 import AdminLayout, { CATALOGUE_SECTIONS, type AdminSection } from "../components/admin/AdminLayout";
 import DashboardSection from "./admin/DashboardSection";
-import ContentSection from "./admin/ContentSection";
+import SiteSection from "./admin/SiteSection";
+import OffersSection from "./admin/OffersSection";
 import EstablishmentSection from "./admin/EstablishmentSection";
 import ModulesSection from "./admin/ModulesSection";
-import AppearanceSection from "./admin/AppearanceSection";
 import MessagesSection from "./admin/MessagesSection";
 import ProductsSection from "./admin/ProductsSection";
 import OrdersSection from "./admin/OrdersSection";
@@ -45,10 +45,10 @@ export default function AdminPage({ clientSiteId, section }: AdminPageProps) {
       ) : (
         <>
           {section === "dashboard" && <DashboardSection clientSiteId={clientSiteId} password={password} />}
-          {section === "content" && <ContentSection clientSiteId={clientSiteId} password={password} />}
+          {section === "site" && <SiteSection clientSiteId={clientSiteId} password={password} />}
+          {section === "offers" && <OffersSection clientSiteId={clientSiteId} password={password} />}
           {section === "establishment" && <EstablishmentSection clientSiteId={clientSiteId} password={password} />}
           {section === "modules" && <ModulesSection clientSiteId={clientSiteId} password={password} />}
-          {section === "appearance" && <AppearanceSection clientSiteId={clientSiteId} password={password} />}
           {section === "products" && <ProductsSection clientSiteId={clientSiteId} password={password} />}
           {section === "orders" && <OrdersSection clientSiteId={clientSiteId} password={password} />}
           {section === "customers" && <CustomersSection clientSiteId={clientSiteId} password={password} />}

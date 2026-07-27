@@ -82,6 +82,10 @@ function StatsPanel({ password }: { password: string }) {
   );
 }
 
+// Ne garde que les chiffres — le prix est toujours affiché en euros (ModulesSection.tsx applique
+// la même règle côté admin client), pas la peine de laisser Ethan taper "€"/"EUR" lui-même.
+const onlyDigits = (value: string) => value.replace(/[^0-9]/g, "");
+
 // Prix affiché sur la card d'un module non autorisé côté admin client ("Activer pour {price}") —
 // voir ModulesSection.tsx. Global au socle, pas par client.
 function ModulePricingPanel({ password }: { password: string }) {
@@ -94,7 +98,7 @@ function ModulePricingPanel({ password }: { password: string }) {
       .then((res) => res.json())
       .then((data: ModuleMeta[]) => {
         setModules(data);
-        setDrafts(Object.fromEntries(data.map((m) => [m.name, m.price])));
+        setDrafts(Object.fromEntries(data.map((m) => [m.name, onlyDigits(m.price)])));
       });
 
   useEffect(() => {
@@ -120,23 +124,28 @@ function ModulePricingPanel({ password }: { password: string }) {
         Tarifs des modules
       </h3>
       <p className="mb-4 text-sm text-gray-text">
-        Affiché aux clients sur la card d'un module qu'ils n'ont pas encore ("Activer pour {"{prix}"}"). Laisser
-        vide pour ne pas afficher de prix.
+        Affiché aux clients sur la card d'un module qu'ils n'ont pas encore ("Activer pour {"{prix}"} €"). Laisser
+        vide pour ne pas afficher de prix — toujours en euros.
       </p>
       <div className="flex flex-col gap-3">
         {modules.map((m) => (
           <div key={m.name} className="flex items-center gap-3">
             <span className="w-40 shrink-0 text-sm font-medium text-navy">{m.displayName}</span>
-            <input
-              className={inputClass}
-              placeholder="ex : 250€"
-              value={drafts[m.name] ?? ""}
-              onChange={(e) => setDrafts({ ...drafts, [m.name]: e.target.value })}
-            />
+            <div className="relative">
+              <input
+                className={`${inputClass} pr-7`}
+                placeholder="ex : 250"
+                inputMode="numeric"
+                value={drafts[m.name] ?? ""}
+                onChange={(e) => setDrafts({ ...drafts, [m.name]: onlyDigits(e.target.value) })}
+              />
+              <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-gray-text/60">€</span>
+            </div>
             <button
               type="button"
               onClick={() => handleSave(m.name)}
-              className="shrink-0 rounded-button border border-border-subtle px-3 py-2 text-sm font-medium text-gray-text hover:bg-bg-page-start"
+              disabled={(drafts[m.name] ?? "") === onlyDigits(m.price)}
+              className="shrink-0 rounded-button border border-border-subtle px-3 py-2 text-sm font-medium text-gray-text transition-opacity hover:bg-bg-page-start disabled:cursor-not-allowed disabled:opacity-40"
             >
               Enregistrer
             </button>
@@ -152,6 +161,7 @@ function ClientSitesPanel({ password }: { password: string }) {
   const [sites, setSites] = useState<ClientSite[] | null>(null);
   const [availableModules, setAvailableModules] = useState<ModuleMeta[]>([]);
   const [form, setForm] = useState(emptyForm);
+  const [originalForm, setOriginalForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const load = () =>
@@ -175,7 +185,7 @@ function ClientSitesPanel({ password }: { password: string }) {
 
   const startEdit = (site: ClientSite) => {
     setEditingId(site.id);
-    setForm({
+    const next = {
       name: site.name,
       siteType: site.siteType,
       description: site.description,
@@ -184,13 +194,20 @@ function ClientSitesPanel({ password }: { password: string }) {
       modules: site.modules,
       password: "",
       templateId: site.templateId,
-    });
+    };
+    setForm(next);
+    setOriginalForm(next);
   };
 
   const cancelEdit = () => {
     setEditingId(null);
     setForm(emptyForm);
+    setOriginalForm(emptyForm);
   };
+
+  // Hors édition ("Ajouter"), le bouton reste actif (gated par les `required` HTML natifs) — la
+  // détection de modification ne s'applique qu'en mode "Enregistrer" (édition d'un site existant).
+  const isDirty = editingId ? JSON.stringify(form) !== JSON.stringify(originalForm) : true;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -367,7 +384,8 @@ function ClientSitesPanel({ password }: { password: string }) {
           <div className="flex gap-2">
             <button
               type="submit"
-              className="rounded-button bg-brand-gradient px-4 py-2.5 font-semibold text-white hover:opacity-90"
+              disabled={!isDirty}
+              className="rounded-button bg-brand-gradient px-4 py-2.5 font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
             >
               {editingId ? "Enregistrer" : "Ajouter"}
             </button>

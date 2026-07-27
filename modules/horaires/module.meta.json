@@ -1,0 +1,6 @@
+{
+  "name": "horaires",
+  "displayName": "Horaires",
+  "description": "Onglet dédié dans la page Établissement pour renseigner les horaires d'ouverture (avec récupération automatique depuis Google Places) et les afficher sur le site public.",
+  "dependencies": []
+}

@@ -8,10 +8,10 @@ import { API_BASE_URL } from "./config";
 
 const ADMIN_SECTIONS: AdminSection[] = [
   "dashboard",
-  "content",
+  "site",
+  "offers",
   "establishment",
   "modules",
-  "appearance",
   "products",
   "orders",
   "customers",
