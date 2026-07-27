@@ -52,6 +52,8 @@ L'adresse n'appartient plus au module Maps (qui la lisait auparavant dans sa pro
 
 **Pages "Contenu" et "Apparence" fusionnées en "Site internet"** (2026-07-27, même jour) : une fois les offres parties, "Contenu" ne portait plus que nom du site + description — jugée trop vide par Ethan. Plutôt que d'inventer des champs pour la remplir, elle est fusionnée avec "Apparence" (qui ne portait que le choix de template) en une seule page `/admin/{clientSiteId}/site` (`SiteSection.tsx`, remplace `ContentSection.tsx` et `AppearanceSection.tsx`, tous deux supprimés), avec 2 onglets : "Modèle" (choix de template, contenu de l'ancien Apparence) et "Contenu" (nom du site + description, contenu de l'ancien Contenu). Un seul bouton "Enregistrer" pour la page : `handleSave` envoie en parallèle le `PUT /admin/template` et/ou le `PUT /admin/content` selon lequel des deux onglets a été modifié.
 
+**Photos d'établissement affichées publiquement** (2026-07-28) : `EstablishmentImage` (`GET /api/t/{clientSiteId}/establishment/images`, déjà public) n'était consommé que côté admin (panneau photo de la page Établissement) — Hestia les affiche désormais aussi sur le site public, dans une nouvelle section "Établissement" sous le hero, avec la description du site. Voir `docs/10-templates.md`.
+
 ## Impact sur la Phase 3 de la roadmap
 
 La Phase 3 a bien été élargie comme prévu ici : en plus de cocher/décocher les modules, l'admin de chaque tenant (`/admin/{clientSiteId}`) permet d'éditer les champs de contenu de base (nom, description, offres). Voir le statut détaillé et le passage en multi-tenant dans `05-roadmap-poc.md`.

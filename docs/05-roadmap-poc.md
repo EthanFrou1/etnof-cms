@@ -383,6 +383,42 @@ Dernière page pas encore reprise cette session (`DashboardSection.tsx`, resté 
 
 Testé (CDP) : rendu complet avec Catalogue actif (tenant historique — alerte stock faible sur 2 produits, 2 commandes en attente avec noms clients réels, messages affichés) ; rendu avec Catalogue inactif (Boulangerie Dupont — sections Catalogue absentes proprement, Messages en pleine largeur, pas d'espace vide). `tsc -b` propre.
 
+## Palette appliquée aux modules, "Moderne" renommé "Helios", footer établissement — 2026-07-28
+
+Suite de la reprise de design des templates (voir `docs/10-templates.md` pour le détail complet, section datée du 2026-07-28). Trois chantiers demandés par Ethan pour continuer le travail engagé sur Hestia, traités dans un ordre différent de celui demandé (palette→modules d'abord, pour ne redessiner Helios qu'une fois avec le mécanisme déjà en place) :
+
+- **Palette appliquée aux modules** : remise en cause assumée de la règle "un template ne restyle jamais un module" — `ContactSection`, `MapsSection`, `BlogSection`, `CatalogueSection` (+ `CartDrawer`) recevaient jusqu'ici la charte etnof-web en dur (vert, dégradé bleu-vert, navy), ce qui faisait ressembler le site public d'un client au site de l'agence. Chaque module reçoit désormais une prop `palette: { accent, background, ink }`, redéclarée localement dans chaque fichier (pas de type partagé importé, pour garder les modules isolés).
+- **"Moderne" → "Helios"** (dieu du soleil, nom choisi par Ethan parmi 3 pistes proposées) : même mécanique de renommage que Hestia (backend `KnownTemplateIds`/`KnownPalettesByTemplate`, frontend `useTemplate.ts`/`registry.ts`/`PublicSite.tsx`, fichier `TemplateModerne.tsx` → `TemplateHelios.tsx`). 3 palettes solaires (Zénith défaut, Aurore, Couchant). Mise en page retravaillée, pas juste recolorée : navbar pleine largeur sombre, hero en dégradé diagonal, frise "rayons de soleil" (signature visuelle, parité avec la frise en méandre grec d'Hestia), carte CTA "Offre du moment" qui chevauche désormais le bas du hero. Aucun tenant n'était sur `"moderne"` en base, pas de migration de données nécessaire.
+- **Footer établissement** : nouveau composant partagé `SiteFooter.tsx` (nom, adresse, téléphone, email, horaires jour par jour), remplace le lien "Administration" isolé sur les deux templates.
+
+Testé : `dotnet build`/`tsc -b` propres (le process `Backend.exe` du précédent lancement verrouillait le premier build — même aléa que documenté le 2026-07-27, backend relancé après coup) ; cycle `PUT`/`GET` `/api/t/{id}/admin/template` avec `helios` + ses 3 palettes (dont rejet 400 d'une palette invalide) ; rendu vérifié par capture d'écran (Chrome headless piloté en CDP, script réécrit en scratchpad car non versionné, avec contournement de l'écran de login admin par injection `sessionStorage`) — hero dégradé + frise + carte CTA chevauchante sur les 3 palettes Helios, modules recolorés (plus aucune couleur etnof-web visible) sur Hestia **et** Helios, footer avec établissement + horaires affiché sur les deux templates, card "Helios" avec ses 3 pastilles visible dans le sélecteur admin. Les deux tenants de test (Boulangerie Dupont, tenant historique) restaurés à leur état d'avant-test à la fin de session.
+
+Images de preview Helios (`helios-zenith.png`, `helios-aurore.png`, `helios-couchant.png`) générées dans la foulée par capture d'écran du rendu réel (`moderne.png`, obsolète, supprimé) — à remplacer par Ethan par ses propres captures, comme pour Hestia.
+
+## Contenu de Hestia : sections Établissement/Horaires, mise en page en bandes alternées — 2026-07-28 (même jour)
+
+Après avoir repris le style des templates, Ethan attaque le **contenu** affiché publiquement, un template à la fois — Hestia d'abord. Détail complet dans `docs/10-templates.md`, section datée du même jour. Trois demandes :
+
+- Une section **Horaires** dédiée, à la place des horaires dans le footer (ajoutés la session précédente sans être gardés par le module `horaires` — incohérence corrigée au passage : le module `horaires` gate explicitement l'affichage public d'après son `module.meta.json`, pas seulement l'onglet admin).
+- Une section **Photos + description de l'établissement**, juste sous le hero — nouveau hook `useEstablishmentImages.ts` consommant un endpoint déjà public mais jusque-là seulement utilisé côté admin.
+- Un **fond alterné** d'une section à l'autre, et **plus de largeur** partout (`max-w-3xl` → `max-w-5xl`, aligné sur Helios).
+
+Réalisé en restructurant Hestia en **bandes pleine largeur** (composant interne `Band`), chaque section visible alternant `palette.background`/blanc — calculé dynamiquement selon ce qui s'affiche réellement (pas de créneaux fixes). Le hero et le bloc modules restent volontairement sur `palette.background` fixe (les modules ont déjà leurs propres cartes blanches, sans contraste possible sur une bande blanche). Sur les cas où une carte se retrouve sur une bande déjà blanche (offres), l'ombre est remplacée par une bordure légère pour rester visible.
+
+Testé : `tsc -b` propre ; rendu vérifié par capture d'écran sur le tenant historique (photos réelles, horaires configurés — bandes alternées, section Établissement et Horaires bien en place, carte d'offre bordée sur bande blanche) et sur "Boulangerie Dupont" (aucune de ces sections n'a de contenu — toutes masquées proprement) ; footer partagé avec Helios vérifié sans horaires (Helios non retouché ce chantier, comme demandé).
+
+**Aléa de session, sans gravité** : entre deux tours de conversation, le tenant historique s'est retrouvé sur la palette Argile au lieu d'Olivier — très probablement Ethan testant lui-même le sélecteur (recommandé en fin de session précédente), pas une régression du code. Choix laissé tel quel, pas de retour en arrière dessus (même principe déjà appliqué à plusieurs reprises dans ce fichier quand Ethan teste en direct).
+
+**Deux ajustements demandés juste après, même session** : lien "Administration" retiré du footer partagé (site public ne renvoie plus vers `/admin`) ; slider horizontal (scroll-snap CSS natif, sans librairie) pour la section Photos au-delà de 3 images, grille statique conservée en dessous de ce seuil. Détail dans `docs/10-templates.md`.
+
+## Maquette Claude Design portée sur Hestia — 2026-07-28 (même jour)
+
+Ethan a fait faire une maquette d'Hestia via Claude Design (`claude.ai/design`) et a demandé de la porter dans le vrai code — lue via l'outil `DesignSync` (lecture seule, pas d'écriture dans le projet de maquette). Détail complet dans `docs/10-templates.md`. Deux points tranchés avant de coder (`AskUserQuestion`) : ajout de Google Fonts (Poppins + JetBrains Mono, première police externe réellement chargée dans le projet, scopée à Hestia via injection dynamique — jamais dans `index.html`) ; cartes Blog allégées (titre + date seulement, pas d'extension du modèle de données).
+
+Principaux changements : nouvelle frise en blocs pleins (`MeanderDivider`, remplace le filet SVG) ; titre du hero agrandi ; galerie/horaires/offres restylées (cartes à bordure, flèches de slider blanches) ; footer Hestia en fond sombre (`SiteFooter` gagne une prop `dark`, Helios inchangé) ; petites retouches partagées avec Helios sur les modules (labels de formulaire, badge de stock en pilule, libellé Maps, cartes Blog avec date).
+
+Testé : `tsc -b` propre ; rendu vérifié sur les deux tenants et re-vérifié sur Helios (aucune régression, pas de fond sombre ni de police Poppins forcés en dehors d'Hestia).
+
 ---
 
 **Note pour toi (Ethan)** : donne ce fichier à Claude Code phase par phase (« on attaque la Phase 2, voici le contexte : [colle le contenu de 02-architecture-modules.md et 03-modele-donnees.md] »). Ne lui donne pas tout le projet d'un coup, ça évite qu'il brûle des étapes ou fasse des suppositions sur les phases suivantes.

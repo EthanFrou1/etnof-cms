@@ -16,11 +16,12 @@ Chaque client doit pouvoir choisir parmi plusieurs mises en page pour son site, 
 frontend/src/templates/
   types.ts              <- TemplateProps (clientSiteId, modules, content) — contrat commun
   registry.ts            <- liste des templates disponibles (id, label, description), utilisée par les 2 pages admin
+  SiteFooter.tsx          <- footer partagé (infos établissement, horaires), utilisé par les 2 templates
   TemplateHestia.tsx     <- navbar pilule, hero centré, sections empilées (id "hestia", ex-"Classique")
-  TemplateModerne.tsx    <- bandeau plein cadre en dégradé, offre mise en avant en carte CTA
+  TemplateHelios.tsx     <- navbar pleine largeur, hero plein cadre en dégradé, offre en carte CTA (id "helios", ex-"Moderne")
 ```
 
-Convention de nommage (à partir du 2026-07-27) : chaque template porte un nom de la mythologie grecque, choisi pour son sens (pas juste un mot joli) — même logique que les grands CMS (Shopify : Dawn, Sense, Craft ; Squarespace : Bedford, Wells ; Ghost : Casper, Alto), qui découplent le nom du template de sa description technique. `Hestia` (déesse du foyer et de l'hospitalité) a été choisi pour l'ex-"Classique" en cohérence avec son ambiance chaleureuse/accueillante. `Moderne` reste à renommer (prochaine session).
+Convention de nommage (à partir du 2026-07-27) : chaque template porte un nom de la mythologie grecque, choisi pour son sens (pas juste un mot joli) — même logique que les grands CMS (Shopify : Dawn, Sense, Craft ; Squarespace : Bedford, Wells ; Ghost : Casper, Alto), qui découplent le nom du template de sa description technique. `Hestia` (déesse du foyer et de l'hospitalité) a été choisi pour l'ex-"Classique" en cohérence avec son ambiance chaleureuse/accueillante ; `Helios` (dieu du soleil) pour l'ex-"Moderne", cohérent avec son ton affirmé/dynamique.
 
 Un template est un composant "bête" (présentation uniquement) : il reçoit `modules`/`content` déjà chargés par l'orchestrateur (`frontend/src/pages/PublicSite.tsx`), il ne fait pas ses propres appels réseau pour ces données-là. Il importe et affiche les blocs de modules existants (`ContactSection`, `MapsSection`, `BlogSection`) sans les modifier — un template ne réécrit jamais la logique d'un module, seulement leur agencement.
 
@@ -89,12 +90,76 @@ Testé : `tsc -b` propre ; rendu de la grille de cards vérifié par capture d'�
 
 **Reste à faire** : Ethan remplacera les 4 images placeholder par ses propres captures quand il le souhaite (aucune contrainte de format autre que fonctionner en `object-cover` 16:10).
 
-## Prochaine étape (à partir du 2026-07-28) : améliorer les templates en profondeur
+## Palette appliquée aux modules, Helios (ex-"Moderne"), footer — 2026-07-28
 
-Trois chantiers demandés par Ethan, distincts de la reprise nom/palette déjà faite pour Hestia :
+Les trois chantiers annoncés dans la section précédente ont été réalisés dans cet ordre (différent de l'ordre demandé par Ethan, pour ne redessiner Helios qu'une seule fois avec le mécanisme palette→modules déjà en place) :
 
-1. **Renommer/redessiner "Moderne"**, avec ses 3 palettes — même exercice que Hestia (nom de la mythologie grecque cohérent avec son ton plus affirmé/dynamique, 2-3 pistes de palette à proposer, mise en page à retravailler). Le mécanisme (backend `KnownPalettesByTemplate`, cards admin) existe déjà, seul `registry.ts` (+ `previewImage` par palette) est à remplir pour "moderne".
+### 1. Palette appliquée aux modules
 
-2. **Footer avec les infos établissement**, sur les deux templates. Aucun footer réel aujourd'hui (juste un lien "Administration"). `SiteContent` porte déjà `establishmentName`/`address`/`phone`/`email`/`openingHours` mais rien n'est encore lu par les templates publics — un footer est l'endroit naturel pour ça (voir aussi la limite "affichage public non câblé" déjà notée dans `docs/05-roadmap-poc.md` à plusieurs reprises).
+Remise en cause assumée de la règle historique ("un template ne réécrit jamais le style d'un module") : le site public d'un client doit être cohérent avec **sa** palette, pas avec la charte etnof-web — cette dernière reste réservée à l'admin.
 
-3. **La palette du template doit s'appliquer à tout le site, y compris les modules** — remise en cause explicite par Ethan de la règle posée plus haut dans ce fichier ("un template ne réécrit jamais le style d'un module"). Aujourd'hui `ContactSection`/`MapsSection`/`BlogSection`/`CatalogueSection` sont stylés en dur avec la palette etnof-web partagée (`bg-brand-gradient`, `text-green-accent`...), ce qui fait que le site public d'un client mélange sa propre identité (template + palette) avec celle de l'agence. **Principe donné par Ethan** : le site public doit être cohérent en lui-même et n'a aucune raison de ressembler au site etnof-web — cette marque/palette reste réservée à l'admin. Implique un changement d'architecture : les modules devront recevoir la palette active en props (a minima `accent`/`background`, mêmes clés que `PaletteDef` dans `registry.ts`) au lieu de tokens Tailwind globaux, à concevoir avant de coder (forme exacte de la palette côté module, compatibilité avec "Moderne" une fois qu'il aura ses propres palettes).
+- Chaque module (`ContactSection`, `MapsSection`, `BlogSection`, `CatalogueSection` + `CartDrawer`) reçoit désormais une prop `palette: { accent: string; background: string; ink: string }`. `accent`/`background` viennent de la `PaletteDef` active ; `ink` (couleur de texte fort) est une constante propre à chaque template, hors `PaletteDef` (ne varie pas avec la palette, cf. `ink` déjà utilisé dans `TemplateHestia.tsx`).
+- **Aucun type partagé importé** entre `frontend/src/templates/` et `/modules/` : chaque module redéclare localement cette forme (`ModulePalette`), pour rester isolé au sens de `docs/02-architecture-modules.md` — même logique que `apiBaseUrl`/`clientSiteId`, déjà redéclarés partout plutôt qu'importés.
+- Remplacements mécaniques dans les 5 fichiers : `text-green-accent`/prix/labels overline → `color: palette.accent` ; `bg-brand-gradient` (boutons primaires) → `backgroundColor: palette.accent` (couleur pleine, pas de dégradé) ; `text-navy`/`bg-navy` → `palette.ink` ; `bg-bg-page-start` (fonds décoratifs : placeholder Maps, vignette produit sans photo) → `palette.background`. Restent neutres (non identitaires) : `text-gray-text`, `border-border-subtle`, `text-red-500` (erreurs), les radius/shadow, les cartes `bg-white`.
+- `TemplateHestia.tsx`/`TemplateHelios.tsx` construisent `{ accent, background, ink }` une fois et le passent à chaque bloc de module affiché.
+
+### 2. "Moderne" renommé "Helios" (dieu du soleil), 3 palettes, mise en page retravaillée
+
+Nom choisi par Ethan parmi 3 pistes proposées (Helios, Iris, Prométhée) — cohérent avec le ton affirmé/dynamique du template (bandeau plein cadre en dégradé). Même mécanique que pour Hestia :
+
+- Backend : `KnownTemplateIds` (`"moderne"` → `"helios"`), `KnownPalettesByTemplate["helios"] = ["zenith", "aurore", "couchant"]`.
+- Frontend : `TemplateModerne.tsx` → `TemplateHelios.tsx`, `useTemplate.ts`, `PublicSite.tsx`, `registry.ts`.
+- **3 palettes solaires** : Zénith (défaut, ambre `#F59E0B` → rouge-orangé `#DC2626`, fond `#FFFBF0`), Aurore (corail `#FB7185` → ambre `#F59E0B`, fond `#FFF7F5`), Couchant (violet crépuscule `#7C3AED` → orange `#F97316`, fond `#FBF7FF`). `ink` fixe : `#1A1512`.
+- **`PaletteDef` gagne un champ optionnel `gradientEnd`** — sert uniquement à la bannière hero en dégradé d'Helios (signature du template), pas utilisé par les modules (contrat minimal `accent`/`background`/`ink`). Hestia n'en définit pas.
+- **Mise en page retravaillée**, pas juste recolorée : navbar pleine largeur fond `ink` (texte blanc, contraste avec la pilule blanche d'Hestia) ; hero plein cadre en dégradé diagonal (`accent` → `gradientEnd`) ; **signature visuelle propre** : motif de rayons de soleil en frise (`SunRayDivider`, même technique SVG en data URI tuilé qu'Hestia) ; carte CTA "Offre du moment" qui chevauche le bas du hero (marge négative + ombre portée), plutôt que collée en dessous comme avant.
+- Aucun tenant n'était sur `"moderne"` en base au moment du renommage (le tenant historique était déjà passé sur Hestia lors d'un test d'Ethan en session précédente) — pas de migration de données nécessaire.
+
+### 3. Footer avec infos établissement
+
+Nouveau composant partagé `frontend/src/templates/SiteFooter.tsx` (structure commune aux deux templates, couleurs via la même prop `palette` que les modules), remplace le lien "Administration" isolé qui faisait office de footer. Affiche `establishmentName`/`address`/`phone`/`email` et un résumé jour par jour des `openingHours` (mêmes libellés que `WEEKDAYS` dans `EstablishmentSection.tsx`, dupliqués localement) — tout est optionnel, n'affiche que ce qui est renseigné. Garde le lien "Administration" en bas.
+
+**Testé** : `dotnet build`/`tsc -b` propres ; cycle `PUT`/`GET` `/api/t/{id}/admin/template` avec `helios` + ses 3 palettes (dont rejet 400 d'une palette invalide) ; rendu vérifié par capture d'écran (Chrome headless CDP, contournement de l'écran de login admin par injection `sessionStorage`) — hero dégradé + frise + carte CTA chevauchante sur Helios (3 palettes), modules (Contact, Catalogue) recolorés sans plus aucune couleur etnof-web sur Hestia **et** Helios, footer avec établissement + horaires jour par jour affiché sur les deux templates, sélecteur admin (`/admin/{id}/site`) affichant la card "Helios" avec ses 3 pastilles (repli gradient + initiale "H" en l'absence d'image, comme prévu). Les deux tenants de test restaurés à leur état d'avant-test (Boulangerie Dupont → Hestia/Argile, tenant historique → Hestia/Olivier) à la fin de session.
+
+**Images de preview Helios** (`helios-zenith.png`, `helios-aurore.png`, `helios-couchant.png` dans `frontend/public/template-previews/`) générées après coup (même session) : captures du rendu réel (Chrome headless `--screenshot`, 1368×897 comme les previews Hestia existantes) sur le tenant "Boulangerie Dupont", basculé temporairement sur chacune des 3 palettes Helios puis restauré sur Hestia/Argile. `moderne.png` (obsolète, plus référencé par `registry.ts`) supprimé. **À remplacer par Ethan** par ses propres captures du résultat final quand il le souhaite, même logique que les autres previews (`docs/11-images-modules.md`).
+
+## Contenu Hestia : sections Établissement/Horaires, mise en page en bandes alternées — 2026-07-28 (même jour)
+
+Après avoir aligné le style, Ethan attaque le **contenu** affiché sur le site public, un template à la fois — Hestia en premier (`docs/05-roadmap-poc.md` pour le détail complet, section datée du 2026-07-28).
+
+- **Mise en page en bandes** : Hestia n'est plus une colonne centrée (`max-w-3xl`) de cartes blanches flottantes sur un fond uni — chaque section est désormais une **bande pleine largeur** avec son propre fond (`Band`, composant interne à `TemplateHestia.tsx`), contenant un conteneur centré `max-w-5xl` (élargi depuis `max-w-3xl`, aligné sur Helios). Le fond alterne entre `palette.background` et blanc, calculé dynamiquement selon les sections réellement affichées (pas de créneaux fixes — une section masquée ne casse pas le rythme). Le hero et le bloc modules gardent volontairement `palette.background` fixe (pas dans l'alternance) : les modules affichent déjà leurs propres cartes blanches, qui perdraient tout contraste sur une bande blanche.
+- **Section "Établissement"** (nouvelle, juste sous le hero) : la description du site (`content.description`, auparavant affichée dans le hero) + une grille de photos (`useEstablishmentImages.ts`, nouveau hook, lit `GET /api/t/{clientSiteId}/establishment/images` — déjà public, déjà utilisé côté admin, jamais consommé côté site public jusqu'ici). Masquée si ni description ni photo.
+- **Section "Horaires"** (nouvelle) : résumé jour par jour (logique déplacée depuis `SiteFooter.tsx`), visible seulement si le module `horaires` est actif pour le tenant (`modules?.horaires?.enabled` — ce module gate explicitement l'affichage public d'après son `module.meta.json`, pas seulement l'onglet admin) **et** qu'au moins un jour a une vraie plage renseignée (les 7 jours existent toujours par défaut à l'état "fermé", ce n'est pas un signal suffisant).
+- **Footer** (`SiteFooter.tsx`) : perd le bloc horaires (partait sur un oubli de la session précédente — il n'était pas gardé par le module `horaires`, incohérent avec le système d'autorisation à deux niveaux). Ne garde plus que nom/adresse/téléphone/email + lien Administration.
+- **Cartes sur bande blanche** : les cartes d'offres, normalement `bg-white shadow-card`, perdent tout contraste sur une bande déjà blanche — sur ce cas précis, elles passent à une bordure légère (`border-border-subtle`) au lieu de l'ombre. Les photos et les cartes de modules n'ont pas ce problème (photo = contenu visuel propre, modules restent sur une bande `palette.background` fixe).
+- **Helios non touché** dans ce chantier (demande explicite d'Ethan de traiter un template à la fois) — mais partage `SiteFooter.tsx`, donc perd aussi l'affichage des horaires en footer (pas de section dédiée sur Helios pour l'instant).
+
+Testé : `tsc -b` propre ; rendu vérifié par capture d'écran sur le tenant historique (3 photos réelles, horaires configurés, Catalogue + Contact actifs — bandes alternées visibles, section Établissement et Horaires bien positionnées, carte d'offre avec bordure sur bande blanche) et sur "Boulangerie Dupont" (ni photo, ni horaires, ni offre — sections absentes proprement, juste Hero → Contact → Footer) ; vérification que le footer partagé fonctionne toujours sans horaires sur Helios.
+
+**Deux ajustements demandés par Ethan juste après, même session** :
+- **Lien "Administration" retiré** du footer partagé (`SiteFooter.tsx`) — le site public ne renvoie plus vers `/admin`. La prop `clientSiteId`, devenue inutile pour ce composant, a été retirée (`SiteFooter` ne prend plus que `content`/`palette`).
+- **Slider photos au-delà de 3** : la grille de la section Établissement (`grid-cols-2 sm:grid-cols-3`) reste telle quelle jusqu'à 3 photos ; au-delà, `PhotoSlider` (nouveau, dans `TemplateHestia.tsx`) prend le relais — défilement horizontal en scroll-snap CSS natif (pas de librairie externe), boutons précédent/suivant en couleur d'accent (`track.scrollBy`, largeur d'une vignette + gap). `PhotoTile` factorise le rendu d'une vignette (grille et slider partagent le même style de cadre).
+
+Testé : `tsc -b` propre ; footer sans lien Administration vérifié par capture d'écran ; slider testé en uploadant temporairement une 4e photo de test sur le tenant historique (CDP, clic simulé sur le bouton "suivant" → défilement confirmé), photo de test supprimée après coup (le tenant reste à ses 3 vraies photos).
+
+## Maquette Claude Design portée sur Hestia — 2026-07-28 (même jour)
+
+Ethan a fait faire une maquette du rendu d'Hestia via **Claude Design** (`claude.ai/design`, projet "Hestia – Starter-kit vitrine", fichier `Hestia.dc.html`), lue avec l'outil `DesignSync` (`get_project`/`list_files`/`get_file` — pas d'écriture, lecture seule pour ce chantier). Reprend la même structure déjà codée (mêmes sections, mêmes données) mais affine le visuel. Portée dans le vrai code (React/Tailwind/palette), pas de dépendance au format `.dc.html` de l'outil.
+
+**Deux points tranchés avec Ethan avant de coder** (via `AskUserQuestion`) :
+- **Google Fonts** (Poppins 400–900 + JetBrains Mono 400/500) ajoutées — première police externe réellement chargée dans le projet (`tailwind.config.js` référençait déjà "InterVariable" mais elle n'était chargée nulle part, donc c'était en réalité toujours la police système). Chargée dynamiquement par un `useEffect` dans `TemplateHestia.tsx` (`<link>` ajouté à `document.head` au montage, retiré au démontage) — **jamais** dans `index.html`, pour ne pas la charger sur l'admin ni sur Helios. `fontFamily: Poppins` posé en style inline sur le wrapper racine d'Hestia : cascade naturellement vers les blocs de modules (Contact/Catalogue/Blog/Maps) sans avoir à les toucher pour la police elle-même.
+- **Cartes Blog** : gardent seulement titre + date (`BlogPostSummary` n'a pas de champ extrait/photo) — pas d'extension du modèle de données Blog dans ce chantier.
+
+**Non porté volontairement** (artefacts de l'outil de maquette, pas des choix de design) : le cadre "device switcher" et le fond autour du site (chrome de prévisualisation de Claude Design) ; le bouton hamburger mobile (aucun menu réel défini dans la maquette elle-même — juste une icône statique) ; les rayures diagonales en placeholder d'image et leurs étiquettes texte (remplacent de vraies photos absentes dans l'outil — on a déjà de vraies photos et un vrai embed Google Maps fonctionnel).
+
+**Changements dans `TemplateHestia.tsx`** :
+- `GreekKeyDivider` (filet SVG) remplacé par `MeanderDivider` : blocs pleins en accent découpés en créneau (`clip-path`), alternés en miroir, 24 blocs en largeur flexible (remplit toujours le conteneur, plus simple que le recalcul par device de la maquette).
+- Titre du hero agrandi (`text-[40px] sm:text-[84px]`).
+- Galerie : vignettes agrandies, flèches du slider passées de "fond accent plein" à "fond blanc + bordure + `shadow-soft`".
+- Horaires : chaque jour devient une carte blanche (au lieu d'une simple ligne de texte).
+- Offres : cartes toujours à bordure légère (fin de la logique conditionnelle bordure/ombre selon le fond de bande — simplifie le code au passage) ; badge de prix en pilule complète.
+- Overlines propres à Hestia (Bienvenue/Établissement/Horaires/Offres) : `tracking-[0.1em]` → `tracking-[0.22em]`. Les overlines internes aux modules (Contact/Catalogue/Blog/Maps) ne sont **pas** touchées, pour ne pas propager un choix typographique Hestia à Helios.
+- Footer : nouvelle variante fond sombre (`SiteFooter` gagne une prop optionnelle `dark`, défaut `false`) — Hestia passe `dark` (fond `palette.ink`, texte clair, pleine largeur, gère désormais sa propre largeur au lieu d'être enveloppé par le gabarit), Helios ne passe rien (comportement inchangé).
+
+**Retouches partagées avec Helios** (fichiers de modules, additives/cosmétiques, déjà pilotées par `palette` donc cohérentes sur les deux templates) : `ContactSection.tsx` (label visible au-dessus de chaque champ, en plus du placeholder) ; `CatalogueSection.tsx` (statut de stock : texte simple → badge pilule à fond teinté, garde la vraie logique de comptage) ; `MapsSection.tsx` (libellé "Maps" → "Où nous trouver", + ajout d'un même libellé au-dessus de la carte quand elle est fonctionnelle — il n'y en avait aucun avant) ; `BlogSection.tsx` (carte avec date en police mono au-dessus du titre, au lieu du titre seul).
+
+Testé : `tsc -b` propre ; rendu vérifié par capture d'écran sur le tenant historique (police Poppins visible, nouvelle frise, cartes Horaires/Offres restylées, footer sombre) et "Boulangerie Dupont" (contenu minimal, rien de cassé) ; slider revérifié après le redimensionnement des vignettes (upload/suppression d'une photo de test, comme précédemment) ; Helios revérifié sur "Boulangerie Dupont" (bascule temporaire) — footer toujours clair (pas de fond sombre forcé), formulaire de contact et police système inchangés (Google Fonts non chargées hors Hestia).

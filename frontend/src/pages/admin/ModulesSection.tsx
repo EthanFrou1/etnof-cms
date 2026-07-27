@@ -35,7 +35,7 @@ type ModuleField = { key: string; label: string; placeholder?: string };
 // pour qu'un nouveau champ apparaisse sur la card ET soit inclus dans l'enregistrement groupé.
 const MODULE_FIELDS: Record<string, ModuleField[]> = {
   // "address" a déménagé sur la page Établissement (partagée entre modules) — Maps lit
-  // désormais content.address, voir TemplateHestia.tsx/TemplateModerne.tsx.
+  // désormais content.address, voir TemplateHestia.tsx/TemplateHelios.tsx.
   maps: [{ key: "apiKey", label: "Clé Google Maps API", placeholder: "AIza…" }],
 };
 

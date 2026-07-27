@@ -1,10 +1,51 @@
-# Reprise de session — dernière mise à jour 2026-07-27 (fin de journée)
+# Reprise de session — dernière mise à jour 2026-07-28
 
-Ce fichier résume où on en est pour reprendre rapidement. Le détail complet (technique, tests effectués, bugs rencontrés) est dans `docs/05-roadmap-poc.md`, section par section datée du 2026-07-27 — ce fichier-ci n'en est qu'un résumé de reprise.
+Ce fichier résume où on en est pour reprendre rapidement. Le détail complet (technique, tests effectués, bugs rencontrés) est dans `docs/05-roadmap-poc.md` et `docs/10-templates.md`, sections datées du 2026-07-27 et 2026-07-28 — ce fichier-ci n'en est qu'un résumé de reprise.
 
 ## Commits
 
-Tout ce qui est décrit dans ce fichier avant la section "Aujourd'hui" est commité (`96338c2 Refonte de l'admin : Établissement en onglets, module Horaires, page Offres, fusion Site internet`). Le travail du jour ci-dessous (renommage "Classique" → "Hestia" + 3 palettes) **n'est pas encore commité** — `git status` avant de continuer.
+Tout ce qui est décrit dans ce fichier avant la section "2026-07-28" est commité (`a70f7d4 Note le prochain chantier templates : Moderne, footer établissement, palette appliquée aux modules`). Tout le travail du 2026-07-28 décrit plus bas (palette sur les modules, "Moderne" → "Helios", footer établissement, contenu Hestia, maquette Claude Design) **n'est pas encore commité** — `git status` avant de continuer.
+
+## 2026-07-28 (suite) : maquette Claude Design portée sur Hestia
+
+Ethan a fait faire une maquette d'Hestia via Claude Design (`claude.ai/design`) et a demandé de la porter dans le vrai code — lue via l'outil `DesignSync` (lecture seule). Détail complet dans `docs/10-templates.md`.
+
+- **Google Fonts ajoutées** (Poppins + JetBrains Mono) — première police externe réellement chargée dans le projet, scopée à Hestia uniquement (injection dynamique dans `TemplateHestia.tsx`, jamais dans `index.html` — n'affecte ni l'admin ni Helios).
+- Nouvelle frise en blocs pleins (`MeanderDivider`), titre du hero agrandi, galerie/horaires/offres restylées (cartes à bordure, flèches de slider blanches), overlines propres à Hestia avec un tracking plus large.
+- **Footer Hestia en fond sombre** (`SiteFooter` gagne une prop `dark` optionnelle, Helios ne la passe pas — comportement inchangé pour lui).
+- Petites retouches partagées avec Helios sur les modules (labels de formulaire Contact, badge de stock Catalogue en pilule, libellé Maps → "Où nous trouver", cartes Blog avec date) — additives, pilotées par `palette`, sans risque pour Helios.
+- Cartes Blog gardent volontairement titre + date seulement (pas d'extrait/photo — le modèle de données Blog n'a pas ces champs, pas étendu dans ce chantier).
+
+Testé : `tsc -b` propre ; rendu vérifié sur les deux tenants ; Helios revérifié après coup (pas de régression, pas de police/fond sombre qui aurait fuité en dehors d'Hestia).
+
+## 2026-07-28 (suite) : contenu Hestia — sections Établissement/Horaires, bandes alternées, lien admin retiré, slider photos
+
+Une fois le style aligné (section précédente), Ethan attaque le **contenu** affiché publiquement, un template à la fois — Hestia d'abord. Détail complet dans `docs/10-templates.md` et `docs/05-roadmap-poc.md`, section datée du même jour.
+
+- Hestia restructuré en **bandes pleine largeur** (fond qui alterne `palette.background`/blanc selon les sections réellement affichées), conteneur élargi `max-w-3xl` → `max-w-5xl`.
+- Nouvelle **section Établissement** sous le hero : description du site + photos (`useEstablishmentImages.ts`, nouveau hook, lit un endpoint déjà public mais jusque-là seulement utilisé côté admin).
+- Nouvelle **section Horaires**, à la place des horaires dans le footer — gardée par le module `horaires` (oubli corrigé : ce module gate explicitement l'affichage public d'après son `module.meta.json`, pas seulement l'onglet admin).
+- **Lien "Administration" retiré** du footer (demande d'Ethan juste après) — le site public ne renvoie plus vers `/admin`.
+- **Slider photos** au-delà de 3 images (scroll-snap CSS natif, pas de librairie ajoutée) — grille statique conservée en dessous de ce seuil.
+- **Helios non touché** ce chantier (un template à la fois, demande explicite d'Ethan) — hérite quand même du retrait du lien admin et de la suppression des horaires en footer, puisque `SiteFooter.tsx` est partagé.
+
+Testé : `tsc -b` propre à chaque étape ; rendu vérifié par capture d'écran sur le tenant historique (bandes alternées, photos, horaires, offre bordée sur bande blanche) et "Boulangerie Dupont" (sections vides masquées proprement) ; slider vérifié en uploadant temporairement une 4e photo de test (CDP, clic simulé sur "suivant"), supprimée après coup.
+
+## 2026-07-28 : palette appliquée aux modules, "Moderne" renommé "Helios", footer établissement
+
+Les trois chantiers annoncés en fin de session précédente (section suivante, conservée telle quelle ci-dessous pour l'historique) ont été réalisés. Résumé — détail complet dans `docs/10-templates.md` (section "Palette appliquée aux modules, Helios (ex-\"Moderne\"), footer — 2026-07-28") et `docs/05-roadmap-poc.md` :
+
+- **Palette sur les modules** : `ContactSection`, `MapsSection`, `BlogSection`, `CatalogueSection`, `CartDrawer` reçoivent désormais une prop `palette: { accent, background, ink }` au lieu de la charte etnof-web codée en dur. Plus aucune couleur verte/bleu-vert etnof-web visible sur le site public.
+- **"Moderne" → "Helios"** (dieu du soleil, choisi par Ethan parmi 3 pistes) : renommage complet (backend + frontend), 3 palettes (Zénith défaut, Aurore, Couchant), mise en page retravaillée (hero en dégradé diagonal, frise "rayons de soleil", carte CTA "Offre du moment" qui chevauche le hero).
+- **Footer établissement** : composant partagé `SiteFooter.tsx` (nom, adresse, téléphone, email, horaires jour par jour) sur les deux templates, remplace le simple lien "Administration".
+
+Testé : `dotnet build`/`tsc -b` propres ; cycle `PUT`/`GET` template+palette vérifié par curl (dont rejet 400) ; rendu vérifié par capture d'écran (CDP, contournement de l'écran de login) sur les 2 tenants et les 3 palettes Helios ; sélecteur admin vérifié (card "Helios" + 3 pastilles). Les deux tenants de test restaurés à leur état d'avant-test (Boulangerie Dupont → Hestia/Argile, tenant historique → Hestia/Olivier).
+
+Images de preview Helios (`frontend/public/template-previews/helios-*.png`) générées dans la foulée par capture d'écran (Chrome headless, tenant "Boulangerie Dupont" basculé temporairement puis restauré) — `moderne.png` obsolète supprimé.
+
+**Aléa de session** : après cette série de captures, le tenant historique s'est retrouvé sur `helios`/`couchant` alors qu'il n'avait pas été retouché dans cette série de commandes (seul "Boulangerie Dupont" l'avait été) — cause non identifiée avec certitude. Repéré par une relecture systématique de l'état de la base après coup (bon réflexe à garder), et re-corrigé vers `hestia`/`olivier` (son état réel voulu par Ethan). À garder en tête : toujours revérifier l'état des tenants de test par une requête SQL directe après une série de bascules, pas seulement se fier au dernier `curl` de restauration envoyé.
+
+**Reste à faire** : QA visuelle par Ethan dans le navigateur recommandée, comme pour Hestia — placeholders à remplacer par de vraies captures du résultat final quand il le souhaite.
 
 ## Aujourd'hui (2026-07-27, après-midi) : premier template renommé — "Classique" devient "Hestia" — puis 3 palettes par template
 
@@ -54,9 +95,9 @@ Testé (CDP) sur les deux configurations (Catalogue actif / inactif) : rendu pro
 - [ ] **Reporté des sessions précédentes, toujours vrai** : icône Horaires pas encore recompressée, poids des images de cards Modules (~1,2 Mo chacune), affichage public non câblé (email/horaires/photos/offre-produit sur les templates), vrais tarifs des modules à valider.
 - [ ] Données de démo sur le tenant historique (produit, commande annulée, client) — toujours là intentionnellement.
 
-## Prochaine étape demandée par Ethan : améliorer les templates (Moderne + Hestia)
+## Chantiers demandés par Ethan le 2026-07-27 — réalisés le 2026-07-28 (voir section ci-dessus)
 
-Trois chantiers distincts, tous sur les templates publics (`frontend/src/templates/`) :
+Conservé tel quel pour l'historique de la demande initiale. Trois chantiers distincts, tous sur les templates publics (`frontend/src/templates/`) :
 
 1. **Renommer/redessiner "Moderne"** (avec ses 3 palettes) — même exercice que pour Hestia : un nom de la mythologie grecque cohérent avec le ton plus affirmé/dynamique de ce template (bandeau plein cadre en dégradé, offre mise en avant en carte CTA) — ex. une figure associée à la lumière, la force ou le mouvement, à proposer avec 2-3 pistes de palette comme fait pour Hestia — puis retravailler la mise en page. Le mécanisme de sélection (backend + admin + cards) existe déjà, seuls `TemplateEndpoints.KnownPalettesByTemplate["moderne"]` et `registry.ts` (avec une `previewImage` par palette) sont à remplir.
 

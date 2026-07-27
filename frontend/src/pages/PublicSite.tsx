@@ -2,7 +2,7 @@ import { useModules } from "../hooks/useModules";
 import { useContent } from "../hooks/useContent";
 import { useTemplate } from "../hooks/useTemplate";
 import TemplateHestia from "../templates/TemplateHestia";
-import TemplateModerne from "../templates/TemplateModerne";
+import TemplateHelios from "../templates/TemplateHelios";
 
 type PublicSiteProps = {
   clientSiteId: string;
@@ -17,5 +17,5 @@ export default function PublicSite({ clientSiteId }: PublicSiteProps) {
 
   const props = { clientSiteId, modules, content, paletteId };
 
-  return templateId === "moderne" ? <TemplateModerne {...props} /> : <TemplateHestia {...props} />;
+  return templateId === "helios" ? <TemplateHelios {...props} /> : <TemplateHestia {...props} />;
 }

@@ -16,15 +16,20 @@ type Product = {
   images: ProductImage[];
 };
 
+// Voir docs/10-templates.md : un module reste isolé, redéclare localement la forme de la palette
+// du template actif plutôt que d'importer PaletteDef.
+type ModulePalette = { accent: string; background: string; ink: string };
+
 type CatalogueSectionProps = {
   apiBaseUrl: string;
   clientSiteId: string;
+  palette: ModulePalette;
 };
 
 const formatPrice = (value: number) =>
   value.toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
 
-function ProductCard({ apiBaseUrl, product }: { apiBaseUrl: string; product: Product }) {
+function ProductCard({ apiBaseUrl, product, palette }: { apiBaseUrl: string; product: Product; palette: ModulePalette }) {
   const { addItem } = useCart();
   const [quantity, setQuantity] = useState(1);
   const inStock = product.stock > 0;
@@ -32,7 +37,7 @@ function ProductCard({ apiBaseUrl, product }: { apiBaseUrl: string; product: Pro
 
   return (
     <div className="flex flex-col overflow-hidden rounded-card bg-white shadow-card">
-      <div className="aspect-square bg-bg-page-start">
+      <div className="aspect-square" style={{ backgroundColor: palette.background }}>
         {thumbnail ? (
           <img
             src={`${apiBaseUrl}${thumbnail.path}`}
@@ -47,15 +52,20 @@ function ProductCard({ apiBaseUrl, product }: { apiBaseUrl: string; product: Pro
       </div>
       <div className="flex flex-1 flex-col gap-2 p-5">
         <div className="flex items-baseline justify-between gap-2">
-          <span className="font-bold text-navy">{product.name}</span>
-          <span className="whitespace-nowrap font-semibold text-green-accent">
+          <span className="font-bold" style={{ color: palette.ink }}>
+            {product.name}
+          </span>
+          <span className="whitespace-nowrap font-semibold" style={{ color: palette.accent }}>
             {formatPrice(product.price)}
           </span>
         </div>
         {product.description && (
           <p className="flex-1 text-sm leading-relaxed text-gray-text">{product.description}</p>
         )}
-        <span className={`text-xs font-semibold ${inStock ? "text-green-accent" : "text-red-500"}`}>
+        <span
+          className={`w-fit rounded-pill px-2.5 py-1 text-xs font-semibold ${inStock ? "" : "bg-black/5 text-red-500"}`}
+          style={inStock ? { backgroundColor: `${palette.accent}24`, color: palette.accent } : undefined}
+        >
           {inStock ? `En stock (${product.stock})` : "Rupture de stock"}
         </span>
         <div className="flex items-center gap-2">
@@ -72,7 +82,8 @@ function ProductCard({ apiBaseUrl, product }: { apiBaseUrl: string; product: Pro
             type="button"
             disabled={!inStock}
             onClick={() => addItem(product.id, product.name, product.price, product.stock, quantity)}
-            className="flex-1 rounded-button bg-brand-gradient px-3 py-1.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40"
+            className="flex-1 rounded-button px-3 py-1.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40"
+            style={{ backgroundColor: palette.accent }}
           >
             Ajouter au panier
           </button>
@@ -82,7 +93,7 @@ function ProductCard({ apiBaseUrl, product }: { apiBaseUrl: string; product: Pro
   );
 }
 
-function CartButton({ apiBaseUrl, clientSiteId }: CatalogueSectionProps) {
+function CartButton({ apiBaseUrl, clientSiteId, palette }: CatalogueSectionProps) {
   const { itemCount } = useCart();
   const [open, setOpen] = useState(false);
 
@@ -91,16 +102,23 @@ function CartButton({ apiBaseUrl, clientSiteId }: CatalogueSectionProps) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="fixed bottom-6 right-6 z-40 flex items-center gap-2 rounded-pill bg-navy px-5 py-3 text-sm font-semibold text-white shadow-soft"
+        className="fixed bottom-6 right-6 z-40 flex items-center gap-2 rounded-pill px-5 py-3 text-sm font-semibold text-white shadow-soft"
+        style={{ backgroundColor: palette.ink }}
       >
         Panier {itemCount > 0 && `(${itemCount})`}
       </button>
-      <CartDrawer apiBaseUrl={apiBaseUrl} clientSiteId={clientSiteId} open={open} onClose={() => setOpen(false)} />
+      <CartDrawer
+        apiBaseUrl={apiBaseUrl}
+        clientSiteId={clientSiteId}
+        palette={palette}
+        open={open}
+        onClose={() => setOpen(false)}
+      />
     </>
   );
 }
 
-export default function CatalogueSection({ apiBaseUrl, clientSiteId }: CatalogueSectionProps) {
+export default function CatalogueSection({ apiBaseUrl, clientSiteId, palette }: CatalogueSectionProps) {
   const [products, setProducts] = useState<Product[]>([]);
 
   useEffect(() => {
@@ -115,16 +133,16 @@ export default function CatalogueSection({ apiBaseUrl, clientSiteId }: Catalogue
   return (
     <CartProvider clientSiteId={clientSiteId}>
       <section className="flex flex-col gap-4">
-        <span className="text-xs font-semibold uppercase tracking-[0.1em] text-green-accent">
+        <span className="text-xs font-semibold uppercase tracking-[0.1em]" style={{ color: palette.accent }}>
           Catalogue
         </span>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {products.map((product) => (
-            <ProductCard key={product.id} apiBaseUrl={apiBaseUrl} product={product} />
+            <ProductCard key={product.id} apiBaseUrl={apiBaseUrl} product={product} palette={palette} />
           ))}
         </div>
       </section>
-      <CartButton apiBaseUrl={apiBaseUrl} clientSiteId={clientSiteId} />
+      <CartButton apiBaseUrl={apiBaseUrl} clientSiteId={clientSiteId} palette={palette} />
     </CartProvider>
   );
 }
