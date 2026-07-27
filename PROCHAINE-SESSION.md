@@ -40,15 +40,13 @@ Dernière page pas encore reprise cette session. Les 4 tuiles de stats gardées,
 
 Testé (CDP) sur les deux configurations (Catalogue actif / inactif) : rendu propre dans les deux cas, pas d'espace vide. `tsc -b` propre.
 
-Testé (CDP) : Annuler ne supprime pas, Supprimer confirme bien. `tsc -b` propre.
-
 ## État du serveur (au moment d'écrire ce fichier)
 
 - Backend lancé par Claude Code sur le port 5052 — à relancer toi-même si tu as fermé le terminal (`cd backend && dotnet run`).
 - Frontend Vite lancé par Claude Code sur le port 5173 (`cd frontend && pnpm dev`).
 - Mot de passe agence **et** mot de passe du tenant historique (`11111111-1111-1111-1111-111111111111`) : `admin123`.
-- Tenant "Boulangerie Dupont" (`e5d113ff-a734-47e9-8aae-78dea8d6102a`) est sur le template Hestia — bon tenant pour aller regarder le rendu dans le navigateur (`http://localhost:5173/t/e5d113ff-a734-47e9-8aae-78dea8d6102a`).
-- Le tenant historique reste sur "Moderne" (pas encore retouché).
+- Tenant "Boulangerie Dupont" (`e5d113ff-a734-47e9-8aae-78dea8d6102a`) est sur Hestia/Argile — bon tenant pour aller regarder le rendu dans le navigateur (`http://localhost:5173/t/e5d113ff-a734-47e9-8aae-78dea8d6102a`).
+- Le tenant historique (`11111111-1111-1111-1111-111111111111`) est sur Hestia/Olivier (choix réel d'Ethan, testé en direct dans son navigateur).
 
 ## À vérifier / reste à faire
 
@@ -56,9 +54,17 @@ Testé (CDP) : Annuler ne supprime pas, Supprimer confirme bien. `tsc -b` propre
 - [ ] **Reporté des sessions précédentes, toujours vrai** : icône Horaires pas encore recompressée, poids des images de cards Modules (~1,2 Mo chacune), affichage public non câblé (email/horaires/photos/offre-produit sur les templates), vrais tarifs des modules à valider.
 - [ ] Données de démo sur le tenant historique (produit, commande annulée, client) — toujours là intentionnellement.
 
-## Prochaine étape demandée par Ethan : renommer/redessiner "Moderne" (avec ses 3 palettes)
+## Prochaine étape demandée par Ethan : améliorer les templates (Moderne + Hestia)
 
-Même exercice que pour Hestia, sur le second template ("Moderne" : bandeau plein cadre en dégradé, offre mise en avant en carte CTA) : un nom de la mythologie grecque cohérent avec le ton plus affirmé/dynamique de ce template (ex. une figure associée à la lumière, la force ou le mouvement — à proposer avec 2-3 pistes de palette, comme fait pour Hestia), la mise en page à retravailler, **et 3 palettes de couleurs** dès le départ (le mécanisme de sélection existe déjà côté backend/admin/cards, seuls `TemplateEndpoints.KnownPalettesByTemplate["moderne"]` et `registry.ts` — avec une `previewImage` par palette — sont à remplir).
+Trois chantiers distincts, tous sur les templates publics (`frontend/src/templates/`) :
+
+1. **Renommer/redessiner "Moderne"** (avec ses 3 palettes) — même exercice que pour Hestia : un nom de la mythologie grecque cohérent avec le ton plus affirmé/dynamique de ce template (bandeau plein cadre en dégradé, offre mise en avant en carte CTA) — ex. une figure associée à la lumière, la force ou le mouvement, à proposer avec 2-3 pistes de palette comme fait pour Hestia — puis retravailler la mise en page. Le mécanisme de sélection (backend + admin + cards) existe déjà, seuls `TemplateEndpoints.KnownPalettesByTemplate["moderne"]` et `registry.ts` (avec une `previewImage` par palette) sont à remplir.
+
+2. **Créer un footer avec les infos établissement**, sur les deux templates. Aucun des deux n'a de vrai footer aujourd'hui — juste un petit lien "Administration" en bas de page. `SiteContent` porte déjà tout ce qu'il faut (`establishmentName`, `address`, `phone`, `email`, `openingHours`) mais rien de tout ça n'est encore lu par les templates publics (limite déjà notée dans plusieurs sessions précédentes — "affichage public non câblé"). Un footer est l'endroit naturel pour ça.
+
+3. **Palette de couleurs appliquée à TOUS les boutons/éléments interactifs du site**, pas seulement au template lui-même. Aujourd'hui les blocs de modules (`ContactSection`, `MapsSection`, `BlogSection`, `CatalogueSection`) utilisent en dur la palette etnof-web partagée (`bg-brand-gradient`, `text-green-accent`...) — décision assumée jusqu'ici ("un template ne réécrit jamais la logique/le style d'un module"), mais explicitement remise en cause par Ethan aujourd'hui : **le site d'un client doit être cohérent avec sa propre identité (son template + sa palette), pas ressembler au site de l'agence etnof-web**. Ça implique que les modules reçoivent la palette active en props (accent/background au minimum) au lieu de tokens Tailwind globaux — changement d'architecture non anodin (aujourd'hui les modules sont stylés en dur, indépendamment du template qui les affiche), à concevoir avant de coder : quelle forme prend cette palette côté module (mêmes clés `accent`/`background` que `registry.ts` ?), est-ce que ça s'applique aussi à "Moderne" une fois qu'il aura ses propres palettes, etc.
+
+**Principe général donné par Ethan pour guider ces trois chantiers** : le site public d'un client doit être propre et cohérent en lui-même — il n'a aucune raison de ressembler au site de l'agence (etnof-web). La palette/le style de la marque etnof-web reste réservée à l'admin (interface que seuls Ethan et ses clients utilisent), jamais au rendu public.
 
 ## Pour reprendre rapidement
 

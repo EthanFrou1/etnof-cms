@@ -88,3 +88,13 @@ Demande d'Ethan après avoir vu le sélecteur en liste : la page "Modèle" (`/ad
 Testé : `tsc -b` propre ; rendu de la grille de cards vérifié par capture d'écran (CDP, connecté via `sessionStorage`) sur "Boulangerie Dupont" ; interaction palette → image vérifiée en direct par clic simulé.
 
 **Reste à faire** : Ethan remplacera les 4 images placeholder par ses propres captures quand il le souhaite (aucune contrainte de format autre que fonctionner en `object-cover` 16:10).
+
+## Prochaine étape (à partir du 2026-07-28) : améliorer les templates en profondeur
+
+Trois chantiers demandés par Ethan, distincts de la reprise nom/palette déjà faite pour Hestia :
+
+1. **Renommer/redessiner "Moderne"**, avec ses 3 palettes — même exercice que Hestia (nom de la mythologie grecque cohérent avec son ton plus affirmé/dynamique, 2-3 pistes de palette à proposer, mise en page à retravailler). Le mécanisme (backend `KnownPalettesByTemplate`, cards admin) existe déjà, seul `registry.ts` (+ `previewImage` par palette) est à remplir pour "moderne".
+
+2. **Footer avec les infos établissement**, sur les deux templates. Aucun footer réel aujourd'hui (juste un lien "Administration"). `SiteContent` porte déjà `establishmentName`/`address`/`phone`/`email`/`openingHours` mais rien n'est encore lu par les templates publics — un footer est l'endroit naturel pour ça (voir aussi la limite "affichage public non câblé" déjà notée dans `docs/05-roadmap-poc.md` à plusieurs reprises).
+
+3. **La palette du template doit s'appliquer à tout le site, y compris les modules** — remise en cause explicite par Ethan de la règle posée plus haut dans ce fichier ("un template ne réécrit jamais le style d'un module"). Aujourd'hui `ContactSection`/`MapsSection`/`BlogSection`/`CatalogueSection` sont stylés en dur avec la palette etnof-web partagée (`bg-brand-gradient`, `text-green-accent`...), ce qui fait que le site public d'un client mélange sa propre identité (template + palette) avec celle de l'agence. **Principe donné par Ethan** : le site public doit être cohérent en lui-même et n'a aucune raison de ressembler au site etnof-web — cette marque/palette reste réservée à l'admin. Implique un changement d'architecture : les modules devront recevoir la palette active en props (a minima `accent`/`background`, mêmes clés que `PaletteDef` dans `registry.ts`) au lieu de tokens Tailwind globaux, à concevoir avant de coder (forme exacte de la palette côté module, compatibilité avec "Moderne" une fois qu'il aura ses propres palettes).
