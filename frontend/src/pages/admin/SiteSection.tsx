@@ -20,34 +20,132 @@ type TabId = (typeof TABS)[number]["id"];
 const inputClass =
   "rounded-button border border-border-subtle bg-white px-3 py-2 text-navy placeholder:text-gray-text/60 focus:border-brand-mid focus:outline-none focus:ring-2 focus:ring-brand-mid/20";
 
+function TemplateCard({
+  template,
+  isSelected,
+  onSelect,
+  paletteId,
+  onPaletteChange,
+}: {
+  template: (typeof TEMPLATES)[number];
+  isSelected: boolean;
+  onSelect: () => void;
+  paletteId: string | null;
+  onPaletteChange: (id: string) => void;
+}) {
+  const [imgFailed, setImgFailed] = useState(false);
+
+  // La card du template sélectionné suit la palette de brouillon en cours ; les autres cards (non
+  // sélectionnées) restent sur leur image par défaut (1re palette). C'est ce qui fait "changer l'image
+  // de fond du modèle en fonction de la palette activée", demandé par Ethan.
+  const activePalette =
+    isSelected && template.palettes.length > 0
+      ? template.palettes.find((p) => p.id === paletteId) ?? template.palettes[0]
+      : template.palettes[0];
+  const imageSrc = activePalette?.previewImage ?? template.previewImage;
+  const fallbackGradient = activePalette
+    ? `linear-gradient(135deg, ${activePalette.background}, ${activePalette.accent})`
+    : undefined;
+
+  return (
+    <div
+      className={`overflow-hidden rounded-card bg-white shadow-card transition-all duration-200 hover:-translate-y-1 hover:shadow-soft ${
+        isSelected ? "ring-2 ring-brand-mid" : ""
+      }`}
+    >
+      <div
+        onClick={onSelect}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onSelect()}
+        className="group relative block aspect-[16/10] w-full cursor-pointer overflow-hidden bg-brand-gradient"
+      >
+        {imageSrc && !imgFailed ? (
+          <img
+            key={imageSrc}
+            src={imageSrc}
+            alt=""
+            onError={() => setImgFailed(true)}
+            className="h-full w-full object-cover object-top transition-transform duration-500 ease-out group-hover:scale-105"
+          />
+        ) : (
+          <div
+            className="flex h-full w-full items-center justify-center text-4xl font-black text-white/30"
+            style={fallbackGradient ? { backgroundImage: fallbackGradient } : undefined}
+          >
+            {template.label.charAt(0)}
+          </div>
+        )}
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-navy/80 via-navy/5 to-transparent" />
+
+        {isSelected && (
+          <span className="absolute left-3 top-3 flex h-6 w-6 items-center justify-center rounded-full bg-brand-mid text-xs font-bold text-white shadow-soft">
+            ✓
+          </span>
+        )}
+
+        <span className="absolute bottom-3 left-4 text-lg font-bold text-white drop-shadow-sm">
+          {template.label}
+        </span>
+
+        {/* Palette de couleurs en overlay, en bas à droite de la card — seulement sur le template
+            actuellement sélectionné (choisir une palette n'a de sens que pour lui). */}
+        {isSelected && template.palettes.length > 0 && (
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="absolute bottom-2.5 right-3 flex items-center gap-1.5 rounded-pill bg-navy/50 px-2 py-1.5 backdrop-blur-sm"
+          >
+            {template.palettes.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                title={p.label}
+                onClick={() => onPaletteChange(p.id)}
+                className={`h-5 w-5 overflow-hidden rounded-full border-2 transition-colors ${
+                  paletteId === p.id ? "border-white" : "border-white/30 hover:border-white/70"
+                }`}
+              >
+                <span className="flex h-full w-full">
+                  <span className="h-full w-1/2" style={{ backgroundColor: p.background }} />
+                  <span className="h-full w-1/2" style={{ backgroundColor: p.accent }} />
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="p-4">
+        <p className="text-sm text-gray-text">{template.description}</p>
+      </div>
+    </div>
+  );
+}
+
 function TemplateTab({
   templateId,
-  onChange,
+  onTemplateChange,
+  paletteId,
+  onPaletteChange,
 }: {
   templateId: TemplateId | null;
-  onChange: (id: TemplateId) => void;
+  onTemplateChange: (id: TemplateId) => void;
+  paletteId: string | null;
+  onPaletteChange: (id: string) => void;
 }) {
   return (
-    <section className="rounded-card bg-white p-8 shadow-card">
+    <section>
       <h2 className="mb-4 text-lg font-bold text-navy">Mise en page du site</h2>
-      <div className="flex flex-col gap-3">
+      <div className="grid gap-6 sm:grid-cols-2">
         {TEMPLATES.map((t) => (
-          <label
+          <TemplateCard
             key={t.id}
-            className="flex items-start gap-3 rounded-button border border-border-subtle p-3 has-[:checked]:border-brand-mid"
-          >
-            <input
-              type="radio"
-              name="template"
-              checked={templateId === t.id}
-              onChange={() => onChange(t.id)}
-              className="mt-1 h-4 w-4 accent-brand-mid"
-            />
-            <span className="flex flex-col">
-              <span className="font-semibold text-navy">{t.label}</span>
-              <span className="text-sm text-gray-text">{t.description}</span>
-            </span>
-          </label>
+            template={t}
+            isSelected={templateId === t.id}
+            onSelect={() => onTemplateChange(t.id)}
+            paletteId={paletteId}
+            onPaletteChange={onPaletteChange}
+          />
         ))}
       </div>
     </section>
@@ -94,6 +192,8 @@ export default function SiteSection({ clientSiteId, password }: SiteSectionProps
 
   const [templateId, setTemplateId] = useState<TemplateId | null>(null);
   const [draftTemplateId, setDraftTemplateId] = useState<TemplateId | null>(null);
+  const [paletteId, setPaletteId] = useState<string | null>(null);
+  const [draftPaletteId, setDraftPaletteId] = useState<string | null>(null);
 
   // Tous les autres champs de SiteContent (établissement, offres…) sont édités sur d'autres pages
   // mais partagés avec elles via le même endpoint PUT /admin/content, qui remplace tout l'objet —
@@ -107,9 +207,11 @@ export default function SiteSection({ clientSiteId, password }: SiteSectionProps
   useEffect(() => {
     fetch(`${API_BASE_URL}/api/t/${clientSiteId}/template`)
       .then((res) => res.json())
-      .then((data: { templateId: TemplateId }) => {
+      .then((data: { templateId: TemplateId; paletteId: string | null }) => {
         setTemplateId(data.templateId);
         setDraftTemplateId(data.templateId);
+        setPaletteId(data.paletteId);
+        setDraftPaletteId(data.paletteId);
       });
     fetch(`${API_BASE_URL}/api/t/${clientSiteId}/content`)
       .then((res) => res.json())
@@ -121,21 +223,33 @@ export default function SiteSection({ clientSiteId, password }: SiteSectionProps
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const draftTemplateDef = TEMPLATES.find((t) => t.id === draftTemplateId);
+  const draftPalettesAvailable = draftTemplateDef?.palettes ?? [];
+
+  const handleTemplateChange = (id: TemplateId) => {
+    setDraftTemplateId(id);
+    const palettes = TEMPLATES.find((t) => t.id === id)?.palettes ?? [];
+    if (palettes.length > 0 && !palettes.some((p) => p.id === draftPaletteId)) {
+      setDraftPaletteId(palettes[0].id);
+    }
+  };
+
   const templateDirty = draftTemplateId !== null && draftTemplateId !== templateId;
+  const paletteDirty = draftPalettesAvailable.length > 0 && draftPaletteId !== paletteId;
   const contentDirty = Boolean(content && (siteName !== content.siteName || description !== content.description));
-  const isDirty = templateDirty || contentDirty;
+  const isDirty = templateDirty || paletteDirty || contentDirty;
 
   const handleSave = async () => {
     setSaveStatus("saving");
 
     const requests: Promise<Response>[] = [];
 
-    if (templateDirty && draftTemplateId) {
+    if ((templateDirty || paletteDirty) && draftTemplateId) {
       requests.push(
         adminFetch(API_BASE_URL, `/api/t/${clientSiteId}/admin/template`, password, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ templateId: draftTemplateId }),
+          body: JSON.stringify({ templateId: draftTemplateId, paletteId: draftPaletteId }),
         })
       );
     }
@@ -171,9 +285,12 @@ export default function SiteSection({ clientSiteId, password }: SiteSectionProps
     const results = await Promise.all(requests);
     const allOk = results.every((res) => res.ok);
 
-    if (templateDirty && draftTemplateId) setTemplateId(draftTemplateId);
+    if ((templateDirty || paletteDirty) && draftTemplateId) {
+      setTemplateId(draftTemplateId);
+      setPaletteId(draftPaletteId);
+    }
     if (contentDirty) {
-      const contentRes = results[templateDirty ? 1 : 0];
+      const contentRes = results[templateDirty || paletteDirty ? 1 : 0];
       if (contentRes?.ok) setContent(await contentRes.json());
     }
 
@@ -215,7 +332,14 @@ export default function SiteSection({ clientSiteId, password }: SiteSectionProps
         ))}
       </div>
 
-      {activeTab === "template" && <TemplateTab templateId={draftTemplateId} onChange={setDraftTemplateId} />}
+      {activeTab === "template" && (
+        <TemplateTab
+          templateId={draftTemplateId}
+          onTemplateChange={handleTemplateChange}
+          paletteId={draftPaletteId}
+          onPaletteChange={setDraftPaletteId}
+        />
+      )}
       {activeTab === "content" && (
         <ContentTab
           siteName={siteName}

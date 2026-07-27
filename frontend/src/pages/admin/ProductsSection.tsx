@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { API_BASE_URL } from "../../config";
 import { adminFetch } from "../../hooks/useAdminSession";
+import ConfirmModal from "../../components/admin/ConfirmModal";
 
 type ProductImage = {
   id: string;
@@ -198,6 +199,7 @@ function AddProductModal({ clientSiteId, password, onClose, onCreated }: AddProd
 export default function ProductsSection({ clientSiteId, password }: ProductsSectionProps) {
   const [products, setProducts] = useState<Product[] | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const [productToDelete, setProductToDelete] = useState<Product | null>(null);
 
   const loadProducts = () =>
     adminFetch(API_BASE_URL, `/api/t/${clientSiteId}/admin/catalogue/products`, password)
@@ -213,23 +215,7 @@ export default function ProductsSection({ clientSiteId, password }: ProductsSect
     await adminFetch(API_BASE_URL, `/api/t/${clientSiteId}/admin/catalogue/products/${id}`, password, {
       method: "DELETE",
     });
-    loadProducts();
-  };
-
-  const handleUploadImage = async (productId: string, file: File) => {
-    const body = new FormData();
-    body.append("file", file);
-    await adminFetch(API_BASE_URL, `/api/t/${clientSiteId}/admin/catalogue/products/${productId}/images`, password, {
-      method: "POST",
-      body,
-    });
-    loadProducts();
-  };
-
-  const handleDeleteImage = async (imageId: string) => {
-    await adminFetch(API_BASE_URL, `/api/t/${clientSiteId}/admin/catalogue/images/${imageId}`, password, {
-      method: "DELETE",
-    });
+    setProductToDelete(null);
     loadProducts();
   };
 
@@ -260,7 +246,13 @@ export default function ProductsSection({ clientSiteId, password }: ProductsSect
           {products.map((product) => {
             const thumbnail = product.images[0];
             return (
-              <article key={product.id} className="flex flex-col overflow-hidden rounded-card bg-white shadow-card">
+              <article
+                key={product.id}
+                onClick={() => {
+                  window.location.href = `/admin/${clientSiteId}/products/${product.id}`;
+                }}
+                className="flex cursor-pointer flex-col overflow-hidden rounded-card bg-white shadow-card transition-all duration-200 hover:-translate-y-1 hover:shadow-soft"
+              >
                 <div className="aspect-square bg-bg-page-start">
                   {thumbnail ? (
                     <img
@@ -287,41 +279,12 @@ export default function ProductsSection({ clientSiteId, password }: ProductsSect
                   )}
                   <span className="text-xs font-semibold text-gray-text">Stock : {product.stock}</span>
 
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {product.images.map((image) => (
-                      <div key={image.id} className="relative">
-                        <img
-                          src={`${API_BASE_URL}${image.path}`}
-                          alt=""
-                          className="h-12 w-12 rounded-button object-cover"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteImage(image.id)}
-                          className="absolute -right-1.5 -top-1.5 h-4 w-4 rounded-full bg-red-500 text-[10px] leading-none text-white"
-                        >
-                          ×
-                        </button>
-                      </div>
-                    ))}
-                    <label className="flex h-12 w-12 cursor-pointer items-center justify-center rounded-button border border-dashed border-border-subtle text-[10px] text-gray-text hover:border-brand-mid">
-                      + Photo
-                      <input
-                        type="file"
-                        accept="image/jpeg,image/png,image/webp"
-                        className="hidden"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) handleUploadImage(product.id, file);
-                          e.target.value = "";
-                        }}
-                      />
-                    </label>
-                  </div>
-
                   <button
                     type="button"
-                    onClick={() => handleDelete(product.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setProductToDelete(product);
+                    }}
                     className="mt-2 self-start text-sm text-red-500 hover:text-red-600"
                   >
                     Supprimer le produit
@@ -339,6 +302,15 @@ export default function ProductsSection({ clientSiteId, password }: ProductsSect
           password={password}
           onClose={() => setShowModal(false)}
           onCreated={loadProducts}
+        />
+      )}
+
+      {productToDelete && (
+        <ConfirmModal
+          title={`Supprimer "${productToDelete.name}" ?`}
+          message="Cette action est définitive : le produit et ses photos seront supprimés."
+          onConfirm={() => handleDelete(productToDelete.id)}
+          onCancel={() => setProductToDelete(null)}
         />
       )}
     </div>

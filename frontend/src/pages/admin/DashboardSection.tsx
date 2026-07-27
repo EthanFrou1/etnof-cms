@@ -12,11 +12,131 @@ type DashboardSectionProps = {
   password: string;
 };
 
+type ContactMessage = {
+  id: string;
+  name: string;
+  email: string;
+  message: string;
+  createdAt: string;
+};
+
+type Order = {
+  id: string;
+  customerName: string;
+  status: "pending" | "fulfilled" | "cancelled";
+  total: number;
+  createdAt: string;
+};
+
+type Product = {
+  id: string;
+  name: string;
+  stock: number;
+};
+
+// Un produit est signalé dès que son stock passe à ce seuil ou en dessous — assez bas pour rester
+// une vraie alerte plutôt qu'un bruit de fond permanent sur un petit catalogue.
+const LOW_STOCK_THRESHOLD = 3;
+
+const formatPrice = (value: number) => value.toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
+
+function RecentMessagesCard({ clientSiteId, messages }: { clientSiteId: string; messages: ContactMessage[] | null }) {
+  return (
+    <section className="rounded-card bg-white p-6 shadow-card">
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="text-lg font-bold text-navy">Derniers messages</h2>
+        <a href={`/admin/${clientSiteId}/messages`} className="text-sm text-brand-mid hover:underline">
+          Voir tout →
+        </a>
+      </div>
+
+      {!messages ? (
+        <p className="text-sm text-gray-text">Chargement…</p>
+      ) : messages.length === 0 ? (
+        <p className="text-sm text-gray-text">Aucun message pour l'instant.</p>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {messages.slice(0, 3).map((m) => (
+            <div key={m.id} className="border-b border-border-subtle pb-3 last:border-0 last:pb-0">
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="text-sm font-semibold text-navy">{m.name}</span>
+                <span className="shrink-0 text-xs text-gray-text">
+                  {new Date(m.createdAt).toLocaleDateString("fr-FR")}
+                </span>
+              </div>
+              <p className="mt-1 truncate text-sm text-gray-text">{m.message}</p>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function PendingOrdersCard({ clientSiteId, orders }: { clientSiteId: string; orders: Order[] | null }) {
+  const pending = orders?.filter((o) => o.status === "pending") ?? [];
+
+  return (
+    <section className="rounded-card bg-white p-6 shadow-card">
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="text-lg font-bold text-navy">Commandes à traiter</h2>
+        <a href={`/admin/${clientSiteId}/orders`} className="text-sm text-brand-mid hover:underline">
+          Voir tout →
+        </a>
+      </div>
+
+      {!orders ? (
+        <p className="text-sm text-gray-text">Chargement…</p>
+      ) : pending.length === 0 ? (
+        <p className="text-sm text-gray-text">Aucune commande en attente — tout est à jour.</p>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {pending.slice(0, 3).map((o) => (
+            <div key={o.id} className="border-b border-border-subtle pb-3 last:border-0 last:pb-0">
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="text-sm font-semibold text-navy">{o.customerName || "Client"}</span>
+                <span className="rounded-pill bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700">
+                  {formatPrice(o.total)}
+                </span>
+              </div>
+              <span className="text-xs text-gray-text">{new Date(o.createdAt).toLocaleDateString("fr-FR")}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function LowStockAlert({ clientSiteId, products }: { clientSiteId: string; products: Product[] }) {
+  return (
+    <section className="rounded-card border border-amber-200 bg-amber-50 p-6 shadow-card">
+      <h2 className="mb-4 text-lg font-bold text-navy">Stock faible</h2>
+      <div className="flex flex-col gap-2">
+        {products.map((p) => (
+          <a
+            key={p.id}
+            href={`/admin/${clientSiteId}/products/${p.id}`}
+            className="flex items-center justify-between gap-2 rounded-button px-2 py-1.5 text-sm hover:bg-amber-100"
+          >
+            <span className="font-medium text-navy">{p.name}</span>
+            <span className="whitespace-nowrap rounded-pill bg-amber-200 px-2.5 py-1 text-xs font-semibold text-amber-800">
+              Stock : {p.stock}
+            </span>
+          </a>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export default function DashboardSection({ clientSiteId, password }: DashboardSectionProps) {
   const [modules, setModules] = useState<ModulesConfig | null>(null);
   const [content, setContent] = useState<SiteContent | null>(null);
   const [templateId, setTemplateId] = useState<TemplateId | null>(null);
-  const [messageCount, setMessageCount] = useState<number | null>(null);
+  const [messages, setMessages] = useState<ContactMessage[] | null>(null);
+  const [orders, setOrders] = useState<Order[] | null>(null);
+  const [products, setProducts] = useState<Product[] | null>(null);
 
   useEffect(() => {
     adminFetch(API_BASE_URL, `/api/t/${clientSiteId}/admin/modules`, password)
@@ -33,12 +153,26 @@ export default function DashboardSection({ clientSiteId, password }: DashboardSe
 
     adminFetch(API_BASE_URL, `/api/t/${clientSiteId}/admin/messages`, password)
       .then((res) => res.json())
-      .then((data: unknown[]) => setMessageCount(data.length));
+      .then(setMessages);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const catalogueEnabled = Boolean(modules?.catalogue?.enabled);
+
+  useEffect(() => {
+    if (!catalogueEnabled) return;
+    adminFetch(API_BASE_URL, `/api/t/${clientSiteId}/admin/catalogue/orders`, password)
+      .then((res) => res.json())
+      .then(setOrders);
+    adminFetch(API_BASE_URL, `/api/t/${clientSiteId}/admin/catalogue/products`, password)
+      .then((res) => res.json())
+      .then(setProducts);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [catalogueEnabled]);
+
   const enabledModuleCount = modules ? Object.values(modules).filter((m) => m.enabled).length : 0;
   const templateLabel = TEMPLATES.find((t) => t.id === templateId)?.label ?? "…";
+  const lowStockProducts = (products ?? []).filter((p) => p.stock <= LOW_STOCK_THRESHOLD).sort((a, b) => a.stock - b.stock);
 
   return (
     <div className="flex flex-col gap-6">
@@ -47,9 +181,22 @@ export default function DashboardSection({ clientSiteId, password }: DashboardSe
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <StatTile label="Modules actifs" value={modules ? enabledModuleCount : "…"} />
         <StatTile label="Offres" value={content ? content.offers.length : "…"} />
-        <StatTile label="Messages reçus" value={messageCount ?? "…"} />
+        <StatTile label="Messages reçus" value={messages ? messages.length : "…"} />
         <StatTile label="Mise en page" value={templateLabel} />
       </div>
+
+      {catalogueEnabled && lowStockProducts.length > 0 && (
+        <LowStockAlert clientSiteId={clientSiteId} products={lowStockProducts} />
+      )}
+
+      {catalogueEnabled ? (
+        <div className="grid gap-6 lg:grid-cols-2">
+          <RecentMessagesCard clientSiteId={clientSiteId} messages={messages} />
+          <PendingOrdersCard clientSiteId={clientSiteId} orders={orders} />
+        </div>
+      ) : (
+        <RecentMessagesCard clientSiteId={clientSiteId} messages={messages} />
+      )}
 
       <section className="rounded-card bg-white p-8 shadow-card">
         <span className="text-xs font-semibold uppercase tracking-[0.1em] text-green-accent">

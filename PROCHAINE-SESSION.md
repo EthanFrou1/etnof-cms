@@ -1,53 +1,70 @@
-# Reprise de session — dernière mise à jour 2026-07-27 (matin/journée)
+# Reprise de session — dernière mise à jour 2026-07-27 (fin de journée)
 
 Ce fichier résume où on en est pour reprendre rapidement. Le détail complet (technique, tests effectués, bugs rencontrés) est dans `docs/05-roadmap-poc.md`, section par section datée du 2026-07-27 — ce fichier-ci n'en est qu'un résumé de reprise.
 
-## ⚠️ Rien n'est commité
+## Commits
 
-Toujours vrai depuis la dernière fois : un seul commit existe dans l'historique ("Initial commit"). Toute la session d'aujourd'hui (nouvelles migrations EF Core, nouveau module `horaires`, nouvelles pages admin, icône de module) est non suivie par Git — `git status` avant de continuer, et commiter ce qui doit l'être pour avoir un point de retour.
+Tout ce qui est décrit dans ce fichier avant la section "Aujourd'hui" est commité (`96338c2 Refonte de l'admin : Établissement en onglets, module Horaires, page Offres, fusion Site internet`). Le travail du jour ci-dessous (renommage "Classique" → "Hestia" + 3 palettes) **n'est pas encore commité** — `git status` avant de continuer.
 
-## Ce qui a été fait aujourd'hui (2026-07-27)
+## Aujourd'hui (2026-07-27, après-midi) : premier template renommé — "Classique" devient "Hestia" — puis 3 palettes par template
 
-Dans l'ordre, suite à une série de retours d'Ethan sur l'admin client :
+Point d'entrée demandé par Ethan : reprendre le design des templates, un par un, en s'inspirant de comment les gros CMS (Shopify, Squarespace, Ghost) nomment leurs thèmes — un mot évocateur, découplé du descriptif technique du layout. Décision d'Ethan : partir sur des noms de la mythologie grecque.
 
-1. **Boutons "Enregistrer" dans le header** de toutes les pages admin (au lieu du bas de page ou d'une sauvegarde auto), avec **détection de modification** : grisé/non cliquable tant que rien n'a changé, actif dès qu'un champ diffère de la dernière version chargée/sauvegardée. Étendu à Établissement, Contenu (devenu Site internet), Apparence (fusionnée), Modules, la fiche client (`CustomerDetailPage.tsx`) et la vue globale agence (`AgencyDashboardPage.tsx`).
-2. **Page Établissement enrichie** : import automatique des 3 premières photos Google (nouvel endpoint `POST /admin/google-places/import-photos`, séparé du `GET /details` pour rester sans effet de bord), champ email, section "Responsable de l'établissement" (nom/téléphone/email interne, jamais public), horaires structurés (`DayHoursDto` : 2 plages par jour pour permettre une pause méridienne, `<input type="time">`, import depuis `opening_hours.periods` de Google — détecte automatiquement la pause si 2 occurrences pour un même jour). Page passée en onglets (Informations / Photos / Horaires — un onglet "Description" a été ajouté puis retiré le jour même, doublon avec Contenu).
-3. **Nouveau module "Horaires"** (`modules/horaires/module.meta.json`, pas de dossier `backend`/`frontend` — gate juste l'onglet Horaires déjà core, aucune entité propre). Gratuit, gate aussi l'admin (comme Catalogue → Produits/Commandes/Clients).
-4. **Page Modules retravaillée** : cards triées par statut (actif → disponible → indisponible), filtre par statut (Tous/Activé/Désactivé/Disponible — un filtre par catégorie avait été essayé puis abandonné), prix toujours affiché en euros (`formatPriceEur()`, saisie agence limitée aux chiffres), bouton "Activer pour {prix} €" centré sur la card (au lieu d'un pied de card), icône du module Horaires déposée (`frontend/public/module-icons/horaires.png`, générée par Ethan).
-5. **Offres déplacées sur leur propre page** (`/admin/{clientSiteId}/offers`, `OffersSection.tsx`) — Ethan ne voyait pas pourquoi elles vivaient sur "Contenu". Restent utilisables sans le module Catalogue (texte libre). `Offer` gagne un lien optionnel vers **un seul** produit existant (`ProductId`, préremplit titre/prix/description, reste modifiable).
-6. **Pages "Contenu" et "Apparence" fusionnées** en une page **"Site internet"** (`/admin/{clientSiteId}/site`, `SiteSection.tsx`) avec 2 onglets : "Modèle" (choix de template) et "Contenu" (nom du site + description) — Contenu était devenue trop vide une fois les offres parties. `ContentSection.tsx` et `AppearanceSection.tsx` supprimés.
+- **"Classique" → "Hestia"** (déesse du foyer/hospitalité, cohérent avec l'ambiance chaleureuse du template). Id technique renommé partout (backend + frontend), fichier `TemplateClassique.tsx` → `TemplateHestia.tsx`, tenant existant ("Boulangerie Dupont") migré en base par une requête SQL directe (pas de migration EF Core, la colonne ne change pas de forme).
+- **Signature visuelle** : frise en méandre grec sous le hero (petit SVG généré en local, pas d'asset externe), recolorée selon la palette active.
+- Les blocs de modules (Contact, Maps, Blog, Catalogue) gardent volontairement la palette etnof-web partagée — un template n'a jamais recoloré les modules, ce n'est pas un changement de comportement.
+- **Suite immédiate demandée par Ethan : 3 palettes de couleurs sélectionnables par le client**, en plus du choix de template (fonctionnalité permanente, pas juste un choix de design ponctuel). `ClientSite.PaletteId` (migration `AddPaletteId`), 3 palettes Hestia définies : **Argile** (terre cuite `#C1652F`/ivoire `#FBF1E4`, défaut), **Olivier** (olive `#6E7C3D`/crème `#F3F1E4`), **Égée** (bleu `#1D5C73`/blanc bleuté `#F1F5F6`). Sélecteur ajouté dans `/admin/{id}/site` (onglet Modèle), même mécanisme de detection de modification que le reste de la page.
+- **Ethan a testé lui-même** cette première version (liste à radios + pastilles) sur le tenant historique et a enregistré Hestia/Olivier pour de vrai — ce choix a été respecté tel quel, pas de retour en arrière dessus.
+- **Suite immédiate n°2, demandée par Ethan après avoir vu le résultat** : le sélecteur de template passe en cards façon page Modules (image représentative + palette en overlay bas-droite, l'image change avec la palette sélectionnée). 4 images placeholder générées par Claude Code dans `frontend/public/template-previews/` (captures réelles via Chrome headless piloté en CDP brut, faute de Playwright) — **à remplacer par Ethan** par ses propres captures du rendu final, même logique que `frontend/public/module-icons/`.
+- Détail complet, captures d'écran vérifiées, et les aléas de session (process `Backend.exe` verrouillant le build ; boucle de test screenshot trop rapide donnant un rendu décalé d'une palette — artefact du harnais de test, pas un bug ; découverte que le tenant historique était passé sur Hestia/Olivier suite au test d'Ethan) : voir `docs/05-roadmap-poc.md` et `docs/10-templates.md`, sections datées du 2026-07-27.
 
-Nav admin actuelle : Tableau de bord, Site internet, Offres, Établissement, Modules, Produits/Commandes/Clients (si Catalogue), Messages.
+Testé : build backend + `tsc` frontend propres ; `GET /api/t/{id}/template` renvoie `{templateId, paletteId}` ; cycle PUT/GET des 3 palettes vérifié par curl (dont rejet 400 d'une palette invalide) ; rendu des 3 palettes confirmé par capture d'écran ; grille de cards vérifiée visuellement (CDP, contournement de l'écran de login via injection `sessionStorage`) ; changement de palette → image de card mise à jour en direct vérifié par clic simulé. Tenant "Boulangerie Dupont" restauré sur Hestia/Argile (son état d'avant-test) à la fin de session ; tenant historique laissé sur Hestia/Olivier (choix réel d'Ethan).
 
-**3 nouvelles migrations EF Core** : `AddEstablishmentEmailAndHours`, `AddEstablishmentManager`, `AddOfferProductLink` — toutes appliquées en local (`dotnet ef database update` déjà fait), mais pas commitées.
+## Fiche produit dédiée (comme les clients) — 2026-07-27 (même jour)
+
+Demandé par Ethan : la liste Produits (`/admin/{id}/products`) affichait une rangée de miniatures avec suppression individuelle en plus de la grande photo — trop chargé. Nouvelle fiche produit dédiée (`ProductDetailPage.tsx`, route `/admin/{clientSiteId}/products/{productId}`) avec aperçu latéral (même construction que la page Établissement) : nom/description/prix/stock/photos s'y gèrent, la liste ne garde que la photo principale + infos de base + suppression du produit entier. Détail complet, y compris un bug backend trouvé et corrigé (`PUT /admin/catalogue/products/{id}` ne renvoyait jamais les photos, aurait pu les faire disparaître de l'affichage après un premier enregistrement) : voir `docs/05-roadmap-poc.md`, section "Page produit dédiée, façon fiche client".
+
+Testé (CDP, réseau surveillé) : clic sur une card → ouverture de la fiche ; édition + Enregistrer → `PUT` 200 → persisté en base. `tsc -b` et `dotnet build` propres. Donnée de démo restaurée (stock "Bougie parfumee" = 1).
+
+## Modal de confirmation réutilisable pour les suppressions — 2026-07-27 (même jour)
+
+Demandé par Ethan : aucun bouton "Supprimer" du projet n'avait de confirmation (vérifié partout dans le repo). Nouveau composant générique `frontend/src/components/admin/ConfirmModal.tsx`, branché pour l'instant uniquement sur "Supprimer le produit" (`ProductsSection.tsx`) — prêt à être réutilisé ailleurs (établissement, offres, clients, dashboard agence) quand Ethan le demandera.
+
+**⚠️ Découverte en testant** : le produit de démo "Bougie parfumee" avait disparu de la base (probablement un clic accidentel d'Ethan sur l'ancien bouton sans confirmation, dans une session précédente) — photo non récupérable.
+
+**Recréé à la demande d'Ethan** : 3 produits de démo sur le tenant historique (thème bougies artisanales, cohérent avec l'original) — "Bougie parfumee" (vanille, 12,50€, stock 3), "Bougie parfumee lavande" (12,50€, stock 5), "Coffret decouverte (3 bougies)" (32€, stock 2). Chacun a une photo (carré de couleur uni généré via PowerShell/System.Drawing — placeholder, pas une vraie photo produit, à remplacer par Ethan s'il veut du réalisme).
+
+## Tableau de bord retravaillé — 2026-07-27 (même jour)
+
+Dernière page pas encore reprise cette session. Les 4 tuiles de stats gardées, complétées par du contenu actionnable (choisi par Ethan parmi 3 propositions) : derniers messages (aperçu, pas juste un compteur), commandes en attente (si Catalogue actif), alerte stock faible (si Catalogue actif, disparaît s'il n'y a rien à signaler). Détail dans `docs/05-roadmap-poc.md`, section "Tableau de bord retravaillé".
+
+Testé (CDP) sur les deux configurations (Catalogue actif / inactif) : rendu propre dans les deux cas, pas d'espace vide. `tsc -b` propre.
 
 ## État du serveur (au moment d'écrire ce fichier)
 
 - Backend lancé par Claude Code sur le port 5052 — à relancer toi-même si tu as fermé le terminal (`cd backend && dotnet run`).
-- Frontend Vite sur le port 5173 (`cd frontend && pnpm dev`).
+- Frontend Vite lancé par Claude Code sur le port 5173 (`cd frontend && pnpm dev`).
 - Mot de passe agence **et** mot de passe du tenant historique (`11111111-1111-1111-1111-111111111111`) : `admin123`.
-- Module "Horaires" **autorisé** pour le tenant historique (laissé actif volontairement pour qu'Ethan puisse l'essayer directement).
-- Toutes les données de test créées pendant les vérifications de session (photos importées, offre liée à un produit, horaires "Tour Eiffel"...) ont été nettoyées/restaurées à l'identique après chaque test — le tenant historique est dans le même état de contenu qu'avant la session, seuls le module Horaires reste activé.
+- Tenant "Boulangerie Dupont" (`e5d113ff-a734-47e9-8aae-78dea8d6102a`) est sur Hestia/Argile — bon tenant pour aller regarder le rendu dans le navigateur (`http://localhost:5173/t/e5d113ff-a734-47e9-8aae-78dea8d6102a`).
+- Le tenant historique (`11111111-1111-1111-1111-111111111111`) est sur Hestia/Olivier (choix réel d'Ethan, testé en direct dans son navigateur).
 
 ## À vérifier / reste à faire
 
-- [ ] **QA visuelle par Ethan** de toute la session (vérifié par Claude Code via Chrome headless piloté en CDP, faute de `chromium-cli`/Playwright disponibles ici — voir note déjà présente dans `docs/05-roadmap-poc.md`).
-- [ ] **Icône Horaires** : déposée, mais pas encore recompressée comme les 4 autres (voir point poids d'image ci-dessous).
-- [ ] **Poids des images de cards Modules** : ~1,2 Mo chacune (5 images maintenant), à recompresser si tu veux alléger le chargement de la page Modules.
-- [ ] **Affichage public non câblé** : email, horaires, photos d'établissement et lien produit d'une offre existent côté admin mais ne sont pas encore lus par `TemplateClassique.tsx`/`TemplateModerne.tsx` — à faire quand un template les affichera (voir section suivante, ça tombe bien).
-- [ ] **Vrais tarifs des modules** : toujours des valeurs de test/à confirmer (Maps 100€, Contact 125€, Blog 300€, Catalogue 450€, Horaires sans prix) — à valider pour de vrai depuis `/admin/dashboard`.
-- [ ] Données de démo sur le tenant historique (produit "Bougie parfumee", commande annulée, client "Marie Dupont") — toujours là intentionnellement.
+- [ ] **QA visuelle par Ethan** du nouveau template Hestia (`http://localhost:5173/t/e5d113ff-a734-47e9-8aae-78dea8d6102a`) et de son sélecteur de template/palette dans `/admin/{clientSiteId}/site` (onglet Modèle, doit afficher "Hestia" + les 3 pastilles Argile/Olivier/Égée) — ce sélecteur n'a pas pu être vérifié visuellement cette session (écran de login, pas scriptable avec le simple `--screenshot` headless utilisé).
+- [ ] **Reporté des sessions précédentes, toujours vrai** : icône Horaires pas encore recompressée, poids des images de cards Modules (~1,2 Mo chacune), affichage public non câblé (email/horaires/photos/offre-produit sur les templates), vrais tarifs des modules à valider.
+- [ ] Données de démo sur le tenant historique (produit, commande annulée, client) — toujours là intentionnellement.
 
-## Prochaine étape demandée par Ethan : reprise du design des templates
+## Prochaine étape demandée par Ethan : améliorer les templates (Moderne + Hestia)
 
-Sujet pas encore commencé — c'est le point d'entrée de la prochaine session de travail.
+Trois chantiers distincts, tous sur les templates publics (`frontend/src/templates/`) :
 
-Ethan veut reprendre le design visuel des templates existants (`docs/10-templates.md`), **un template à la fois**, pas les deux en parallèle. Pour chaque template :
-- Lui trouver un **nom** (marketing, pas juste "Classique"/"Moderne")
-- Lui définir une **palette de couleurs** propre (aujourd'hui les deux héritent tel quel du dégradé signature etnof-web de `docs/09-charte-graphique.md` — l'idée est que chaque template ait sa propre identité visuelle plutôt que de tous ressembler à la marque de l'agence)
-- Retravailler la mise en page en conséquence
+1. **Renommer/redessiner "Moderne"** (avec ses 3 palettes) — même exercice que pour Hestia : un nom de la mythologie grecque cohérent avec le ton plus affirmé/dynamique de ce template (bandeau plein cadre en dégradé, offre mise en avant en carte CTA) — ex. une figure associée à la lumière, la force ou le mouvement, à proposer avec 2-3 pistes de palette comme fait pour Hestia — puis retravailler la mise en page. Le mécanisme de sélection (backend + admin + cards) existe déjà, seuls `TemplateEndpoints.KnownPalettesByTemplate["moderne"]` et `registry.ts` (avec une `previewImage` par palette) sont à remplir.
 
-Pas de détail supplémentaire donné sur le "etc." — à clarifier avec Ethan en début de prochaine session (quel template en premier, jusqu'où pousser la personnalisation — juste couleurs/nom, ou aussi structure/mise en page plus profondément, cf. limite déjà notée dans `docs/10-templates.md` sur l'absence d'éditeur visuel).
+2. **Créer un footer avec les infos établissement**, sur les deux templates. Aucun des deux n'a de vrai footer aujourd'hui — juste un petit lien "Administration" en bas de page. `SiteContent` porte déjà tout ce qu'il faut (`establishmentName`, `address`, `phone`, `email`, `openingHours`) mais rien de tout ça n'est encore lu par les templates publics (limite déjà notée dans plusieurs sessions précédentes — "affichage public non câblé"). Un footer est l'endroit naturel pour ça.
+
+3. **Palette de couleurs appliquée à TOUS les boutons/éléments interactifs du site**, pas seulement au template lui-même. Aujourd'hui les blocs de modules (`ContactSection`, `MapsSection`, `BlogSection`, `CatalogueSection`) utilisent en dur la palette etnof-web partagée (`bg-brand-gradient`, `text-green-accent`...) — décision assumée jusqu'ici ("un template ne réécrit jamais la logique/le style d'un module"), mais explicitement remise en cause par Ethan aujourd'hui : **le site d'un client doit être cohérent avec sa propre identité (son template + sa palette), pas ressembler au site de l'agence etnof-web**. Ça implique que les modules reçoivent la palette active en props (accent/background au minimum) au lieu de tokens Tailwind globaux — changement d'architecture non anodin (aujourd'hui les modules sont stylés en dur, indépendamment du template qui les affiche), à concevoir avant de coder : quelle forme prend cette palette côté module (mêmes clés `accent`/`background` que `registry.ts` ?), est-ce que ça s'applique aussi à "Moderne" une fois qu'il aura ses propres palettes, etc.
+
+**Principe général donné par Ethan pour guider ces trois chantiers** : le site public d'un client doit être propre et cohérent en lui-même — il n'a aucune raison de ressembler au site de l'agence (etnof-web). La palette/le style de la marque etnof-web reste réservée à l'admin (interface que seuls Ethan et ses clients utilisent), jamais au rendu public.
 
 ## Pour reprendre rapidement
 

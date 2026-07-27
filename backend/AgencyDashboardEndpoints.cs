@@ -71,7 +71,7 @@ public static class AgencyDashboardEndpoints
                 Status = input.Status,
                 PasswordHash = AdminPasswordHasher.Hash(input.Password),
                 ModulesConfigJson = BuildModulesConfigJson(null, input.Modules),
-                TemplateId = TemplateEndpoints.KnownTemplateIds.Contains(input.TemplateId) ? input.TemplateId : "classique",
+                TemplateId = TemplateEndpoints.KnownTemplateIds.Contains(input.TemplateId) ? input.TemplateId : "hestia",
                 CreatedAt = DateTime.UtcNow,
             };
 

@@ -7,4 +7,5 @@ export type TemplateProps = {
   clientSiteId: string;
   modules: ModulesConfig | null;
   content: SiteContent | null;
+  paletteId: string | null;
 };

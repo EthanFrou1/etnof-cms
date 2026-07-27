@@ -17,8 +17,13 @@ public class ClientSite
     // "modules" d'origine : {"contact":{"enabled":true},"maps":{"enabled":true,"address":"...","apiKey":"..."}}
     public string ModulesConfigJson { get; set; } = "{}";
 
-    // Mise en page du site public — valeurs connues : "classique", "moderne". Voir frontend/src/templates/.
-    public string TemplateId { get; set; } = "classique";
+    // Mise en page du site public — valeurs connues : "hestia", "moderne". Voir frontend/src/templates/.
+    public string TemplateId { get; set; } = "hestia";
+
+    // Variante de couleurs du template choisi, modifiable par le client depuis son admin en plus du
+    // template lui-même. Valeurs connues par template : voir TemplateEndpoints.KnownPalettesByTemplate
+    // (backend) et frontend/src/templates/registry.ts (couleurs + labels affichés dans l'admin).
+    public string PaletteId { get; set; } = "argile";
 
     public DateTime CreatedAt { get; set; }
 }
