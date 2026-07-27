@@ -25,6 +25,7 @@ Subject: [SUJET DU MODULE]
 | `maps.png` | a stylized location pin dropping onto a simplified map with soft rounded roads and a small building outline |
 | `blog.png` | a stylized open book or article page with a floating pen, representing a blog |
 | `catalogue.png` | a stylized shopping bag or product box with a small price tag attached, representing an online product catalogue |
+| `horaires.png` | a stylized clock face with rounded hour and minute hands, paired with a small minimalist calendar page peeking out behind it, representing opening hours and schedule |
 
 ## Notes
 

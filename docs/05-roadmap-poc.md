@@ -214,4 +214,81 @@ Testé (curl) : recherche "Tour Eiffel" → résultat correct ; détails du lieu
 
 ---
 
+## Page Établissement en onglets + import photos/horaires Google + email — 2026-07-27
+
+Suite de retours d'Ethan sur la page Établissement (recherche Google Places déjà en place depuis la Phase précédente) :
+
+- **Boutons "Enregistrer" déplacés dans le header** des pages Établissement/Contenu/Apparence (au lieu du bas de page ou, pour Apparence, d'une sauvegarde automatique au clic) — même architecture que la page Modules (titre à gauche, bouton à droite). Apparence gagne un état brouillon (le choix de template n'est plus appliqué avant un clic explicite sur Enregistrer).
+- **`SiteContent` gagne `Email` et `OpeningHours`** (migration `AddEstablishmentEmailAndHours`) — `OpeningHours` stocké en JSON brut (`OpeningHoursJson`), reformé en liste à la frontière API, même principe que `ModulesConfigJson`.
+- **Page Établissement passée en 3 onglets** (premier usage de ce pattern dans l'admin, jusqu'ici uniquement des pages pleines) : Informations (nom/type/adresse/téléphone/email + recherche Google), Photos (upload manuel + import Google), Horaires (7 champs, un par jour).
+- **Import automatique depuis Google Places** : `GooglePlacesEndpoints.details` demande désormais aussi `opening_hours` et `photos` (+ `&language=fr` sur recherche et détails, pour des horaires en français). Les horaires (`weekday_text`) sont renvoyés directement et préremplissent l'onglet Horaires. Les photos ne sont pas téléchargées par ce `GET` (pas d'effet de bord sur une lecture) — seulement leurs `photoReferences` ; un nouvel endpoint `POST /admin/google-places/import-photos` télécharge les 3 premières et les enregistre comme `EstablishmentImage` (même stockage disque que l'upload manuel dans `EstablishmentEndpoints.cs`), avec un compteur de `SortOrder` géré en mémoire dans la boucle (sinon les 3 photos importées dans la même requête se verraient toutes attribuer le même rang, aucune n'étant encore en base pendant la boucle).
+- **Bug pré-existant trouvé et corrigé au passage** : la page "Contenu" (`ContentSection.tsx`) n'envoyait que `siteName`/`description`/`offers` sur l'endpoint partagé `PUT /admin/content`, qui remplace tout l'objet `SiteContent` — un enregistrement depuis cette page aurait donc mis `null` sur les champs Établissement (adresse, téléphone, etc.), provoquant une `DbUpdateException` (colonnes `NOT NULL`) et un 500 (confirmé par un test direct). Corrigé en faisant écho, comme le fait déjà `EstablishmentSection.tsx` dans l'autre sens, aux champs Établissement chargés au montage.
+
+Testé (via CDP/Chrome headless piloté par script Node, faute de `chromium-cli`/Playwright disponibles ici — voir limite déjà notée plus haut dans ce fichier) sur le tenant historique : recherche "Tour Eiffel" → sélection → adresse/type remplis, horaires des 7 jours remplis en français, 3 photos réelles importées et visibles dans l'onglet Photos + aperçu ; sauvegarde réussie (200, pas d'erreur) ; contenu relu conforme. Bug `ContentSection` reproduit par un appel direct sans les champs Établissement (500 confirmé) puis re-testé après fix (200). Données de test (photos importées, nom/adresse/horaires "Tour Eiffel") supprimées et tenant historique restauré à son état antérieur après vérification. `tsc` frontend et `dotnet build` backend propres.
+
+**Reste à faire par Ethan** : vérifier dans le navigateur (recherche réelle sur son propre établissement, upload manuel de photo, édition des horaires). **Hors scope pour l'instant** (non demandé explicitement) : affichage de l'email/des horaires/des photos sur le site public (`TemplateClassique.tsx`/`TemplateModerne.tsx` ne les lisent pas encore) — à faire quand Ethan le demandera.
+
+---
+
+## Boutons "Enregistrer" avec détection de modification + refonte Horaires + module Horaires — 2026-07-27
+
+Trois suites de retours d'Ethan traitées dans la même session :
+
+**1. Boutons "Enregistrer" désactivés tant qu'aucune modification n'est en attente** (opacité réduite, non cliquables), actifs dès qu'un champ diffère de la dernière version chargée/sauvegardée — étendu à toutes les pages qui avaient un bouton "Enregistrer" statique : Établissement, Contenu (comparaison au `content` chargé), fiche client `CustomerDetailPage.tsx` (comparaison au `customer` chargé), et côté vue globale agence (`AgencyDashboardPage.tsx`) le panneau tarifs modules (comparaison ligne par ligne) et le formulaire client en mode édition (comparaison à un `originalForm` capturé à l'ouverture de l'édition ; le bouton "Ajouter" en création reste toujours actif, gated par les `required` HTML natifs comme avant).
+
+**2. Refonte de la page Établissement** :
+- Onglets réordonnés (Informations en premier, puis Description/Photos/Horaires) et titres de section ajoutés dans l'onglet Informations ("Établissement" / "Responsable de l'établissement").
+- Panneau d'aperçu à droite élargi (320px → 420px, padding et typographie augmentés).
+- **Nouvelle section "Responsable de l'établissement"** : `SiteContent` gagne `ManagerName`/`ManagerPhone`/`ManagerEmail` (migration `AddEstablishmentManager`) — contact interne, jamais affiché sur le site public (à la différence de `Email` qui lui alimente le site).
+- **Horaires passés d'un texte libre par jour à un format structuré** : `DayHoursDto` (`Closed`, `MorningOpen`, `MorningClose`, `AfternoonOpen`, `AfternoonClose`) sérialisé dans la même colonne `OpeningHoursJson` (aucune migration nécessaire — le format stocké dans une colonne texte peut changer librement, voir commentaire dans `SiteContent.cs`). Les inputs de l'onglet Horaires sont maintenant de vrais `<input type="time">`, avec une plage "Matin" et une plage "Après-midi" par jour pour permettre une pause méridienne (laisser l'après-midi vide si le commerce ne fait pas de coupure).
+- **Import Google mis à jour en conséquence** : `GooglePlacesEndpoints` lit désormais `opening_hours.periods` (au lieu de `weekday_text`, du texte non structuré) et reconstruit les 7 `DayHoursDto` — un jour avec deux occurrences dans `periods` (ouverture matin + ouverture après-midi) devient une pause méridienne détectée automatiquement. Testé avec de vraies fiches Google : boulangerie sans pause (créneau continu 7 jours), salon de coiffure avec pause le vendredi (09:30–13:00 / 14:30–20:00) et fermé le dimanche — les deux cas restitués correctement dans l'UI.
+- `ContentEndpoints.ToResponse` reste défensif (`try/catch` autour du parsing JSON) pour absorber sans planter à la fois l'ancien format (liste de chaînes) et la colonne vide des lignes créées avant la première migration Horaires.
+
+**3. Nouveau module "Horaires"** (`/modules/horaires/module.meta.json`, pas de dossier `backend/`/`frontend/` — aucune entité ni route propre à créer, seul un gate sur une fonctionnalité déjà core d'Établissement) : décision prise avec Ethan (deux questions posées) — le module **gate aussi l'admin** (l'onglet Horaires disparaît de la page Établissement si non autorisé/activé, même logique que Catalogue → Produits/Commandes/Clients) et **reste gratuit** (pas de prix affiché, "Contacte l'agence pour l'activer" par défaut comme Contact). Aucun code backend supplémentaire nécessaire : `ModuleRegistry`/`ModuleMetaRegistry` sont déjà entièrement génériques par nom de module. Côté frontend, `EstablishmentSection.tsx` appelle `useModules(clientSiteId)` et filtre l'onglet Horaires sur `modules?.horaires?.enabled` (avec repli automatique sur l'onglet Informations si le module est désactivé pendant que l'onglet est ouvert).
+
+Testé (CDP/Chrome headless + appels API directs, mêmes limites d'outillage que la session précédente) : onglet Horaires absent tant que le module n'est pas autorisé ; autorisation via `PUT /api/admin/client-sites/{id}` (modules incluant `"horaires"`) → onglet réapparaît immédiatement ; révocation → disparaît à nouveau ; card "Horaires" visible sur `/admin/{id}/modules` (fallback lettre "H", pas encore d'icône dédiée — voir `docs/11-images-modules.md` si Ethan veut en générer une) ; dirty-check vérifié sur Établissement (bouton grisé → actif après frappe, sans rien persister tant que non cliqué) et sur le formulaire client agence. Build backend et `tsc` frontend propres. Module laissé **autorisé** pour le tenant historique à la fin de la session, pour qu'Ethan puisse l'essayer directement.
+
+**Hors scope, comme précédemment** : affichage des horaires/photos/email sur le site public.
+
+## Page Modules : tri, filtre par statut, prix toujours en €, CTA centré — 2026-07-27
+
+Suite de retours d'Ethan sur la page `/admin/{clientSiteId}/modules`, juste après l'ajout du module Horaires (deux itérations dans la même session : un premier filtre par catégorie proposé puis remplacé par un filtre par statut à la demande d'Ethan) :
+
+- **Icône du module Horaires déposée** : `frontend/public/module-icons/horaires.png` (générée par Ethan avec le prompt ajouté à `docs/11-images-modules.md` — horloge stylisée + page de calendrier, même gabarit que les autres), référencée dans `MODULE_IMAGES` (`ModulesSection.tsx`).
+- **Prix toujours affiché en euros** : les valeurs existantes étaient saisies de façon incohérente ("300", "450 EUR", "125", "100"). Plutôt qu'une migration, le prix reste un texte libre en base mais n'est plus jamais affiché tel quel : `formatPriceEur()` (`ModulesSection.tsx`) n'en garde que les chiffres et ajoute systématiquement "€". Côté saisie (`AgencyDashboardPage.tsx`, `ModulePricingPanel`), l'input n'accepte plus que des chiffres (`onlyDigits()`, suffixe "€" visuel non éditable) — la valeur historique de Catalogue ("450 EUR") normalisée à "450" via l'API pendant la session.
+- **Tri des cards** : actif (autorisé + activé) → disponible (autorisé, pas encore activé) → indisponible (pas autorisé), via `statusRank()`.
+- **Filtre par statut** (et non par catégorie — premier essai revenu en arrière à la demande d'Ethan, `ModuleMeta.Category` entièrement retiré du backend et des `module.meta.json` puisque plus rien ne le consommait) : pastilles "Tous / Activé / Désactivé / Disponible", basées sur le même `statusRank()` que le tri.
+- **Bouton "Activer pour {prix} €" déplacé au centre de la card** (au lieu d'un pied de card séparé). **Bug corrigé au passage** : le calque de description au survol (`opacity-0 group-hover:opacity-100`) et ce nouveau bouton, tous deux centrés en plein milieu de l'image, se chevauchaient sur les modules non autorisés (texte illisible autour du bouton). Fix : la description passe en texte statique au-dessus du bouton pour ces cards (plus au survol), le survol restant réservé aux cards de modules autorisés qui elles n'ont pas de bouton concurrent.
+
+Testé (CDP/Chrome headless) : filtre "Disponible" isole bien Maps (seul module non autorisé) ; tri confirmé (les 4 modules actifs avant Maps) ; icône Horaires (horloge + calendrier) affichée correctement ; description + bouton lisibles côte à côte sans chevauchement sur la card Maps. Build backend et `tsc` frontend propres.
+
+---
+
+## Retrait du doublon Description + page "Offres" séparée avec lien produit — 2026-07-27
+
+Suite à la remarque d'Ethan sur les recoupements entre pages (Contenu / Établissement / Produits) :
+
+- **Doublon corrigé** : l'onglet "Description" ajouté à Établissement plus tôt dans la session (réutilisant `SiteContent.Description`) est retiré — il créait un deuxième endroit pour éditer le même champ que "Contenu". Établissement repasse à 3 onglets (Informations, Photos, Horaires).
+- **Offres déplacées sur une page dédiée** (`/admin/{clientSiteId}/offers`, `OffersSection.tsx`, nouvelle entrée de nav toujours visible — pas gatée par un module) : Ethan ne voyait pas pourquoi les offres vivaient sur "Contenu", qui garde désormais seulement nom du site + description. Décision prise avec Ethan (deux questions posées) : les offres restent utilisables **sans** le module Catalogue (texte libre, pour un client de service sans produits), et une offre peut se lier à **un seul** produit existant (pas de pack multi-produits).
+- **`Offer` gagne `ProductId`** (`Guid?`, migration `AddOfferProductLink`, pas de navigation EF ni de contrainte FK — même choix que `Order.CustomerId` dans `modules/catalogue/backend/Order.cs`, pour ne pas faire dépendre ce fichier core d'un module optionnel). Quand Catalogue est activé pour le tenant, `OffersSection.tsx` charge la liste de ses produits (`GET /admin/catalogue/products`) et affiche un menu déroulant "Produit associé" par offre : le choisir préremplit titre/prix/description depuis le produit (`${price.toFixed(2)} €`), les champs restant ensuite modifiables librement. Sans Catalogue, le menu n'apparaît pas du tout et `productId` reste toujours `null`.
+- **Bug évité de justesse** : `EstablishmentSection.tsx` et `ContentSection.tsx` renvoient toujours la liste complète des offres au PUT partagé (`/admin/content`) pour ne pas les écraser — il fallait penser à y ajouter `productId` dans l'écho, sinon sauvegarder depuis ces deux pages aurait silencieusement effacé tous les liens produit.
+
+Testé (CDP/Chrome headless + API) : page Contenu simplifiée (2 champs) ; page Offres affiche le menu "Produit associé" (Catalogue actif sur le tenant historique) ; sélection de "Bougie parfumee" → titre/prix ("12.50 €")/description préremplis ; sauvegarde → `productId` bien persisté en base ; offre de démo restaurée à son état d'origine (`productId: null`) après vérification. Build backend et `tsc` frontend propres.
+
+**Hors scope, comme précédemment** : affichage des offres/horaires/photos/email sur le site public (templates non mis à jour).
+
+---
+
+## Fusion Contenu + Apparence en "Site internet" — 2026-07-27 (même jour)
+
+Ethan a fait remarquer que "Contenu" (réduite à nom du site + description après le départ des offres) faisait trop vide. Plutôt que d'y ajouter des champs inventés, décision : la fusionner avec "Apparence" (qui ne portait que le choix de template) en une seule page avec onglets.
+
+- Nouvelle page `/admin/{clientSiteId}/site` (`SiteSection.tsx`) avec 2 onglets : "Modèle" (template, ex-Apparence) et "Contenu" (nom du site + description, ex-Contenu). `ContentSection.tsx` et `AppearanceSection.tsx` supprimés.
+- Nav renommée "Site internet" (était deux entrées séparées "Contenu" et "Apparence"), `AdminSection` : `"content"`/`"appearance"` remplacés par `"site"` (URL `/admin/{id}/site`, changement volontaire — pas de contrainte de rétrocompatibilité d'URL sur ce projet en cours de développement).
+- Un seul bouton "Enregistrer" pour les deux onglets : `isDirty` est vrai si le template OU le contenu a changé ; `handleSave` déclenche les deux `PUT` (`/admin/template` et/ou `/admin/content`) en parallèle selon ce qui est réellement modifié, plutôt que de dupliquer le bouton par onglet.
+
+Testé (CDP/Chrome headless) : nav affiche bien "Site internet" à la place des deux anciennes entrées ; onglet Modèle charge le template actuel (Moderne) ; onglet Contenu charge nom/description ; bascule entre onglets sans perte de state. Build backend inchangé (aucun changement backend, uniquement frontend), `tsc` propre.
+
+---
+
 **Note pour toi (Ethan)** : donne ce fichier à Claude Code phase par phase (« on attaque la Phase 2, voici le contexte : [colle le contenu de 02-architecture-modules.md et 03-modele-donnees.md] »). Ne lui donne pas tout le projet d'un coup, ça évite qu'il brûle des étapes ou fasse des suppositions sur les phases suivantes.

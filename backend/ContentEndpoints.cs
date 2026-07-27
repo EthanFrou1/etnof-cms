@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 
 namespace Backend;
@@ -12,7 +13,7 @@ public static class ContentEndpoints
             var content = await db.SiteContents
                 .Include(c => c.Offers)
                 .FirstOrDefaultAsync(c => c.ClientSiteId == clientSiteId);
-            return content is null ? Results.NotFound() : Results.Ok(content);
+            return content is null ? Results.NotFound() : Results.Ok(ToResponse(content));
         });
 
         app.MapPut("/api/t/{clientSiteId:guid}/admin/content", async (Guid clientSiteId, SiteContentInput input, HttpRequest req, IConfiguration config, AppDbContext db) =>
@@ -30,6 +31,11 @@ public static class ContentEndpoints
             content.EstablishmentType = input.EstablishmentType;
             content.Address = input.Address;
             content.Phone = input.Phone;
+            content.Email = input.Email;
+            content.ManagerName = input.ManagerName;
+            content.ManagerPhone = input.ManagerPhone;
+            content.ManagerEmail = input.ManagerEmail;
+            content.OpeningHoursJson = JsonSerializer.Serialize(input.OpeningHours);
 
             db.Offers.RemoveRange(content.Offers);
 
@@ -41,6 +47,7 @@ public static class ContentEndpoints
                     Title = o.Title,
                     Price = o.Price,
                     Description = o.Description,
+                    ProductId = o.ProductId,
                 })
                 .ToList();
 
@@ -50,12 +57,55 @@ public static class ContentEndpoints
             content.Offers = newOffers;
 
             await db.SaveChangesAsync();
-            return Results.Ok(content);
+            return Results.Ok(ToResponse(content));
         });
+    }
+
+    // Reforme la réponse API : OpeningHours en liste déjà parsée plutôt que la colonne JSON brute
+    // OpeningHoursJson (même principe que ModulesConfigJson côté TenantAdminEndpoints).
+    private static object ToResponse(SiteContent content) => new
+    {
+        content.Id,
+        content.ClientSiteId,
+        content.SiteName,
+        content.Description,
+        content.Offers,
+        content.EstablishmentName,
+        content.EstablishmentType,
+        content.Address,
+        content.Phone,
+        content.Email,
+        content.ManagerName,
+        content.ManagerPhone,
+        content.ManagerEmail,
+        OpeningHours = ParseOpeningHours(content.OpeningHoursJson),
+    };
+
+    // La colonne existe en base avec un défaut "" (pas "[]") sur les lignes créées avant la
+    // migration qui l'a ajoutée, et son format a changé une fois depuis (liste de chaînes ->
+    // liste de DayHoursDto structurés) — les deux cas invalides retombent sur une liste vide
+    // plutôt que de faire planter la lecture du contenu.
+    private static List<DayHoursDto> ParseOpeningHours(string json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return new List<DayHoursDto>();
+        try
+        {
+            return JsonSerializer.Deserialize<List<DayHoursDto>>(json) ?? new List<DayHoursDto>();
+        }
+        catch (JsonException)
+        {
+            return new List<DayHoursDto>();
+        }
     }
 }
 
-public record OfferInput(string Title, string Price, string Description);
+// Horaires d'un jour : deux plages (matin / après-midi) pour permettre une pause méridienne —
+// laisser une plage vide ("") si elle ne s'applique pas (ex. pas de coupure, ou jour fermé).
+// Utilisé à la fois pour la colonne OpeningHoursJson (ContentEndpoints) et pour la réponse de
+// GooglePlacesEndpoints.details, qui remplit ces mêmes champs depuis "opening_hours.periods".
+public record DayHoursDto(bool Closed, string MorningOpen, string MorningClose, string AfternoonOpen, string AfternoonClose);
+
+public record OfferInput(string Title, string Price, string Description, Guid? ProductId);
 public record SiteContentInput(
     string SiteName,
     string Description,
@@ -63,5 +113,10 @@ public record SiteContentInput(
     string EstablishmentName,
     string EstablishmentType,
     string Address,
-    string Phone
+    string Phone,
+    string Email,
+    string ManagerName,
+    string ManagerPhone,
+    string ManagerEmail,
+    List<DayHoursDto> OpeningHours
 );

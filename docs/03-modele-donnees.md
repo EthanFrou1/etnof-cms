@@ -104,6 +104,27 @@ Pas de paiement en ligne réel : une commande est enregistrée et décrémente l
 
 Photos affichées dans le panneau résumé de la page "Établissement" (`EstablishmentSection.tsx`). Même pattern d'upload que `ProductImage`.
 
+### SiteContent (core, pas un module — voir `docs/06-contenu-site.md`)
+| Champ | Type | Note |
+|---|---|---|
+| Id | Guid | |
+| ClientSiteId | Guid | |
+| SiteName | string | Page "Site internet", onglet "Contenu" |
+| Description | text | idem |
+| EstablishmentName / EstablishmentType | string | Page "Établissement", onglet "Informations" — remplissables via recherche Google Places |
+| Address | string | idem — Maps (`ModulesConfigJson.maps`) la lit ici, ne la stocke plus lui-même |
+| Phone / Email | string | idem — affichés publiquement |
+| ManagerName / ManagerPhone / ManagerEmail | string | Section "Responsable de l'établissement" (même onglet) — contact interne, jamais affiché publiquement |
+| OpeningHoursJson | text | JSON d'une liste de 7 `DayHoursDto` (`Closed`/`MorningOpen`/`MorningClose`/`AfternoonOpen`/`AfternoonClose`, lundi→dimanche) — colonne texte brute reformée à la frontière API, même convention que `ClientSite.ModulesConfigJson` ; onglet "Horaires", gaté par le module "Horaires" |
+
+### Offer (core, liste liée à SiteContent)
+| Champ | Type | Note |
+|---|---|---|
+| Id | Guid | |
+| SiteContentId | Guid | FK vers SiteContent |
+| Title / Price / Description | string | Page "Offres" (`/admin/{clientSiteId}/offers`) |
+| ProductId | Guid? | Lien facultatif vers `Product` (module Catalogue) — pas de FK stricte ni de navigation EF, même choix que `Order.CustomerId` ; toujours `null` si le tenant n'a pas le module Catalogue |
+
 ## Note sur le module Maps
 
 Pas de table dédiée pour Maps lui-même. L'adresse qu'il affiche n'est **pas** stockée dans sa config module — elle vit dans `SiteContent.Address` (voir `docs/06-contenu-site.md`), partagée avec d'autres usages potentiels de l'adresse de l'établissement. Seul `apiKey` (propre à l'embed Google Maps) reste dans `ModulesConfigJson.maps`.

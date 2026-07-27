@@ -26,7 +26,7 @@ Un template est un composant "bête" (présentation uniquement) : il reçoit `mo
 
 - Stocké dans `ClientSite.TemplateId` (`"classique"` par défaut), aux côtés de `ModulesConfigJson`.
 - Backend : `GET /api/t/{clientSiteId}/template` (public, lu par le site), `PUT /api/t/{clientSiteId}/admin/template` (protégé, le client peut changer sa propre mise en page). Voir `backend/TemplateEndpoints.cs` — `KnownTemplateIds` y liste les valeurs valides, à tenir synchronisé avec `frontend/src/templates/registry.ts`.
-- Frontend : `PublicSite.tsx` lit le `templateId` via `useTemplate(clientSiteId)` et choisit quel composant de template rendre. Ethan peut fixer le template par défaut à la création d'un client (`/admin/dashboard`) ; le client peut ensuite le changer depuis son propre admin (`/admin/{clientSiteId}`, panneau "Apparence").
+- Frontend : `PublicSite.tsx` lit le `templateId` via `useTemplate(clientSiteId)` et choisit quel composant de template rendre. Ethan peut fixer le template par défaut à la création d'un client (`/admin/dashboard`) ; le client peut ensuite le changer depuis son propre admin (`/admin/{clientSiteId}/site`, page "Site internet", onglet "Modèle" — anciennement panneau "Apparence", fusionné avec "Contenu" le 2026-07-27, voir `docs/06-contenu-site.md`).
 
 ## Ajouter un nouveau template
 
@@ -38,3 +38,7 @@ Un template est un composant "bête" (présentation uniquement) : il reçoit `mo
 ## Statut (2026-07-26)
 
 2 templates livrés (Classique, Moderne), testés avec 2 tenants distincts (un par template). Sélection fonctionnelle des deux côtés (agence à la création, client depuis son admin).
+
+## Prochaine étape (à partir du 2026-07-28) : reprise du design des templates
+
+Décision d'Ethan : reprendre le design visuel des templates existants, **un template à la fois** plutôt que les deux en parallèle. Pour chaque template : lui trouver un nom (marketing, pas juste "Classique"/"Moderne"), définir sa propre palette de couleurs (aujourd'hui les deux templates héritent tels quels du dégradé signature etnof-web de `docs/09-charte-graphique.md` — chaque template aurait sa propre identité), retravailler la mise en page en conséquence. Pas encore commencé — voir `PROCHAINE-SESSION.md` pour le point d'entrée de la prochaine session.

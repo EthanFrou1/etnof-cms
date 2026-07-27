@@ -5,21 +5,21 @@ import {
   IconAppearance,
   IconCustomers,
   IconDashboard,
-  IconDocument,
   IconEstablishment,
   IconExternalLink,
   IconMessages,
   IconModules,
+  IconOffers,
   IconOrders,
   IconProducts,
 } from "./icons";
 
 export type AdminSection =
   | "dashboard"
-  | "content"
+  | "site"
+  | "offers"
   | "establishment"
   | "modules"
-  | "appearance"
   | "messages"
   | "products"
   | "orders"
@@ -32,10 +32,10 @@ export const CATALOGUE_SECTIONS: AdminSection[] = ["products", "orders", "custom
 
 const NAV_ITEMS: { id: AdminSection; label: string; icon: typeof IconDashboard }[] = [
   { id: "dashboard", label: "Tableau de bord", icon: IconDashboard },
-  { id: "content", label: "Contenu", icon: IconDocument },
+  { id: "site", label: "Site internet", icon: IconAppearance },
+  { id: "offers", label: "Offres", icon: IconOffers },
   { id: "establishment", label: "Établissement", icon: IconEstablishment },
   { id: "modules", label: "Modules", icon: IconModules },
-  { id: "appearance", label: "Apparence", icon: IconAppearance },
   { id: "products", label: "Produits", icon: IconProducts },
   { id: "orders", label: "Commandes", icon: IconOrders },
   { id: "customers", label: "Clients", icon: IconCustomers },
