@@ -17,7 +17,7 @@ public class ClientSite
     // "modules" d'origine : {"contact":{"enabled":true},"maps":{"enabled":true,"address":"...","apiKey":"..."}}
     public string ModulesConfigJson { get; set; } = "{}";
 
-    // Mise en page du site public — valeurs connues : "hestia", "moderne". Voir frontend/src/templates/.
+    // Mise en page du site public — valeurs connues : "hestia", "helios". Voir frontend/src/templates/.
     public string TemplateId { get; set; } = "hestia";
 
     // Variante de couleurs du template choisi, modifiable par le client depuis son admin en plus du

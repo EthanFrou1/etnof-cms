@@ -4,14 +4,19 @@ import { useCart } from "./CartContext";
 const formatPrice = (value: number) =>
   value.toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
 
+// Voir docs/10-templates.md : un module reste isolé, redéclare localement la forme de la palette
+// du template actif plutôt que d'importer PaletteDef.
+type ModulePalette = { accent: string; background: string; ink: string };
+
 type CartDrawerProps = {
   apiBaseUrl: string;
   clientSiteId: string;
+  palette: ModulePalette;
   open: boolean;
   onClose: () => void;
 };
 
-export default function CartDrawer({ apiBaseUrl, clientSiteId, open, onClose }: CartDrawerProps) {
+export default function CartDrawer({ apiBaseUrl, clientSiteId, palette, open, onClose }: CartDrawerProps) {
   const { items, updateQuantity, removeItem, clear, total } = useCart();
   const [customerName, setCustomerName] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
@@ -53,15 +58,17 @@ export default function CartDrawer({ apiBaseUrl, clientSiteId, open, onClose }: 
       <div className="absolute inset-0 bg-navy/40" onClick={onClose} />
       <div className="relative flex w-full max-w-sm flex-col gap-4 bg-white p-6 shadow-soft">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold text-navy">Panier</h2>
-          <button type="button" onClick={onClose} className="text-sm text-gray-text hover:text-navy">
+          <h2 className="text-lg font-bold" style={{ color: palette.ink }}>
+            Panier
+          </h2>
+          <button type="button" onClick={onClose} className="text-sm text-gray-text hover:opacity-70">
             Fermer
           </button>
         </div>
 
         {confirmation ? (
           <div className="flex flex-col gap-3">
-            <p className="text-green-accent">
+            <p style={{ color: palette.accent }}>
               Commande enregistrée — merci ! Total : {formatPrice(confirmation.total)}.
             </p>
             <p className="text-xs text-gray-text">Référence : {confirmation.orderId}</p>
@@ -71,7 +78,8 @@ export default function CartDrawer({ apiBaseUrl, clientSiteId, open, onClose }: 
                 setConfirmation(null);
                 onClose();
               }}
-              className="self-start text-sm font-medium text-brand-mid hover:text-brand-start"
+              className="self-start text-sm font-medium hover:opacity-70"
+              style={{ color: palette.accent }}
             >
               Fermer
             </button>
@@ -84,7 +92,9 @@ export default function CartDrawer({ apiBaseUrl, clientSiteId, open, onClose }: 
               {items.map((item) => (
                 <div key={item.productId} className="flex items-center justify-between gap-2 rounded-button border border-border-subtle p-3">
                   <div className="flex flex-col">
-                    <span className="text-sm font-semibold text-navy">{item.name}</span>
+                    <span className="text-sm font-semibold" style={{ color: palette.ink }}>
+                      {item.name}
+                    </span>
                     <span className="text-xs text-gray-text">{formatPrice(item.price)} / unité</span>
                   </div>
                   <div className="flex items-center gap-2">
@@ -117,8 +127,12 @@ export default function CartDrawer({ apiBaseUrl, clientSiteId, open, onClose }: 
             </div>
 
             <div className="flex items-baseline justify-between border-t border-border-subtle pt-3">
-              <span className="font-semibold text-navy">Total</span>
-              <span className="font-bold text-navy">{formatPrice(total)}</span>
+              <span className="font-semibold" style={{ color: palette.ink }}>
+                Total
+              </span>
+              <span className="font-bold" style={{ color: palette.ink }}>
+                {formatPrice(total)}
+              </span>
             </div>
 
             <div className="flex flex-col gap-2">
@@ -140,7 +154,8 @@ export default function CartDrawer({ apiBaseUrl, clientSiteId, open, onClose }: 
                 type="button"
                 onClick={handleCheckout}
                 disabled={status === "sending" || !customerName || !customerEmail}
-                className="rounded-button bg-brand-gradient px-4 py-2.5 font-semibold text-white hover:opacity-90 disabled:opacity-50"
+                className="rounded-button px-4 py-2.5 font-semibold text-white hover:opacity-90 disabled:opacity-50"
+                style={{ backgroundColor: palette.accent }}
               >
                 {status === "sending" ? "Envoi…" : "Valider la commande"}
               </button>

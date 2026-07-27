@@ -5,7 +5,9 @@ import type { TemplateId } from "../hooks/useTemplate";
 // glacé pour le texte fort, cartes blanches, typo, radius) reste commun, cf. docs/09-charte-graphique.md
 // ("structure identique, personnalisable par une couleur d'accent différente"). "previewImage" est la
 // capture utilisée sur la card du sélecteur de template (SiteSection.tsx) — change avec la palette.
-export type PaletteDef = { id: string; label: string; accent: string; background: string; previewImage: string };
+// "gradientEnd" est optionnel : seul Helios en a besoin pour son bandeau hero en dégradé
+// (linear-gradient(accent, gradientEnd)), signature propre à ce template. Hestia n'en définit pas.
+export type PaletteDef = { id: string; label: string; accent: string; background: string; previewImage: string; gradientEnd?: string };
 
 // Liste des templates disponibles — doit rester synchronisée avec TemplateEndpoints.KnownTemplateIds
 // ET TemplateEndpoints.KnownPalettesByTemplate (mêmes id de palette) côté backend (backend/TemplateEndpoints.cs).
@@ -26,10 +28,14 @@ export const TEMPLATES: { id: TemplateId; label: string; description: string; pa
     ],
   },
   {
-    id: "moderne",
-    label: "Moderne",
-    description: "Bandeau en dégradé pleine largeur, offre mise en avant.",
-    previewImage: "/template-previews/moderne.png",
-    palettes: [],
+    id: "helios",
+    label: "Helios",
+    description: "Affirmé et dynamique — bandeau plein cadre en dégradé, offre mise en avant en carte CTA. Idéal pour les activités qui misent sur l'énergie et le mouvement.",
+    previewImage: "/template-previews/helios-zenith.png",
+    palettes: [
+      { id: "zenith", label: "Zénith", accent: "#F59E0B", gradientEnd: "#DC2626", background: "#FFFBF0", previewImage: "/template-previews/helios-zenith.png" },
+      { id: "aurore", label: "Aurore", accent: "#FB7185", gradientEnd: "#F59E0B", background: "#FFF7F5", previewImage: "/template-previews/helios-aurore.png" },
+      { id: "couchant", label: "Couchant", accent: "#7C3AED", gradientEnd: "#F97316", background: "#FBF7FF", previewImage: "/template-previews/helios-couchant.png" },
+    ],
   },
 ];

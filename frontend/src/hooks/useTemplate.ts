@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { API_BASE_URL } from "../config";
 
-export type TemplateId = "hestia" | "moderne";
+export type TemplateId = "hestia" | "helios";
 
 export function useTemplate(clientSiteId: string) {
   const [templateId, setTemplateId] = useState<TemplateId | null>(null);
