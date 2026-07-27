@@ -27,6 +27,18 @@ public static class CatalogueAdminEndpoints
             return Results.Ok(products);
         });
 
+        group.MapGet("/products/{id:guid}", async (Guid clientSiteId, Guid id, HttpRequest req, IConfiguration config, AppDbContext db) =>
+        {
+            if (!await TenantAdminAuth.IsAuthorizedAsync(req, config, db, clientSiteId)) return Results.Unauthorized();
+
+            var product = await db.Products
+                .Where(p => p.ClientSiteId == clientSiteId && p.Id == id)
+                .Include(p => p.Images.OrderBy(i => i.SortOrder))
+                .FirstOrDefaultAsync();
+
+            return product is null ? Results.NotFound() : Results.Ok(product);
+        });
+
         group.MapPost("/products", async (Guid clientSiteId, ProductInput input, HttpRequest req, IConfiguration config, AppDbContext db) =>
         {
             if (!await TenantAdminAuth.IsAuthorizedAsync(req, config, db, clientSiteId)) return Results.Unauthorized();
@@ -52,7 +64,12 @@ public static class CatalogueAdminEndpoints
         {
             if (!await TenantAdminAuth.IsAuthorizedAsync(req, config, db, clientSiteId)) return Results.Unauthorized();
 
-            var product = await db.Products.FirstOrDefaultAsync(p => p.ClientSiteId == clientSiteId && p.Id == id);
+            // Include Images : sans ça, la réponse renverrait toujours "images": [] (navigation non
+            // chargée), ce qui écraserait l'affichage des photos côté admin après un enregistrement
+            // (ProductDetailPage.tsx remplace son state produit avec cette réponse).
+            var product = await db.Products
+                .Include(p => p.Images.OrderBy(i => i.SortOrder))
+                .FirstOrDefaultAsync(p => p.ClientSiteId == clientSiteId && p.Id == id);
             if (product is null) return Results.NotFound();
 
             product.Name = input.Name;

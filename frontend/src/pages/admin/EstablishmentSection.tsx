@@ -198,7 +198,7 @@ function PhotosTab({
   );
 }
 
-const timeInputClass = `${inputClass} disabled:cursor-not-allowed disabled:opacity-40`;
+const timeInputClass = `${inputClass} w-[110px] min-w-0 disabled:cursor-not-allowed disabled:opacity-40`;
 
 function HoursTab({
   hours,
@@ -222,10 +222,13 @@ function HoursTab({
           return (
             <div
               key={day}
-              className="grid grid-cols-[110px_90px_1fr_1fr] items-center gap-3 border-b border-border-subtle pb-3 last:border-0 last:pb-0"
+              // flex-wrap plutôt qu'une grid à colonnes fixes : sur une fenêtre étroite, les inputs
+              // "time" (largeur intrinsèque non compressible) passent à la ligne au lieu de forcer
+              // toute la page à défiler horizontalement (voir docs/05-roadmap-poc.md, bug largeur Horaires).
+              className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-border-subtle pb-3 last:border-0 last:pb-0"
             >
-              <span className="text-sm font-semibold text-navy">{day}</span>
-              <label className="flex items-center gap-1.5 text-xs font-medium text-gray-text">
+              <span className="w-24 shrink-0 text-sm font-semibold text-navy">{day}</span>
+              <label className="flex shrink-0 items-center gap-1.5 text-xs font-medium text-gray-text">
                 <input
                   type="checkbox"
                   checked={d.closed}
@@ -234,7 +237,7 @@ function HoursTab({
                 />
                 Fermé
               </label>
-              <div className="flex items-center gap-1.5">
+              <div className="flex flex-wrap items-center gap-1.5">
                 <span className="w-12 shrink-0 text-xs text-gray-text">Matin</span>
                 <input
                   type="time"
@@ -252,7 +255,7 @@ function HoursTab({
                   className={timeInputClass}
                 />
               </div>
-              <div className="flex items-center gap-1.5">
+              <div className="flex flex-wrap items-center gap-1.5">
                 <span className="w-16 shrink-0 text-xs text-gray-text">Après-midi</span>
                 <input
                   type="time"
@@ -516,7 +519,10 @@ export default function EstablishmentSection({ clientSiteId, password }: Establi
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_420px]">
-        <div className="flex flex-col gap-6">
+        {/* min-w-0 : sans ça, une piste de grid "1fr" ne se réduit jamais sous la taille intrinsèque
+            de son contenu (ex. inputs "time" de l'onglet Horaires) et pousse toute la page en
+            débordement horizontal au lieu de respecter la largeur de l'écran. */}
+        <div className="flex min-w-0 flex-col gap-6">
           {activeTab === "info" && (
             <>
               <section className="rounded-card bg-white p-8 shadow-card">

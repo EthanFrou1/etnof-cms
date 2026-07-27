@@ -291,4 +291,98 @@ Testé (CDP/Chrome headless) : nav affiche bien "Site internet" à la place des 
 
 ---
 
+## Reprise du design des templates : "Classique" renommé "Hestia" — 2026-07-27
+
+Premier chantier de la reprise de design des templates demandée par Ethan (`docs/10-templates.md`, section "Prochaine étape"), un template à la fois. Recherche de convention de nommage menée avant de coder : les gros CMS (Shopify, Squarespace, Ghost, WordPress marketplace) nomment leurs thèmes avec un mot court et évocateur, découplé de la description technique du layout — jamais littéralement "layout centré" ou "bandeau large". Décision d'Ethan : partir sur des noms de la mythologie grecque plutôt que des noms de lieux/mots inventés à l'anglo-saxonne.
+
+- **Template "Classique" renommé "Hestia"** (déesse du foyer et de l'hospitalité — cohérent avec l'ambiance chaleureuse/accueillante de ce template : navbar pilule, hero centré). Choisi par Ethan parmi 3 propositions (Hestia, Déméter, Gaïa), chacune accompagnée d'une piste de palette pour visualiser l'ambiance avant de trancher.
+- **Id technique renommé partout** : `"classique"` → `"hestia"` (backend `TemplateEndpoints.KnownTemplateIds`, `ClientSite.TemplateId` (valeur par défaut), `AgencyDashboardEndpoints` ; frontend `useTemplate.ts` (type `TemplateId`), `templates/registry.ts`, `PublicSite.tsx`, commentaire dans `ModulesSection.tsx`). Fichier `TemplateClassique.tsx` renommé `TemplateHestia.tsx`, composant renommé pareil.
+- **Tenant existant migré** : "Boulangerie Dupont" avait `TemplateId = 'classique'` en base — mis à jour en `'hestia'` par une requête SQL directe (`UPDATE "ClientSites" SET "TemplateId" = 'hestia' WHERE "TemplateId" = 'classique'`), pas de migration EF Core nécessaire (la colonne ne change pas de forme, même logique que les updates de contenu JSON déjà faits dans les sessions précédentes). Le tenant historique était déjà sur `"moderne"`, non affecté.
+- **Palette propre au template**, volontairement définie en dehors de `tailwind.config.js` (qui porte les tokens etnof-web partagés, utilisés par l'admin et par le template Moderne — pas question de les écraser globalement) : terre cuite `#C1652F`, ivoire `#FBF1E4`, noir glacé `#211A16`, inspirés de la céramique grecque antique (amphores à figures noires sur fond d'argile). Constantes locales dans `TemplateHestia.tsx`, appliquées en valeurs Tailwind arbitraires/`style` inline plutôt qu'en tokens globaux.
+- **Signature visuelle propre** : fine frise en méandre grec (motif de poterie) sous le hero — petit composant `GreekKeyDivider` dans le même fichier, un unique SVG généré en local encodé en data URI et tuilé horizontalement en `background-repeat`, pas d'asset externe téléchargé.
+- **Limite assumée** : les blocs de modules (`ContactSection`, `MapsSection`, `BlogSection`, `CatalogueSection`) gardent la palette etnof-web partagée (vert accent, dégradé bleu-vert du bouton) — cohérent avec la règle déjà posée dans `docs/10-templates.md` ("un template ne réécrit jamais la logique d'un module, seulement leur agencement"). Si Ethan veut que les modules héritent aussi de l'identité de chaque template, ce sera un chantier à part (passer des tokens de couleur en props).
+- **Bonus outillage découvert en cours de session** : contrairement aux sessions précédentes (notes répétées sur l'absence de `chromium-cli`/Playwright), un vrai Chrome installé (`C:\Program Files\Google\Chrome\Application\chrome.exe`) a été trouvé sur la machine et piloté en `--headless=new --screenshot=...` pour vérifier le rendu visuellement sans script CDP custom.
+- **Petit aléa en cours de route** : le premier `dotnet build` a échoué (fichier `Backend.exe` verrouillé par un processus resté actif depuis une session précédente, PID retrouvé via `Get-Process`) — confirmé avec Ethan avant de le terminer (`Stop-Process`), puis build repassé propre.
+
+Testé : `dotnet build` et `tsc -b` propres ; `GET /api/t/{id}/template` renvoie `"hestia"` pour Boulangerie Dupont ; capture d'écran du rendu public confirmant fond ivoire, overline "BIENVENUE" en terre cuite, titre en noir glacé, frise en méandre sous le hero, navbar pilule blanche.
+
+**Reste à faire** : renommer/redessiner "Moderne" (prochaine étape, pas encore commencée) ; QA visuelle par Ethan dans le navigateur pour "Hestia".
+
+---
+
+## 3 palettes sélectionnables par le client, par template — 2026-07-27 (même jour)
+
+Suite immédiate du renommage Hestia : Ethan a demandé que chaque template propose plusieurs variantes de couleurs (3 par template), choisies par le client lui-même depuis son admin — une fonctionnalité permanente, pas juste un choix de design à trancher une fois. Détail complet (implémentation, palettes exactes, tests) dans `docs/10-templates.md`, section "3 palettes sélectionnables par template". Résumé :
+
+- `ClientSite.PaletteId` (migration `AddPaletteId`, backfill `"argile"` sur les tenants existants) ; 3 palettes Hestia (Argile/Olivier/Égée) dans `registry.ts`, dupliquées côté validation backend (`TemplateEndpoints.KnownPalettesByTemplate`).
+- `GET/PUT /api/t/{id}/template` étendus pour porter `paletteId`, avec repli automatique sur la première palette connue si le tenant change de template et que sa palette actuelle n'y existe pas.
+- `TemplateHestia.tsx` résout accent/fond depuis la palette active (structure/typo commune, seuls 2 tokens changent — cf. `docs/09-charte-graphique.md`) ; `SiteSection.tsx` gagne un sélecteur de pastilles sous le choix de template, avec le même dirty-check que le reste de la page.
+- **Anecdote de session** : les premiers tests visuels (boucle PUT+screenshot trop rapide) donnaient un rendu systématiquement décalé d'une palette — panique de courte durée avant de confirmer, en isolant chaque changement avec un vrai délai, que c'était un artefact du harnais de capture d'écran (Chrome headless) et non un bug de l'app.
+
+Testé : migration + backfill vérifiés en base ; `dotnet build`/`tsc -b` propres ; cycle PUT/GET des 3 palettes vérifié par curl (dont le rejet 400 d'une palette invalide) ; rendu des 3 palettes confirmé par capture d'écran sur "Boulangerie Dupont", tenant restauré sur "argile" après tests.
+
+**Reste à faire** : sélecteur de palette dans l'admin pas vérifié visuellement (écran de login non scriptable avec le `--screenshot` headless utilisé ici) — à confirmer par Ethan. Donner aussi 3 palettes à "Moderne" quand il sera repris.
+
+**Confirmé par Ethan** dans la foulée (capture d'écran de sa propre session) : le sélecteur fonctionne — puis suite de session ci-dessous.
+
+## Sélecteur de template en cards, façon page Modules — 2026-07-27 (même jour)
+
+Après avoir vu le sélecteur (liste à radios + pastilles), Ethan a demandé la même présentation que la page Modules : des cards avec une image représentative, la palette de couleurs en overlay sur un côté en bas, et l'image de fond qui change selon la palette active. Détail complet, y compris la découverte que le tenant historique était passé sur Hestia/Olivier (Ethan a enregistré son propre test), dans `docs/10-templates.md`, section "Sélecteur de template en cards". Résumé :
+
+- `SiteSection.tsx` : liste à radios remplacée par une grille de `TemplateCard` (même famille que `ModuleCard`), palette en overlay bas-droite affichée seulement sur la card sélectionnée, image de la card résolue depuis la palette de brouillon en cours.
+- 4 images placeholder ajoutées (`frontend/public/template-previews/`), générées par Claude Code via Chrome headless piloté en CDP brut (script Node maison, faute de Playwright disponible sur cette machine) — à remplacer par Ethan par ses propres captures, même logique que les icônes de module.
+- Ce même pilotage CDP a aussi permis de contourner l'écran de login admin pour la première fois cette session (injection dans `sessionStorage`, clé lue par `useAdminSession.ts`) et de simuler un clic réel pour vérifier l'interaction bout en bout.
+
+Testé : `tsc -b` propre ; grille de cards vérifiée par capture d'écran ; changement de palette → image mise à jour en direct vérifié par clic simulé (sans reload). Tenant "Boulangerie Dupont" restauré sur Hestia/Argile après tests ; tenant historique laissé tel quel (Hestia/Olivier, choix réel d'Ethan).
+
+## Bug corrigé : débordement horizontal sur l'onglet Horaires (Établissement) — 2026-07-27 (même jour)
+
+Signalé par Ethan avec capture d'écran : sur `/admin/{id}/establishment`, onglet Horaires, la page entière défilait horizontalement (sidebar comprise) au lieu de rester dans la largeur de l'écran.
+
+Cause : chaque ligne de jour utilisait une grid à colonnes fixes (`grid-cols-[110px_90px_1fr_1fr]`) contenant des `<input type="time">` — leur largeur intrinsèque (non compressible par le navigateur) dépasse la piste `1fr` disponible dès que la fenêtre n'est pas très large, et une piste de grid ne se réduit jamais sous la taille intrinsèque de son contenu sans `min-width: 0` explicite. Le débordement remontait alors jusqu'au document entier.
+
+Fix (`EstablishmentSection.tsx`) : la ligne de chaque jour passe de `grid` à `flex flex-wrap` — les blocs Matin/Après-midi passent à la ligne suivante plutôt que de forcer la largeur de la page ; `min-w-0` ajouté sur la colonne de gauche de la grid `1fr_420px` (filet de sécurité pour toute la page, pas seulement Horaires) ; largeur des inputs `time` fixée explicitement (`w-[110px]`) plutôt que laissée à la taille intrinsèque du navigateur.
+
+Testé (CDP, plusieurs largeurs de fenêtre 1280px/1600px, mesure directe de `document.documentElement.scrollWidth` vs `clientWidth`) : plus aucun débordement horizontal, la ligne du jour passe naturellement à la ligne quand l'espace manque au lieu de déborder. `tsc -b` propre.
+
+## Page produit dédiée, façon fiche client — 2026-07-27 (même jour)
+
+Demandé par Ethan : la card produit de `/admin/{id}/products` affichait une rangée de miniatures avec suppression individuelle en plus de la grande photo — trop chargé. Décision : la liste garde juste la photo principale, nom/prix/description/stock ; cliquer sur une card ouvre une fiche produit dédiée (`/admin/{clientSiteId}/products/{productId}`, nouveau `ProductDetailPage.tsx`) où se gèrent nom/description/prix/stock/photos, avec un aperçu à droite — même construction que `EstablishmentSection.tsx` (`grid gap-6 lg:grid-cols-[1fr_420px]`, `aside` avec photo de couverture + infos) plutôt que celle de `CustomerDetailPage.tsx` (qui n'a pas d'aperçu latéral).
+
+- **Nouveau** `frontend/src/pages/ProductDetailPage.tsx` : header avec bouton "Enregistrer" + dirty-check (même mécanisme que les autres pages), section Informations (nom/description/prix/stock), section Photos (upload/suppression, déplacée depuis la liste), `ProductPreview` en aside (photo de couverture, nom/prix, description, stock, miniatures des photos suivantes). Gate module Catalogue identique à `CustomerDetailPage.tsx` (page bloquée avec message si le module n'est pas actif, accès direct par URL).
+- **Routing** (`App.tsx`) : `/admin/{clientSiteId}/products/{productId}` ajouté avant le switch générique de section, même principe que la route `customers/{customerId}` déjà existante.
+- **Backend** : nouvel endpoint `GET /admin/catalogue/products/{id}` (produit unique + photos), symétrique à celui des clients. **Bug trouvé et corrigé au passage** : l'endpoint `PUT /admin/catalogue/products/{id}` existant ne chargeait pas la navigation `Images` (pas de `.Include`) — sa réponse renvoyait toujours `"images": []`, ce qui aurait fait disparaître les photos affichées côté admin après le tout premier enregistrement depuis la nouvelle fiche produit (qui remplace son state avec la réponse du PUT). Corrigé en ajoutant le même `.Include(p => p.Images.OrderBy(...))` que le GET.
+- **`ProductsSection.tsx` allégé** : suppression de la rangée de miniatures + upload/suppression inline (`handleUploadImage`/`handleDeleteImage` retirés) ; la card devient cliquable (`window.location.href` vers la fiche détail) avec `e.stopPropagation()` sur "Supprimer le produit" pour ne pas déclencher la navigation.
+
+Testé (CDP : login par injection `sessionStorage`, clic simulé sur "Enregistrer" avec surveillance réseau) : liste épurée conforme à la maquette voulue ; fiche produit accessible par clic, aperçu correct ; édition du stock → clic Enregistrer → requête `PUT` → `200` → persisté en base (vérifié par requête directe) ; upload/suppression de photo inchangés fonctionnellement. `tsc -b` et `dotnet build` propres. Donnée de démo (stock du produit "Bougie parfumee") restaurée à `1` après tests.
+
+## Modal de confirmation réutilisable pour les suppressions — 2026-07-27 (même jour)
+
+Demandé par Ethan : le clic sur "Supprimer le produit" supprimait immédiatement, sans confirmation — même chose pour tous les autres boutons "Supprimer" du projet (établissement, offres, clients, dashboard agence : aucun n'avait de confirmation jusqu'ici, vérifié en cherchant tous les `handleDelete`/"Supprimer" du repo). Demande explicite : un composant unique, réutilisable partout.
+
+- **Nouveau** `frontend/src/components/admin/ConfirmModal.tsx` : modal générique (titre, message optionnel, libellés de boutons personnalisables, `onConfirm`/`onCancel`), même habillage visuel que les modals existantes (`AddProductModal`, overlay `bg-navy/40`, `rounded-card`/`shadow-soft`).
+- **Branché sur "Supprimer le produit"** (`ProductsSection.tsx`) : un état `productToDelete` remplace l'appel direct à `handleDelete`, la modal affiche le nom du produit ciblé dans le titre.
+- **Pas encore branché ailleurs** (établissement, offres, clients, dashboard agence) — seul le bouton demandé par Ethan a été traité pour l'instant ; le composant est prêt à être réutilisé sur les autres quand il le demandera.
+
+**Incident découvert en testant** : le produit de démo "Bougie parfumee" (présent depuis la session Catalogue du 2026-07-26) avait disparu de la base avant même ce chantier — très probablement supprimé par un clic accidentel d'Ethan sur l'ancien bouton sans confirmation. Photo et données non récupérables (fichier supprimé du disque par l'endpoint `DELETE`). C'est très probablement ce qui a motivé cette demande de confirmation. Un produit temporaire a été créé/supprimé pour tester le flux Annuler/Supprimer (aucune trace laissée).
+
+Testé (CDP) : ouverture de la modal au clic sur "Supprimer le produit" (nom du produit affiché dans le titre) ; "Annuler" → produit toujours présent ; "Supprimer" → produit bien supprimé. `tsc -b` propre.
+
+**Reste à faire, à la demande d'Ethan si besoin** : brancher `ConfirmModal` sur les autres boutons "Supprimer" du projet.
+
+3 produits de démo recréés ensuite à la demande d'Ethan (thème bougies artisanales, cohérent avec l'original) : "Bougie parfumee" (12,50€, stock 3), "Bougie parfumee lavande" (12,50€, stock 5), "Coffret decouverte (3 bougies)" (32€, stock 2) — chacun avec une photo (carré de couleur uni généré via PowerShell/System.Drawing, placeholder à remplacer par de vraies photos si besoin).
+
+## Tableau de bord retravaillé — 2026-07-27 (même jour)
+
+Dernière page pas encore reprise cette session (`DashboardSection.tsx`, resté au style d'origine du POC). Demande d'Ethan : garder les 4 tuiles de stats existantes (`StatTile`), réfléchir à ce qui est réellement utile en arrivant sur l'admin. Proposition faite avec 3 options (derniers messages, commandes à traiter, alerte stock faible) — les 3 retenues par Ethan, l'idée commune étant de remplacer les compteurs secs par du contenu actionnable.
+
+- **Derniers messages** : aperçu des 3 plus récents (nom, extrait tronqué, date), lien "Voir tout" vers Messages. Toujours affiché (indépendant du module Catalogue).
+- **Commandes à traiter** (si Catalogue actif) : commandes au statut `pending` uniquement (jusqu'à 3), client + montant + date, lien vers Commandes. Message rassurant explicite si aucune en attente plutôt qu'une liste vide muette.
+- **Stock faible** (si Catalogue actif) : produits avec stock ≤ 3 (`LOW_STOCK_THRESHOLD`), triés du plus critique au moins critique, carte orange distincte pour se démarquer visuellement des cards neutres. **Décision volontaire** : la section entière disparaît s'il n'y a aucun produit en stock faible plutôt que d'afficher un encart "tout va bien" — une alerte vide n'a pas d'intérêt et ajoute du bruit. Chaque ligne pointe directement vers la fiche produit (`/admin/{id}/products/{productId}`, la nouvelle page créée plus tôt dans la session).
+- Layout : Messages + Commandes côte à côte (`lg:grid-cols-2`) quand Catalogue est actif ; Messages seul en pleine largeur sinon (pas de colonne vide à côté). La card "Mon site" existante redescend en bas de page (elle reste utile mais moins urgente que du contenu actionnable).
+
+Testé (CDP) : rendu complet avec Catalogue actif (tenant historique — alerte stock faible sur 2 produits, 2 commandes en attente avec noms clients réels, messages affichés) ; rendu avec Catalogue inactif (Boulangerie Dupont — sections Catalogue absentes proprement, Messages en pleine largeur, pas d'espace vide). `tsc -b` propre.
+
+---
+
 **Note pour toi (Ethan)** : donne ce fichier à Claude Code phase par phase (« on attaque la Phase 2, voici le contexte : [colle le contenu de 02-architecture-modules.md et 03-modele-donnees.md] »). Ne lui donne pas tout le projet d'un coup, ça évite qu'il brûle des étapes ou fasse des suppositions sur les phases suivantes.
