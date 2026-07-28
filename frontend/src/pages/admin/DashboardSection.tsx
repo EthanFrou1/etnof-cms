@@ -34,6 +34,13 @@ type Product = {
   stock: number;
 };
 
+type Booking = {
+  id: string;
+  customerName: string;
+  status: "confirmed" | "cancelled";
+  startsAt: string;
+};
+
 // Un produit est signalé dès que son stock passe à ce seuil ou en dessous — assez bas pour rester
 // une vraie alerte plutôt qu'un bruit de fond permanent sur un petit catalogue.
 const LOW_STOCK_THRESHOLD = 3;
@@ -108,6 +115,42 @@ function PendingOrdersCard({ clientSiteId, orders }: { clientSiteId: string; ord
   );
 }
 
+function UpcomingAppointmentsCard({ clientSiteId, bookings }: { clientSiteId: string; bookings: Booking[] | null }) {
+  const upcoming = (bookings ?? [])
+    .filter((b) => b.status === "confirmed" && new Date(b.startsAt).getTime() > Date.now())
+    .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
+
+  return (
+    <section className="rounded-card bg-white p-6 shadow-card">
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="text-lg font-bold text-navy">Rendez-vous à venir</h2>
+        <a href={`/admin/${clientSiteId}/rdv`} className="text-sm text-brand-mid hover:underline">
+          Voir tout →
+        </a>
+      </div>
+
+      {!bookings ? (
+        <p className="text-sm text-gray-text">Chargement…</p>
+      ) : upcoming.length === 0 ? (
+        <p className="text-sm text-gray-text">Aucun rendez-vous à venir.</p>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {upcoming.slice(0, 3).map((b) => (
+            <div key={b.id} className="border-b border-border-subtle pb-3 last:border-0 last:pb-0">
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="text-sm font-semibold text-navy">{b.customerName}</span>
+                <span className="shrink-0 text-xs text-gray-text">
+                  {new Date(b.startsAt).toLocaleString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
 function LowStockAlert({ clientSiteId, products }: { clientSiteId: string; products: Product[] }) {
   return (
     <section className="rounded-card border border-amber-200 bg-amber-50 p-6 shadow-card">
@@ -137,6 +180,7 @@ export default function DashboardSection({ clientSiteId, password }: DashboardSe
   const [messages, setMessages] = useState<ContactMessage[] | null>(null);
   const [orders, setOrders] = useState<Order[] | null>(null);
   const [products, setProducts] = useState<Product[] | null>(null);
+  const [bookings, setBookings] = useState<Booking[] | null>(null);
 
   useEffect(() => {
     adminFetch(API_BASE_URL, `/api/t/${clientSiteId}/admin/modules`, password)
@@ -158,6 +202,7 @@ export default function DashboardSection({ clientSiteId, password }: DashboardSe
   }, []);
 
   const catalogueEnabled = Boolean(modules?.catalogue?.enabled);
+  const rdvEnabled = Boolean(modules?.rdv?.enabled);
 
   useEffect(() => {
     if (!catalogueEnabled) return;
@@ -169,6 +214,14 @@ export default function DashboardSection({ clientSiteId, password }: DashboardSe
       .then(setProducts);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [catalogueEnabled]);
+
+  useEffect(() => {
+    if (!rdvEnabled) return;
+    adminFetch(API_BASE_URL, `/api/t/${clientSiteId}/admin/rdv/bookings`, password)
+      .then((res) => res.json())
+      .then(setBookings);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rdvEnabled]);
 
   const enabledModuleCount = modules ? Object.values(modules).filter((m) => m.enabled).length : 0;
   const templateLabel = TEMPLATES.find((t) => t.id === templateId)?.label ?? "…";
@@ -189,10 +242,11 @@ export default function DashboardSection({ clientSiteId, password }: DashboardSe
         <LowStockAlert clientSiteId={clientSiteId} products={lowStockProducts} />
       )}
 
-      {catalogueEnabled ? (
+      {catalogueEnabled || rdvEnabled ? (
         <div className="grid gap-6 lg:grid-cols-2">
           <RecentMessagesCard clientSiteId={clientSiteId} messages={messages} />
-          <PendingOrdersCard clientSiteId={clientSiteId} orders={orders} />
+          {catalogueEnabled && <PendingOrdersCard clientSiteId={clientSiteId} orders={orders} />}
+          {rdvEnabled && <UpcomingAppointmentsCard clientSiteId={clientSiteId} bookings={bookings} />}
         </div>
       ) : (
         <RecentMessagesCard clientSiteId={clientSiteId} messages={messages} />

@@ -1,7 +1,12 @@
 import { useAdminSession } from "../hooks/useAdminSession";
 import { useModules } from "../hooks/useModules";
 import AdminLoginScreen from "../components/admin/AdminLoginScreen";
-import AdminLayout, { CATALOGUE_SECTIONS, type AdminSection } from "../components/admin/AdminLayout";
+import AdminLayout, {
+  CATALOGUE_SECTIONS,
+  RDV_SECTIONS,
+  NEWSLETTER_SECTIONS,
+  type AdminSection,
+} from "../components/admin/AdminLayout";
 import DashboardSection from "./admin/DashboardSection";
 import SiteSection from "./admin/SiteSection";
 import OffersSection from "./admin/OffersSection";
@@ -11,6 +16,8 @@ import MessagesSection from "./admin/MessagesSection";
 import ProductsSection from "./admin/ProductsSection";
 import OrdersSection from "./admin/OrdersSection";
 import CustomersSection from "./admin/CustomersSection";
+import RdvSection from "./admin/RdvSection";
+import NewsletterSection from "./admin/NewsletterSection";
 
 type AdminPageProps = {
   clientSiteId: string;
@@ -31,16 +38,22 @@ export default function AdminPage({ clientSiteId, section }: AdminPageProps) {
     );
   }
 
-  // Accès direct par URL à une section Catalogue (Produits/Commandes/Clients) alors que le module
-  // n'est pas actif pour ce tenant — le lien de nav est déjà masqué (AdminLayout), on bloque aussi
-  // le rendu de la section elle-même. `modules !== null` évite un flash avant le premier chargement.
-  const blocked = CATALOGUE_SECTIONS.includes(section) && modules !== null && !modules?.catalogue?.enabled;
+  // Accès direct par URL à une section liée à un module (Catalogue, RDV, Newsletter) alors que ce
+  // module n'est pas actif pour ce tenant — le lien de nav est déjà masqué (AdminLayout), on bloque
+  // aussi le rendu de la section elle-même. `modules !== null` évite un flash avant le premier chargement.
+  const blockedByModule = modules === null ? null
+    : CATALOGUE_SECTIONS.includes(section) && !modules?.catalogue?.enabled ? "Catalogue"
+    : RDV_SECTIONS.includes(section) && !modules?.rdv?.enabled ? "Rendez-vous"
+    : NEWSLETTER_SECTIONS.includes(section) && !modules?.newsletter?.enabled ? "Newsletter"
+    : null;
 
   return (
     <AdminLayout clientSiteId={clientSiteId} activeSection={section}>
-      {blocked ? (
+      {blockedByModule ? (
         <div className="rounded-card bg-white p-8 shadow-card">
-          <p className="text-gray-text">Le module Catalogue n'est pas activé pour ce site — cette page n'est pas disponible.</p>
+          <p className="text-gray-text">
+            Le module {blockedByModule} n'est pas activé pour ce site — cette page n'est pas disponible.
+          </p>
         </div>
       ) : (
         <>
@@ -52,6 +65,8 @@ export default function AdminPage({ clientSiteId, section }: AdminPageProps) {
           {section === "products" && <ProductsSection clientSiteId={clientSiteId} password={password} />}
           {section === "orders" && <OrdersSection clientSiteId={clientSiteId} password={password} />}
           {section === "customers" && <CustomersSection clientSiteId={clientSiteId} password={password} />}
+          {section === "rdv" && <RdvSection clientSiteId={clientSiteId} password={password} />}
+          {section === "newsletter" && <NewsletterSection clientSiteId={clientSiteId} password={password} />}
           {section === "messages" && <MessagesSection clientSiteId={clientSiteId} password={password} />}
         </>
       )}

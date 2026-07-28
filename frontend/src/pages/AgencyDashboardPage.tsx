@@ -4,10 +4,59 @@ import { useAdminSession, adminFetch } from "../hooks/useAdminSession";
 import AdminLoginForm from "../components/AdminLoginForm";
 import StatTile from "../components/charts/StatTile";
 import HorizontalBarChart from "../components/charts/HorizontalBarChart";
+import { IconDashboard, IconOffers, IconCustomers } from "../components/admin/icons";
 import { TEMPLATES } from "../templates/registry";
 import type { TemplateId } from "../hooks/useTemplate";
 
 const STATUSES = ["En cours", "Livré", "En maintenance"];
+
+// Couleur par statut — reprise pour le pill du statut et le tone des stat tiles, voir
+// docs/09-charte-graphique.md (vert = accent positif, bleu = brand, ambre = attention).
+const STATUS_STYLES: Record<string, string> = {
+  "Livré": "bg-green-accent/10 text-green-accent",
+  "En cours": "bg-brand-mid/10 text-brand-mid",
+  "En maintenance": "bg-amber-100 text-amber-700",
+};
+
+function BrandMark() {
+  return (
+    <div className="flex items-center gap-3">
+      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-brand-gradient text-sm font-black text-white shadow-soft">
+        ENW
+      </div>
+      <div className="flex flex-col leading-tight">
+        <span className="text-lg font-extrabold text-navy">etnof-web</span>
+        <span className="text-[11px] font-semibold uppercase tracking-[0.15em] text-green-accent">
+          Agence
+        </span>
+      </div>
+    </div>
+  );
+}
+
+type IconComponent = typeof IconDashboard;
+
+function SectionHeader({
+  icon: Icon,
+  title,
+  description,
+}: {
+  icon: IconComponent;
+  title: string;
+  description?: string;
+}) {
+  return (
+    <div className="mb-5 flex items-start gap-3">
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-button bg-brand-mid/10 text-brand-mid">
+        <Icon className="h-5 w-5" />
+      </div>
+      <div>
+        <h2 className="text-lg font-bold text-navy">{title}</h2>
+        {description && <p className="text-sm text-gray-text">{description}</p>}
+      </div>
+    </div>
+  );
+}
 
 type ModuleMeta = { name: string; displayName: string; price: string };
 
@@ -61,7 +110,12 @@ function StatsPanel({ password }: { password: string }) {
       .then(setStats);
   }, [password]);
 
-  if (!stats) return <p className="text-gray-text">Chargement des statistiques…</p>;
+  if (!stats)
+    return (
+      <div className="rounded-card bg-white p-6 text-sm text-gray-text shadow-card">
+        Chargement des statistiques…
+      </div>
+    );
 
   const toBars = (record: Record<string, number>) =>
     Object.entries(record).map(([label, value]) => ({ label, value }));
@@ -70,9 +124,9 @@ function StatsPanel({ password }: { password: string }) {
     <div className="flex flex-col gap-4">
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <StatTile label="Sites au total" value={stats.totalSites} />
-        <StatTile label="Livrés" value={stats.byStatus["Livré"] ?? 0} />
-        <StatTile label="En cours" value={stats.byStatus["En cours"] ?? 0} />
-        <StatTile label="En maintenance" value={stats.byStatus["En maintenance"] ?? 0} />
+        <StatTile label="Livrés" value={stats.byStatus["Livré"] ?? 0} tone="green" />
+        <StatTile label="En cours" value={stats.byStatus["En cours"] ?? 0} tone="blue" />
+        <StatTile label="En maintenance" value={stats.byStatus["En maintenance"] ?? 0} tone="amber" />
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <HorizontalBarChart title="Modules utilisés" data={toBars(stats.byModule)} />
@@ -120,13 +174,6 @@ function ModulePricingPanel({ password }: { password: string }) {
 
   return (
     <section className="rounded-card bg-white p-6 shadow-card">
-      <h3 className="mb-4 text-sm font-semibold uppercase tracking-[0.05em] text-gray-text">
-        Tarifs des modules
-      </h3>
-      <p className="mb-4 text-sm text-gray-text">
-        Affiché aux clients sur la card d'un module qu'ils n'ont pas encore ("Activer pour {"{prix}"} €"). Laisser
-        vide pour ne pas afficher de prix — toujours en euros.
-      </p>
       <div className="flex flex-col gap-3">
         {modules.map((m) => (
           <div key={m.name} className="flex items-center gap-3">
@@ -229,9 +276,6 @@ function ClientSitesPanel({ password }: { password: string }) {
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
       <section className="rounded-card bg-white p-6 shadow-card">
-        <h3 className="mb-4 text-sm font-semibold uppercase tracking-[0.05em] text-gray-text">
-          Sites clients
-        </h3>
         {!sites ? (
           <p className="text-gray-text">Chargement…</p>
         ) : sites.length === 0 ? (
@@ -241,11 +285,17 @@ function ClientSitesPanel({ password }: { password: string }) {
             {sites.map((site) => (
               <li
                 key={site.id}
-                className="flex flex-col gap-1 border-b border-border-subtle pb-3 last:border-0 last:pb-0"
+                className="flex flex-col gap-1 rounded-button bg-bg-page-start/60 p-4"
               >
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-semibold text-navy">{site.name}</span>
-                  <span className="text-xs font-medium text-green-accent">{site.status}</span>
+                  <span
+                    className={`shrink-0 rounded-pill px-2.5 py-1 text-xs font-semibold ${
+                      STATUS_STYLES[site.status] ?? "bg-border-subtle/40 text-gray-text"
+                    }`}
+                  >
+                    {site.status}
+                  </span>
                 </div>
                 <div className="text-sm text-gray-text">
                   {site.siteType || "Type non renseigné"} · template {site.templateId}
@@ -408,20 +458,65 @@ function ClientSitesPanel({ password }: { password: string }) {
 export default function AgencyDashboardPage() {
   const { password, login } = useAdminSession("agency");
 
+  if (!password) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-8 px-4 py-10">
+        <BrandMark />
+        <div className="flex flex-col items-center gap-2 text-center">
+          <span className="text-xs font-semibold uppercase tracking-[0.15em] text-green-accent">
+            Espace réservé
+          </span>
+          <h1 className="text-3xl font-extrabold text-navy">Vue globale — mes sites clients</h1>
+          <p className="max-w-sm text-sm text-gray-text">
+            Suivi des projets livrés, des modules actifs et des tarifs — réservé à l'agence.
+          </p>
+        </div>
+        <AdminLoginForm loginPath="/api/admin/login" onLoggedIn={login} />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen px-4 py-6 sm:px-8">
-      <div className="mx-auto flex max-w-4xl flex-col gap-6 py-10">
-        <h1 className="text-2xl font-extrabold text-navy">Vue globale — mes sites clients</h1>
+      <div className="mx-auto flex max-w-5xl flex-col gap-12 py-10">
+        <header className="flex flex-wrap items-center justify-between gap-4 rounded-pill bg-white px-6 py-4 shadow-soft">
+          <BrandMark />
+          <div className="text-right">
+            <span className="text-xs font-semibold uppercase tracking-[0.15em] text-green-accent">
+              Vue globale
+            </span>
+            <h1 className="text-lg font-extrabold text-navy">Mes sites clients</h1>
+          </div>
+        </header>
 
-        {password ? (
-          <>
-            <StatsPanel password={password} />
-            <ModulePricingPanel password={password} />
-            <ClientSitesPanel password={password} />
-          </>
-        ) : (
-          <AdminLoginForm loginPath="/api/admin/login" onLoggedIn={login} />
-        )}
+        <section>
+          <SectionHeader
+            icon={IconDashboard}
+            title="Vue d'ensemble"
+            description="Statistiques agrégées sur l'ensemble de vos projets clients."
+          />
+          <StatsPanel password={password} />
+        </section>
+
+        <section className="border-t border-border-subtle pt-12">
+          <SectionHeader
+            icon={IconOffers}
+            title="Tarifs des modules"
+            description={
+              'Affiché aux clients sur la card d\'un module qu\'ils n\'ont pas encore ("Activer pour {prix} €"). Laisser vide pour ne pas afficher de prix — toujours en euros.'
+            }
+          />
+          <ModulePricingPanel password={password} />
+        </section>
+
+        <section className="border-t border-border-subtle pt-12">
+          <SectionHeader
+            icon={IconCustomers}
+            title="Sites clients"
+            description="Ajoutez un client au moment de la livraison et suivez le statut de chaque projet."
+          />
+          <ClientSitesPanel password={password} />
+        </section>
       </div>
     </div>
   );

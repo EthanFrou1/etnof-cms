@@ -2,6 +2,8 @@ using Microsoft.EntityFrameworkCore;
 using Modules.Blog;
 using Modules.Catalogue;
 using Modules.Contact;
+using Modules.Newsletter;
+using Modules.Rdv;
 
 namespace Backend;
 
@@ -21,4 +23,7 @@ public class AppDbContext : DbContext
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<ModulePrice> ModulePrices => Set<ModulePrice>();
     public DbSet<EstablishmentImage> EstablishmentImages => Set<EstablishmentImage>();
+    public DbSet<RdvSchedule> RdvSchedules => Set<RdvSchedule>();
+    public DbSet<Booking> Bookings => Set<Booking>();
+    public DbSet<NewsletterSubscriber> NewsletterSubscribers => Set<NewsletterSubscriber>();
 }

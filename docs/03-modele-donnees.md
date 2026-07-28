@@ -125,6 +125,35 @@ Photos affichées dans le panneau résumé de la page "Établissement" (`Establi
 | Title / Price / Description | string | Page "Offres" (`/admin/{clientSiteId}/offers`) |
 | ProductId | Guid? | Lien facultatif vers `Product` (module Catalogue) — pas de FK stricte ni de navigation EF, même choix que `Order.CustomerId` ; toujours `null` si le tenant n'a pas le module Catalogue |
 
+### RdvSchedule (module RDV, ajouté le 2026-07-28)
+| Champ | Type | Note |
+|---|---|---|
+| Id | Guid | |
+| ClientSiteId | Guid | Une seule ligne par tenant |
+| SlotDurationMinutes | int | Durée d'un créneau, globale à tout le planning |
+| WeekdayRulesJson | text | JSON d'une liste de 7 `WeekdayRuleDto` (`DayOfWeek` 0=lundi..6=dimanche, `Enabled`, `StartTime`, `EndTime` au format "HH:mm") — même convention qu'`OpeningHoursJson`, mais indépendante du module Horaires (décision d'Ethan) |
+
+Aucune table de créneaux persistée : les créneaux disponibles sont calculés à la volée depuis ce gabarit (fenêtre glissante de 21 jours, voir `RdvModule.GenerateAvailableSlots`), pas stockés un par un.
+
+### Booking (module RDV)
+| Champ | Type | Note |
+|---|---|---|
+| Id | Guid | |
+| ClientSiteId | Guid | |
+| StartsAt | datetime | Figé au moment de la réservation (snapshot), indépendant du planning ensuite modifié |
+| DurationMinutes | int | idem |
+| CustomerName / CustomerEmail / CustomerPhone / Note | string | |
+| Status | string | `confirmed` / `cancelled` — pas de `fulfilled` (un rendez-vous a lieu ou non, pas d'étape de traitement) |
+| CreatedAt | datetime | |
+
+### NewsletterSubscriber (module Newsletter, ajouté le 2026-07-28)
+| Champ | Type | Note |
+|---|---|---|
+| Id | Guid | |
+| ClientSiteId | Guid | |
+| Email | string | Dédoublonné par égalité insensible à la casse à l'inscription (pas de contrainte unique en base) |
+| CreatedAt | datetime | |
+
 ## Note sur le module Maps
 
 Pas de table dédiée pour Maps lui-même. L'adresse qu'il affiche n'est **pas** stockée dans sa config module — elle vit dans `SiteContent.Address` (voir `docs/06-contenu-site.md`), partagée avec d'autres usages potentiels de l'adresse de l'établissement. Seul `apiKey` (propre à l'embed Google Maps) reste dans `ModulesConfigJson.maps`.
