@@ -15,7 +15,7 @@ Aligné sur la grille tarifaire etnof-web actuelle. Statut : à date de rédacti
 | Paiement Stripe | Paiement Stripe (+350€) | Post-POC |
 | Paiement PayPal | Paiement PayPal (+200€) | Post-POC |
 | Newsletter | Newsletter (+190€) | Implémenté (2026-07-28). Formulaire d'inscription email public, liste + export CSV côté admin. Pas d'envoi de campagne (hors scope V1, voir `docs/12-plan-modules-restants.md`) |
-| Avis Google | Avis Google (+100€) | Post-POC |
+| Avis Google | Avis Google (+100€) | Implémenté (2026-07-28). L'admin lie une fiche Google Places puis récupère les avis à la demande (bouton "Actualiser") ; le client choisit ceux affichés publiquement. Jamais de rafraîchissement automatique — le champ "reviews" de l'API Google Places est payant (voir `docs/12-plan-modules-restants.md`) |
 | WhatsApp | Bouton WhatsApp (+90€) | Post-POC |
 | Chat IA | Chat IA (+390€) | Post-POC |
 | FAQ IA | FAQ IA (+290€) | Post-POC |

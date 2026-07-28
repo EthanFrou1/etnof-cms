@@ -14,6 +14,7 @@ import {
   IconOffers,
   IconOrders,
   IconProducts,
+  IconStar,
 } from "./icons";
 
 export type AdminSection =
@@ -27,7 +28,8 @@ export type AdminSection =
   | "orders"
   | "customers"
   | "rdv"
-  | "newsletter";
+  | "newsletter"
+  | "avis-google";
 
 // Produits/Commandes/Clients n'existent que via le module Catalogue (un client n'apparaît que
 // s'il a passé commande) — pas de module "customers" séparé, voir docs/04-catalogue-modules.md.
@@ -37,6 +39,7 @@ export const CATALOGUE_SECTIONS: AdminSection[] = ["products", "orders", "custom
 // Même principe que CATALOGUE_SECTIONS, un seul écran ici (voir docs/12-plan-modules-restants.md).
 export const RDV_SECTIONS: AdminSection[] = ["rdv"];
 export const NEWSLETTER_SECTIONS: AdminSection[] = ["newsletter"];
+export const AVIS_GOOGLE_SECTIONS: AdminSection[] = ["avis-google"];
 
 const NAV_ITEMS: { id: AdminSection; label: string; icon: typeof IconDashboard }[] = [
   { id: "dashboard", label: "Tableau de bord", icon: IconDashboard },
@@ -49,6 +52,7 @@ const NAV_ITEMS: { id: AdminSection; label: string; icon: typeof IconDashboard }
   { id: "customers", label: "Clients", icon: IconCustomers },
   { id: "rdv", label: "Rendez-vous", icon: IconClock },
   { id: "newsletter", label: "Newsletter", icon: IconMail },
+  { id: "avis-google", label: "Avis Google", icon: IconStar },
   { id: "messages", label: "Messages", icon: IconMessages },
 ];
 
@@ -68,6 +72,7 @@ export default function AdminLayout({ clientSiteId, activeSection, children }: A
   const catalogueActive = Boolean(modules?.catalogue?.enabled);
   const rdvActive = Boolean(modules?.rdv?.enabled);
   const newsletterActive = Boolean(modules?.newsletter?.enabled);
+  const avisGoogleActive = Boolean(modules?.["avis-google"]?.enabled);
 
   useEffect(() => {
     fetch(`${API_BASE_URL}/api/t/${clientSiteId}/content`)
@@ -80,7 +85,8 @@ export default function AdminLayout({ clientSiteId, activeSection, children }: A
     (item) =>
       (!CATALOGUE_SECTIONS.includes(item.id) || catalogueActive) &&
       (!RDV_SECTIONS.includes(item.id) || rdvActive) &&
-      (!NEWSLETTER_SECTIONS.includes(item.id) || newsletterActive)
+      (!NEWSLETTER_SECTIONS.includes(item.id) || newsletterActive) &&
+      (!AVIS_GOOGLE_SECTIONS.includes(item.id) || avisGoogleActive)
   );
 
   return (

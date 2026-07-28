@@ -1,5 +1,6 @@
 using Backend;
 using Microsoft.EntityFrameworkCore;
+using Modules.AvisGoogle;
 using Modules.Blog;
 using Modules.Catalogue;
 using Modules.Contact;
@@ -62,5 +63,7 @@ RdvModule.MapEndpoints(app);
 RdvAdminEndpoints.MapEndpoints(app);
 NewsletterModule.MapEndpoints(app);
 NewsletterAdminEndpoints.MapEndpoints(app);
+AvisGoogleModule.MapEndpoints(app);
+AvisGoogleAdminEndpoints.MapEndpoints(app);
 
 app.Run();

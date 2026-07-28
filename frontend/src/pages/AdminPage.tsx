@@ -5,6 +5,7 @@ import AdminLayout, {
   CATALOGUE_SECTIONS,
   RDV_SECTIONS,
   NEWSLETTER_SECTIONS,
+  AVIS_GOOGLE_SECTIONS,
   type AdminSection,
 } from "../components/admin/AdminLayout";
 import DashboardSection from "./admin/DashboardSection";
@@ -18,6 +19,7 @@ import OrdersSection from "./admin/OrdersSection";
 import CustomersSection from "./admin/CustomersSection";
 import RdvSection from "./admin/RdvSection";
 import NewsletterSection from "./admin/NewsletterSection";
+import AvisGoogleSection from "./admin/AvisGoogleSection";
 
 type AdminPageProps = {
   clientSiteId: string;
@@ -45,6 +47,7 @@ export default function AdminPage({ clientSiteId, section }: AdminPageProps) {
     : CATALOGUE_SECTIONS.includes(section) && !modules?.catalogue?.enabled ? "Catalogue"
     : RDV_SECTIONS.includes(section) && !modules?.rdv?.enabled ? "Rendez-vous"
     : NEWSLETTER_SECTIONS.includes(section) && !modules?.newsletter?.enabled ? "Newsletter"
+    : AVIS_GOOGLE_SECTIONS.includes(section) && !modules?.["avis-google"]?.enabled ? "Avis Google"
     : null;
 
   return (
@@ -67,6 +70,7 @@ export default function AdminPage({ clientSiteId, section }: AdminPageProps) {
           {section === "customers" && <CustomersSection clientSiteId={clientSiteId} password={password} />}
           {section === "rdv" && <RdvSection clientSiteId={clientSiteId} password={password} />}
           {section === "newsletter" && <NewsletterSection clientSiteId={clientSiteId} password={password} />}
+          {section === "avis-google" && <AvisGoogleSection clientSiteId={clientSiteId} password={password} />}
           {section === "messages" && <MessagesSection clientSiteId={clientSiteId} password={password} />}
         </>
       )}

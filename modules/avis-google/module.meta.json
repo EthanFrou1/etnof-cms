@@ -1,0 +1,6 @@
+{
+  "name": "avis-google",
+  "displayName": "Avis Google",
+  "description": "Affiche la note moyenne et une sélection d'avis Google récupérés depuis ton back-office",
+  "dependencies": []
+}

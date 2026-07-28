@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Modules.AvisGoogle;
 using Modules.Blog;
 using Modules.Catalogue;
 using Modules.Contact;
@@ -26,4 +27,6 @@ public class AppDbContext : DbContext
     public DbSet<RdvSchedule> RdvSchedules => Set<RdvSchedule>();
     public DbSet<Booking> Bookings => Set<Booking>();
     public DbSet<NewsletterSubscriber> NewsletterSubscribers => Set<NewsletterSubscriber>();
+    public DbSet<GoogleReviewSettings> GoogleReviewSettings => Set<GoogleReviewSettings>();
+    public DbSet<GoogleReview> GoogleReviews => Set<GoogleReview>();
 }

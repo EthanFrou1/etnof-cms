@@ -154,6 +154,27 @@ Aucune table de créneaux persistée : les créneaux disponibles sont calculés 
 | Email | string | Dédoublonné par égalité insensible à la casse à l'inscription (pas de contrainte unique en base) |
 | CreatedAt | datetime | |
 
+### GoogleReviewSettings (module Avis Google, ajouté le 2026-07-28)
+| Champ | Type | Note |
+|---|---|---|
+| Id | Guid | |
+| ClientSiteId | Guid | Une seule ligne par tenant (retrouvée par égalité, même convention que `RdvSchedule` — pas de clé primaire composite) |
+| PlaceId | string | Identifiant Google Places de la fiche liée |
+| PlaceName | string | Nom affiché dans l'admin (issu de la recherche Google) |
+| AverageRating | double? | Instantané de la note moyenne Google, mis à jour à chaque actualisation |
+| UserRatingsTotal | int? | Nombre total d'avis Google (pas seulement ceux importés/sélectionnés) |
+| LastFetchedAt | datetime? | Date de la dernière actualisation manuelle |
+
+### GoogleReview (module Avis Google)
+| Champ | Type | Note |
+|---|---|---|
+| Id | Guid | |
+| ClientSiteId | Guid | |
+| GoogleTime | long | Horodatage Unix renvoyé par Google pour cet avis précis — clé naturelle utilisée pour l'upsert lors d'une actualisation (préserve `Selected` sans le réinitialiser) |
+| AuthorName, ProfilePhotoUrl, Rating, Text, RelativeTimeDescription | string/int | Miroir en lecture seule du contenu Google, jamais modifié côté site |
+| Selected | bool | Choisi par le client dans son back-office pour affichage public (défaut `false` à l'import) |
+| FetchedAt | datetime | Date de la dernière actualisation ayant touché cet avis |
+
 ## Note sur le module Maps
 
 Pas de table dédiée pour Maps lui-même. L'adresse qu'il affiche n'est **pas** stockée dans sa config module — elle vit dans `SiteContent.Address` (voir `docs/06-contenu-site.md`), partagée avec d'autres usages potentiels de l'adresse de l'établissement. Seul `apiKey` (propre à l'embed Google Maps) reste dans `ModulesConfigJson.maps`.
