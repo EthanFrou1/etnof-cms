@@ -10,6 +10,7 @@ const BlogSection = lazy(() => import("@modules/blog/frontend/BlogSection"));
 const CatalogueSection = lazy(() => import("@modules/catalogue/frontend/CatalogueSection"));
 const RdvSection = lazy(() => import("@modules/rdv/frontend/RdvSection"));
 const NewsletterSection = lazy(() => import("@modules/newsletter/frontend/NewsletterSection"));
+const AvisGoogleSection = lazy(() => import("@modules/avis-google/frontend/AvisGoogleSection"));
 
 // 3 variantes de couleurs (accent + fond + fin de dégradé) propres à ce template — voir registry.ts
 // pour le détail (aussi utilisé par le sélecteur de palette dans l'admin, SiteSection.tsx). "ink"
@@ -76,6 +77,11 @@ export default function TemplateHelios({ clientSiteId, modules, content, palette
             {modules?.newsletter?.enabled && (
               <a href="#newsletter" className="hover:text-white">
                 Newsletter
+              </a>
+            )}
+            {modules?.["avis-google"]?.enabled && (
+              <a href="#avis-google" className="hover:text-white">
+                Avis
               </a>
             )}
           </div>
@@ -174,6 +180,11 @@ export default function TemplateHelios({ clientSiteId, modules, content, palette
             {modules?.newsletter?.enabled && (
               <div id="newsletter">
                 <NewsletterSection apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} palette={modulePalette} />
+              </div>
+            )}
+            {modules?.["avis-google"]?.enabled && (
+              <div id="avis-google" className="sm:col-span-2">
+                <AvisGoogleSection apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} palette={modulePalette} />
               </div>
             )}
             {modules?.maps?.enabled && typeof mapsAddress === "string" && (

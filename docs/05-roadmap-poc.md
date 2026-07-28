@@ -421,4 +421,20 @@ Testé : `tsc -b` propre ; rendu vérifié sur les deux tenants et re-vérifié 
 
 ---
 
+## Module Avis Google — 2026-07-28 (même jour)
+
+Suite de `docs/12-plan-modules-restants.md` : troisième module de la catégorie A après RDV et Newsletter. Avant de coder, vérification explicite du coût réel de l'API Google Places pour le champ `reviews` (règle 5 de `CLAUDE.md`) — SKU payant "Enterprise + Atmosphere" (~25-40$/1000 appels après un quota gratuit de 1000/mois), contrairement au reste de l'intégration Google Places du projet (Horaires/Établissement) qui n'utilise que des champs gratuits. Décision prise avec Ethan (deux questions posées) : le module part quand même, mais avec récupération **manuelle** depuis le back-office (jamais automatique) pour garder le volume d'appels quasi nul, et le client choisit ensuite quels avis afficher parmi ceux récupérés.
+
+- `modules/avis-google/` : entités `GoogleReviewSettings` (fiche Google liée + instantané de note globale, une ligne par tenant) et `GoogleReview` (miroir en lecture seule de chaque avis, upsert par `GoogleTime` — l'horodatage Google sert de clé naturelle pour préserver le choix `Selected` du client d'une actualisation à l'autre). Endpoints admin isolés dans `AvisGoogleAdminEndpoints.cs` (recherche réutilise l'endpoint gratuit existant de `GooglePlacesEndpoints.cs`, mais l'appel `reviews` a son propre fichier pour ne jamais faire payer les autres appelants du endpoint `/details` partagé) : lier une fiche, actualiser à la demande, lister les avis, choisir ceux affichés (toggle instantané, pas de dirty-check). Endpoint public gaté par le module, ne renvoie que les avis sélectionnés.
+- Admin : nouvelle page `/admin/{clientSiteId}/avis-google` (recherche Google façon Établissement, carte de résumé avec note/nombre d'avis, liste des avis avec toggle "Affiché"/"Masqué"). Widget public (note moyenne + avis sélectionnés, masqué si aucun avis choisi) branché sur Hestia et Helios.
+- **Aléa de test découvert en cours de route** : la Tour Eiffel (premier lieu testé) renvoie une note/un total d'avis mais **aucun avis individuel**, sur la légacy comme sur la New Places API — vérifié que ce n'est ni un bug du code ni un problème de clé/quota (la Statue de la Liberté, testée dans la foulée avec la même clé et le même code, renvoie ses avis normalement). Cause probable : restriction Google spécifique à ce lieu (contenu très exposé/signalé), pas un problème du projet.
+
+Testé (curl direct sur l'API Google pour isoler la cause de l'aléa ci-dessus, puis CDP/Chrome headless pour l'UI) sur le tenant historique : liaison à une fiche réelle (Statue de la Liberté) → note/nombre d'avis + 5 avis récupérés avec photos/texte réels ; sélection de 2 avis → widget public les affiche (et eux seuls), avec note moyenne et étoiles ; actualisation → les 5 avis conservent leur état `Selected` (upsert par `GoogleTime` confirmé) ; second tenant (Boulangerie Dupont, module jamais autorisé) → 404 public et page admin bloquée avec message, nav sans l'entrée "Avis Google" (isolation confirmée). Build backend (`dotnet build`) et frontend (`tsc -b` + `vite build`) propres. Données de test (fiche liée + avis) supprimées après vérification ; module laissé **autorisé et activé** pour le tenant historique, pour qu'Ethan puisse lier sa propre fiche directement.
+
+Icône du module déposée dans la foulée (`frontend/public/module-icons/avis-google.png`, générée par Ethan avec le prompt de `docs/11-images-modules.md`), référencée dans `MODULE_IMAGES` (`ModulesSection.tsx`).
+
+**Reste à faire par Ethan** : lier son propre établissement depuis `/admin/{clientSiteId}/avis-google` et choisir les avis à afficher ; tarif (100€) à renseigner dans le panneau "Tarifs des modules" de `/admin/dashboard`.
+
+---
+
 **Note pour toi (Ethan)** : donne ce fichier à Claude Code phase par phase (« on attaque la Phase 2, voici le contexte : [colle le contenu de 02-architecture-modules.md et 03-modele-donnees.md] »). Ne lui donne pas tout le projet d'un coup, ça évite qu'il brûle des étapes ou fasse des suppositions sur les phases suivantes.

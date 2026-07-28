@@ -88,13 +88,13 @@ Basé sur la note de priorité déjà actée dans `docs/04-catalogue-modules.md`
 
 **But pour le client** : afficher ses avis Google existants sur son site pour rassurer les visiteurs, sans ressaisie manuelle.
 
-**But technique sur le site** : nouveau module `avis-google`. Récupère et affiche la note moyenne + une sélection d'avis via l'API Google Places (le même mécanisme que le module Horaires utilise déjà pour récupérer les horaires depuis Google Places — réutilisable).
+**But technique sur le site** : nouveau module `avis-google`. Récupère et affiche la note moyenne + une sélection d'avis via l'API Google Places.
 
-**Portée V1 (rester simple)** : lecture seule (pas de réponse aux avis depuis l'admin), rafraîchi périodiquement plutôt qu'en temps réel.
+**Portée V1 (rester simple)** : lecture seule (pas de réponse aux avis depuis l'admin). Décision prise avec Ethan pendant le cadrage (deux questions posées) : pas de rafraîchissement automatique périodique — Ethan (ou le client) déclenche la récupération manuellement depuis le back-office ("Actualiser les avis"), et choisit ensuite lesquels afficher publiquement parmi ceux récupérés.
 
-**Dépendance externe** : Google Places API — déjà utilisée par le module Horaires, donc le client a probablement déjà une clé configurée. À confirmer que ça reste dans le même quota/coût que l'usage actuel avant de généraliser.
+**Dépendance externe** : Google Places API — mais **pas** le même champ que le module Horaires. Vérifié explicitement avant de coder (règle 5 de `CLAUDE.md`) : le champ `reviews` relève du SKU payant "Place Details Enterprise + Atmosphere" (~25-40$/1000 appels après un quota gratuit de 1000/mois), contrairement aux champs `opening_hours`/`photos`/`address` utilisés par Horaires/Établissement qui sont gratuits ("Basic"/"Pro Data"). Volontairement isolé dans son propre fichier backend (`AvisGoogleAdminEndpoints.cs`) plutôt que d'étendre l'endpoint `/details` partagé, pour ne jamais faire payer les autres appelants de cet endpoint. Le déclenchement manuel (au lieu d'un rafraîchissement automatique) réduit encore le volume d'appels réels, largement dans le quota gratuit.
 
-**Statut** : [ ] à construire
+**Statut** : [x] construit (2026-07-28) — `modules/avis-google/`. Admin : recherche Google Places (réutilise l'endpoint de recherche existant, gratuit) pour lier une fiche, bouton "Actualiser les avis" (appel payant explicite, jamais automatique), liste des avis récupérés avec toggle par avis pour choisir ceux affichés publiquement. Upsert par horodatage Google (`GoogleTime`) : un rafraîchissement met à jour le contenu sans perdre les choix déjà faits. Widget public (note moyenne + avis sélectionnés) branché sur Hestia et Helios, masqué tant qu'aucun avis n'est sélectionné.
 
 ---
 

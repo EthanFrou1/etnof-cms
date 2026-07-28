@@ -11,6 +11,7 @@ const BlogSection = lazy(() => import("@modules/blog/frontend/BlogSection"));
 const CatalogueSection = lazy(() => import("@modules/catalogue/frontend/CatalogueSection"));
 const RdvSection = lazy(() => import("@modules/rdv/frontend/RdvSection"));
 const NewsletterSection = lazy(() => import("@modules/newsletter/frontend/NewsletterSection"));
+const AvisGoogleSection = lazy(() => import("@modules/avis-google/frontend/AvisGoogleSection"));
 
 // 3 variantes de couleurs (accent + fond) propres à ce template — voir registry.ts pour le détail
 // (aussi utilisé par le sélecteur de palette dans l'admin, SiteSection.tsx). "ink"/blanc restent
@@ -242,6 +243,11 @@ export default function TemplateHestia({ clientSiteId, modules, content, palette
                 Newsletter
               </a>
             )}
+            {modules?.["avis-google"]?.enabled && (
+              <a href="#avis-google" style={{ color: "inherit" }} className="hover:opacity-70">
+                Avis
+              </a>
+            )}
           </div>
         </nav>
       </div>
@@ -366,6 +372,11 @@ export default function TemplateHestia({ clientSiteId, modules, content, palette
             {modules?.newsletter?.enabled && (
               <div id="newsletter">
                 <NewsletterSection apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} palette={modulePalette} />
+              </div>
+            )}
+            {modules?.["avis-google"]?.enabled && (
+              <div id="avis-google">
+                <AvisGoogleSection apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} palette={modulePalette} />
               </div>
             )}
             {modules?.maps?.enabled && typeof mapsAddress === "string" && (

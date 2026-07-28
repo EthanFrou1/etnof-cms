@@ -28,6 +28,7 @@ Subject: [SUJET DU MODULE]
 | `horaires.png` | a stylized clock face with rounded hour and minute hands, paired with a small minimalist calendar page peeking out behind it, representing opening hours and schedule |
 | `rdv.png` | a stylized calendar page with a checkmark on one date, paired with a small clock icon, representing booking an appointment slot |
 | `newsletter.png` | a stylized envelope with a small paper airplane or upward arrow above it, representing sending/subscribing to a newsletter |
+| `avis-google.png` | a stylized five-pointed star (filled) next to a rounded speech bubble containing a few small horizontal lines, representing a customer review/rating |
 
 ## Notes
 
