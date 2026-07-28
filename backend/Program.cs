@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Modules.Blog;
 using Modules.Catalogue;
 using Modules.Contact;
+using Modules.Newsletter;
 using Modules.Rdv;
 
 // Utilitaire CLI : `dotnet run -- hash-password <mot-de-passe>` génère un hash à coller dans
@@ -59,5 +60,7 @@ CatalogueModule.MapEndpoints(app);
 CatalogueAdminEndpoints.MapEndpoints(app);
 RdvModule.MapEndpoints(app);
 RdvAdminEndpoints.MapEndpoints(app);
+NewsletterModule.MapEndpoints(app);
+NewsletterAdminEndpoints.MapEndpoints(app);
 
 app.Run();

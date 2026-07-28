@@ -27,6 +27,7 @@ Subject: [SUJET DU MODULE]
 | `catalogue.png` | a stylized shopping bag or product box with a small price tag attached, representing an online product catalogue |
 | `horaires.png` | a stylized clock face with rounded hour and minute hands, paired with a small minimalist calendar page peeking out behind it, representing opening hours and schedule |
 | `rdv.png` | a stylized calendar page with a checkmark on one date, paired with a small clock icon, representing booking an appointment slot |
+| `newsletter.png` | a stylized envelope with a small paper airplane or upward arrow above it, representing sending/subscribing to a newsletter |
 
 ## Notes
 

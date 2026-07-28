@@ -1,0 +1,6 @@
+{
+  "name": "newsletter",
+  "displayName": "Newsletter",
+  "description": "Formulaire d'inscription email, liste des inscrits exportable en CSV",
+  "dependencies": []
+}

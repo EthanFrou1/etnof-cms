@@ -11,10 +11,10 @@ Aligné sur la grille tarifaire etnof-web actuelle. Statut : à date de rédacti
 | Horaires | Absent de la grille tarifaire actuelle — gratuit pour l'instant (décision d'Ethan) | Implémenté (2026-07-27). Onglet Horaires dans la page Établissement (récupération auto depuis Google Places, pause méridienne) — gate l'onglet admin, pas les données (stockées dans `SiteContent` comme le reste d'Établissement). Affichage sur le site public pas encore câblé |
 | Back-office / CMS léger | Back-office/CMS (+450€) | Largement couvert par l'admin `/admin` du POC (Phase 3) — reste à durcir avant vente (voir bilan Phase 5) |
 | Multilingue | Multilingue (+250€) | Post-POC |
-| RDV | Prise de rendez-vous (+290€) | Implémenté (2026-07-28). Créneaux ponctuels créés par le client (date + heure + durée), réservation publique (nom/email/téléphone/note), annulation côté admin qui libère le créneau. Voir `docs/12-plan-modules-restants.md` pour la portée détaillée |
+| RDV | Prise de rendez-vous (+290€) | Implémenté (2026-07-28). Gabarit hebdomadaire récurrent (durée de créneau globale + plage horaire active par jour, indépendante du module Horaires), créneaux générés à la volée, réservation publique (nom/email/téléphone/note), annulation côté admin qui libère le créneau. Voir `docs/12-plan-modules-restants.md` pour la portée détaillée |
 | Paiement Stripe | Paiement Stripe (+350€) | Post-POC |
 | Paiement PayPal | Paiement PayPal (+200€) | Post-POC |
-| Newsletter | Newsletter (+190€) | Post-POC |
+| Newsletter | Newsletter (+190€) | Implémenté (2026-07-28). Formulaire d'inscription email public, liste + export CSV côté admin. Pas d'envoi de campagne (hors scope V1, voir `docs/12-plan-modules-restants.md`) |
 | Avis Google | Avis Google (+100€) | Post-POC |
 | WhatsApp | Bouton WhatsApp (+90€) | Post-POC |
 | Chat IA | Chat IA (+390€) | Post-POC |

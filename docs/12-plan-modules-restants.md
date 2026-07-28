@@ -19,7 +19,7 @@ Marche à suivre pour construire, un par un, les modules qui manquent encore par
 | Prise de rendez-vous | +290€ | Implémenté (2026-07-28) |
 | Paiement Stripe | +350€ | À construire |
 | Paiement PayPal | +200€ | À construire |
-| Newsletter | +190€ | À construire |
+| Newsletter | +190€ | Implémenté (2026-07-28) |
 | Avis Google | +100€ | À construire |
 | WhatsApp | +90€ | À construire |
 | Chat IA | +390€ | À construire |
@@ -60,13 +60,13 @@ Basé sur la note de priorité déjà actée dans `docs/04-catalogue-modules.md`
 
 **But pour le client** : ses propres clients peuvent réserver un créneau (coupe, consultation, table...) directement depuis le site, sans appel téléphonique — réduit les no-shows et la charge d'accueil.
 
-**But technique sur le site** : nouveau module `rdv`. Le client définit des créneaux disponibles (jours/horaires récurrents, éventuellement en s'appuyant sur le module Horaires déjà existant) depuis son admin ; un visiteur choisit un créneau libre et laisse nom/email/téléphone ; la réservation est enregistrée en base (comme une `Order` du module Catalogue) et le créneau disparaît de la liste des disponibilités.
+**But technique sur le site** : nouveau module `rdv`. Le client configure un gabarit hebdomadaire récurrent depuis son admin : une durée de créneau (ex. 30 min) globale, et pour chaque jour de la semaine un statut actif/inactif avec une plage horaire propre (ex. Lundi actif 9h-12h, Mardi inactif, indépendant des horaires d'ouverture du module Horaires). Les créneaux disponibles sont calculés à la volée à partir de ce gabarit (pas de ligne persistée par créneau) ; un visiteur choisit un horaire libre et laisse nom/email/téléphone ; la réservation (`Booking`) fige l'heure et la durée au moment de la réservation.
 
-**Portée V1 (rester simple)** : créneaux définis manuellement par le client (pas de sync avec Google Calendar/Outlook — explicitement post-V1), pas d'email de confirmation automatique tant qu'aucun service d'envoi n'est validé (le client voit ses réservations dans son admin, comme les messages Contact).
+**Portée V1 (rester simple)** : un seul gabarit récurrent par semaine, pas d'exceptions ponctuelles (jour férié, fermeture exceptionnelle un jour normalement actif — explicitement post-V1, à traiter si le besoin apparaît). Fenêtre de disponibilité glissante fixe (21 jours), pas configurable. Pas de sync avec Google Calendar/Outlook. Pas d'email de confirmation automatique tant qu'aucun service d'envoi n'est validé (le client voit ses réservations dans son admin, comme les messages Contact).
 
 **Dépendance externe** : aucune pour la V1 telle que décrite. Une confirmation par email nécessiterait un service d'envoi (ex. SMTP, Resend...) — à valider séparément le moment venu.
 
-**Statut** : [x] construit (2026-07-28) — `modules/rdv/`. Créneaux ponctuels (pas de règles récurrentes, confirmé avec Ethan), admin du client crée les créneaux et voit/annule les réservations, widget public de réservation branché sur Hestia et Helios, carte "Rendez-vous à venir" sur le tableau de bord du client.
+**Statut** : [x] construit (2026-07-28) — `modules/rdv/`. Gabarit hebdomadaire récurrent (durée globale + plage horaire propre par jour, indépendante du module Horaires — décision d'Ethan après une première version à créneaux ponctuels), créneaux générés à la volée, admin du client configure le planning et voit/annule les réservations (filtres à venir/passés/annulés/tous), widget public de réservation branché sur Hestia et Helios, carte "Rendez-vous à venir" sur le tableau de bord du client.
 
 ---
 
@@ -80,7 +80,7 @@ Basé sur la note de priorité déjà actée dans `docs/04-catalogue-modules.md`
 
 **Dépendance externe** : aucune pour la V1. Un envoi de campagne intégré nécessiterait un service tiers (Mailchimp, Brevo...) — à valider séparément si demandé plus tard.
 
-**Statut** : [ ] à construire
+**Statut** : [x] construit (2026-07-28) — `modules/newsletter/`. Formulaire d'inscription public (idempotent, pas d'erreur si déjà inscrit), liste + export CSV côté admin, widget branché sur Hestia et Helios.
 
 ---
 

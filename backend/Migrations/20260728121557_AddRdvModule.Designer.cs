@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Backend.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260728104003_AddRdvModule")]
+    [Migration("20260728121557_AddRdvModule")]
     partial class AddRdvModule
     {
         /// <inheritdoc />
@@ -436,25 +436,26 @@ namespace Backend.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<int>("DurationMinutes")
+                        .HasColumnType("integer");
+
                     b.Property<string>("Note")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<DateTime>("StartsAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<Guid>("TimeSlotId")
-                        .HasColumnType("uuid");
-
                     b.HasKey("Id");
-
-                    b.HasIndex("TimeSlotId");
 
                     b.ToTable("Bookings");
                 });
 
-            modelBuilder.Entity("Modules.Rdv.TimeSlot", b =>
+            modelBuilder.Entity("Modules.Rdv.RdvSchedule", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -463,18 +464,16 @@ namespace Backend.Migrations
                     b.Property<Guid>("ClientSiteId")
                         .HasColumnType("uuid");
 
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("DurationMinutes")
+                    b.Property<int>("SlotDurationMinutes")
                         .HasColumnType("integer");
 
-                    b.Property<DateTime>("StartsAt")
-                        .HasColumnType("timestamp with time zone");
+                    b.Property<string>("WeekdayRulesJson")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.HasKey("Id");
 
-                    b.ToTable("TimeSlots");
+                    b.ToTable("RdvSchedules");
                 });
 
             modelBuilder.Entity("Backend.Offer", b =>
@@ -506,17 +505,6 @@ namespace Backend.Migrations
                     b.Navigation("Product");
                 });
 
-            modelBuilder.Entity("Modules.Rdv.Booking", b =>
-                {
-                    b.HasOne("Modules.Rdv.TimeSlot", "TimeSlot")
-                        .WithMany("Bookings")
-                        .HasForeignKey("TimeSlotId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("TimeSlot");
-                });
-
             modelBuilder.Entity("Backend.SiteContent", b =>
                 {
                     b.Navigation("Offers");
@@ -530,11 +518,6 @@ namespace Backend.Migrations
             modelBuilder.Entity("Modules.Catalogue.Product", b =>
                 {
                     b.Navigation("Images");
-                });
-
-            modelBuilder.Entity("Modules.Rdv.TimeSlot", b =>
-                {
-                    b.Navigation("Bookings");
                 });
 #pragma warning restore 612, 618
         }

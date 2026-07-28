@@ -12,7 +12,6 @@ type RdvSectionProps = {
 };
 
 type TimeSlot = {
-  id: string;
   startsAt: string;
   durationMinutes: number;
 };
@@ -52,7 +51,7 @@ function groupByDay(slots: TimeSlot[]) {
 
 export default function RdvSection({ apiBaseUrl, clientSiteId, palette }: RdvSectionProps) {
   const [slots, setSlots] = useState<TimeSlot[] | null>(null);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedStartsAt, setSelectedStartsAt] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(initialForm);
   const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState("");
@@ -69,7 +68,7 @@ export default function RdvSection({ apiBaseUrl, clientSiteId, palette }: RdvSec
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!selectedId) return;
+    if (!selectedStartsAt) return;
     setStatus("sending");
     setErrorMessage("");
 
@@ -77,7 +76,7 @@ export default function RdvSection({ apiBaseUrl, clientSiteId, palette }: RdvSec
       const res = await fetch(`${apiBaseUrl}/api/t/${clientSiteId}/rdv/bookings`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ timeSlotId: selectedId, ...form }),
+        body: JSON.stringify({ startsAt: selectedStartsAt, ...form }),
       });
 
       if (!res.ok) {
@@ -89,7 +88,7 @@ export default function RdvSection({ apiBaseUrl, clientSiteId, palette }: RdvSec
       }
 
       setForm(initialForm);
-      setSelectedId(null);
+      setSelectedStartsAt(null);
       setStatus("sent");
       loadSlots();
     } catch {
@@ -125,13 +124,13 @@ export default function RdvSection({ apiBaseUrl, clientSiteId, palette }: RdvSec
               </span>
               <div className="mt-2 flex flex-wrap gap-2">
                 {group.slots.map((slot) => {
-                  const selected = selectedId === slot.id;
+                  const selected = selectedStartsAt === slot.startsAt;
                   return (
                     <button
-                      key={slot.id}
+                      key={slot.startsAt}
                       type="button"
                       onClick={() => {
-                        setSelectedId(slot.id);
+                        setSelectedStartsAt(slot.startsAt);
                         setStatus("idle");
                       }}
                       className="rounded-button border px-3 py-2 text-sm font-medium transition-colors"
@@ -149,7 +148,7 @@ export default function RdvSection({ apiBaseUrl, clientSiteId, palette }: RdvSec
             </div>
           ))}
 
-          {selectedId && (
+          {selectedStartsAt && (
             <form onSubmit={handleSubmit} className="mt-2 flex flex-col gap-1.5 border-t border-border-subtle pt-4">
               <label htmlFor="rdv-name" className={labelClass}>
                 Nom

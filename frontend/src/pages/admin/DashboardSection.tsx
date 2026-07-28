@@ -38,7 +38,7 @@ type Booking = {
   id: string;
   customerName: string;
   status: "confirmed" | "cancelled";
-  slotStartsAt: string;
+  startsAt: string;
 };
 
 // Un produit est signalé dès que son stock passe à ce seuil ou en dessous — assez bas pour rester
@@ -117,8 +117,8 @@ function PendingOrdersCard({ clientSiteId, orders }: { clientSiteId: string; ord
 
 function UpcomingAppointmentsCard({ clientSiteId, bookings }: { clientSiteId: string; bookings: Booking[] | null }) {
   const upcoming = (bookings ?? [])
-    .filter((b) => b.status === "confirmed" && new Date(b.slotStartsAt).getTime() > Date.now())
-    .sort((a, b) => new Date(a.slotStartsAt).getTime() - new Date(b.slotStartsAt).getTime());
+    .filter((b) => b.status === "confirmed" && new Date(b.startsAt).getTime() > Date.now())
+    .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
 
   return (
     <section className="rounded-card bg-white p-6 shadow-card">
@@ -140,7 +140,7 @@ function UpcomingAppointmentsCard({ clientSiteId, bookings }: { clientSiteId: st
               <div className="flex items-baseline justify-between gap-2">
                 <span className="text-sm font-semibold text-navy">{b.customerName}</span>
                 <span className="shrink-0 text-xs text-gray-text">
-                  {new Date(b.slotStartsAt).toLocaleString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                  {new Date(b.startsAt).toLocaleString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
                 </span>
               </div>
             </div>

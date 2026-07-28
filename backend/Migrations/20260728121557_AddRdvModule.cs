@@ -12,27 +12,13 @@ namespace Backend.Migrations
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.CreateTable(
-                name: "TimeSlots",
+                name: "Bookings",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
                     ClientSiteId = table.Column<Guid>(type: "uuid", nullable: false),
                     StartsAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     DurationMinutes = table.Column<int>(type: "integer", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_TimeSlots", x => x.Id);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "Bookings",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    ClientSiteId = table.Column<Guid>(type: "uuid", nullable: false),
-                    TimeSlotId = table.Column<Guid>(type: "uuid", nullable: false),
                     CustomerName = table.Column<string>(type: "text", nullable: false),
                     CustomerEmail = table.Column<string>(type: "text", nullable: false),
                     CustomerPhone = table.Column<string>(type: "text", nullable: false),
@@ -43,18 +29,21 @@ namespace Backend.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Bookings", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_Bookings_TimeSlots_TimeSlotId",
-                        column: x => x.TimeSlotId,
-                        principalTable: "TimeSlots",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
                 });
 
-            migrationBuilder.CreateIndex(
-                name: "IX_Bookings_TimeSlotId",
-                table: "Bookings",
-                column: "TimeSlotId");
+            migrationBuilder.CreateTable(
+                name: "RdvSchedules",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    ClientSiteId = table.Column<Guid>(type: "uuid", nullable: false),
+                    SlotDurationMinutes = table.Column<int>(type: "integer", nullable: false),
+                    WeekdayRulesJson = table.Column<string>(type: "text", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_RdvSchedules", x => x.Id);
+                });
         }
 
         /// <inheritdoc />
@@ -64,7 +53,7 @@ namespace Backend.Migrations
                 name: "Bookings");
 
             migrationBuilder.DropTable(
-                name: "TimeSlots");
+                name: "RdvSchedules");
         }
     }
 }

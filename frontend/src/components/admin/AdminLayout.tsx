@@ -8,6 +8,7 @@ import {
   IconDashboard,
   IconEstablishment,
   IconExternalLink,
+  IconMail,
   IconMessages,
   IconModules,
   IconOffers,
@@ -25,7 +26,8 @@ export type AdminSection =
   | "products"
   | "orders"
   | "customers"
-  | "rdv";
+  | "rdv"
+  | "newsletter";
 
 // Produits/Commandes/Clients n'existent que via le module Catalogue (un client n'apparaît que
 // s'il a passé commande) — pas de module "customers" séparé, voir docs/04-catalogue-modules.md.
@@ -34,6 +36,7 @@ export const CATALOGUE_SECTIONS: AdminSection[] = ["products", "orders", "custom
 
 // Même principe que CATALOGUE_SECTIONS, un seul écran ici (voir docs/12-plan-modules-restants.md).
 export const RDV_SECTIONS: AdminSection[] = ["rdv"];
+export const NEWSLETTER_SECTIONS: AdminSection[] = ["newsletter"];
 
 const NAV_ITEMS: { id: AdminSection; label: string; icon: typeof IconDashboard }[] = [
   { id: "dashboard", label: "Tableau de bord", icon: IconDashboard },
@@ -45,6 +48,7 @@ const NAV_ITEMS: { id: AdminSection; label: string; icon: typeof IconDashboard }
   { id: "orders", label: "Commandes", icon: IconOrders },
   { id: "customers", label: "Clients", icon: IconCustomers },
   { id: "rdv", label: "Rendez-vous", icon: IconClock },
+  { id: "newsletter", label: "Newsletter", icon: IconMail },
   { id: "messages", label: "Messages", icon: IconMessages },
 ];
 
@@ -63,6 +67,7 @@ export default function AdminLayout({ clientSiteId, activeSection, children }: A
   const modules = useModules(clientSiteId);
   const catalogueActive = Boolean(modules?.catalogue?.enabled);
   const rdvActive = Boolean(modules?.rdv?.enabled);
+  const newsletterActive = Boolean(modules?.newsletter?.enabled);
 
   useEffect(() => {
     fetch(`${API_BASE_URL}/api/t/${clientSiteId}/content`)
@@ -74,12 +79,13 @@ export default function AdminLayout({ clientSiteId, activeSection, children }: A
   const visibleItems = NAV_ITEMS.filter(
     (item) =>
       (!CATALOGUE_SECTIONS.includes(item.id) || catalogueActive) &&
-      (!RDV_SECTIONS.includes(item.id) || rdvActive)
+      (!RDV_SECTIONS.includes(item.id) || rdvActive) &&
+      (!NEWSLETTER_SECTIONS.includes(item.id) || newsletterActive)
   );
 
   return (
     <div className="flex min-h-screen">
-      <aside className="flex w-64 shrink-0 flex-col bg-navy px-4 py-6">
+      <aside className="sticky top-0 flex h-screen w-64 shrink-0 flex-col overflow-y-auto bg-navy px-4 py-6">
         <div className="px-2 pb-6">
           <span className="text-lg font-extrabold text-white">
             Admin<span className="text-green-accent">Pro</span>

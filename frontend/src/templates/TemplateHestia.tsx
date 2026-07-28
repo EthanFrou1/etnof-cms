@@ -10,6 +10,7 @@ const MapsSection = lazy(() => import("@modules/maps/frontend/MapsSection"));
 const BlogSection = lazy(() => import("@modules/blog/frontend/BlogSection"));
 const CatalogueSection = lazy(() => import("@modules/catalogue/frontend/CatalogueSection"));
 const RdvSection = lazy(() => import("@modules/rdv/frontend/RdvSection"));
+const NewsletterSection = lazy(() => import("@modules/newsletter/frontend/NewsletterSection"));
 
 // 3 variantes de couleurs (accent + fond) propres à ce template — voir registry.ts pour le détail
 // (aussi utilisé par le sélecteur de palette dans l'admin, SiteSection.tsx). "ink"/blanc restent
@@ -236,6 +237,11 @@ export default function TemplateHestia({ clientSiteId, modules, content, palette
                 Contact
               </a>
             )}
+            {modules?.newsletter?.enabled && (
+              <a href="#newsletter" style={{ color: "inherit" }} className="hover:opacity-70">
+                Newsletter
+              </a>
+            )}
           </div>
         </nav>
       </div>
@@ -355,6 +361,11 @@ export default function TemplateHestia({ clientSiteId, modules, content, palette
             {modules?.contact?.enabled && (
               <div id="contact">
                 <ContactSection apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} palette={modulePalette} />
+              </div>
+            )}
+            {modules?.newsletter?.enabled && (
+              <div id="newsletter">
+                <NewsletterSection apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} palette={modulePalette} />
               </div>
             )}
             {modules?.maps?.enabled && typeof mapsAddress === "string" && (
