@@ -12,6 +12,7 @@ const CatalogueSection = lazy(() => import("@modules/catalogue/frontend/Catalogu
 const RdvSection = lazy(() => import("@modules/rdv/frontend/RdvSection"));
 const NewsletterSection = lazy(() => import("@modules/newsletter/frontend/NewsletterSection"));
 const AvisGoogleSection = lazy(() => import("@modules/avis-google/frontend/AvisGoogleSection"));
+const WhatsAppButton = lazy(() => import("@modules/whatsapp/frontend/WhatsAppButton"));
 
 // 3 variantes de couleurs (accent + fond) propres à ce template — voir registry.ts pour le détail
 // (aussi utilisé par le sélecteur de palette dans l'admin, SiteSection.tsx). "ink"/blanc restent
@@ -170,6 +171,8 @@ export default function TemplateHestia({ clientSiteId, modules, content, palette
 
   const mapsAddress = content?.address;
   const mapsApiKey = modules?.maps?.apiKey;
+  const whatsappNumber = modules?.whatsapp?.phoneNumber;
+  const whatsappMessage = modules?.whatsapp?.message;
   const siteName = content?.siteName ?? "etnof-cms";
   const palette = HESTIA_PALETTES.find((p) => p.id === paletteId) ?? HESTIA_PALETTES[0];
   const { accent, background } = palette;
@@ -391,6 +394,14 @@ export default function TemplateHestia({ clientSiteId, modules, content, palette
       </Band>
 
       <SiteFooter content={content} palette={modulePalette} dark />
+
+      {/* Bouton flottant hors du flux de bandes (persistant, pas une section qu'on scrolle) — voir
+          modules/whatsapp/frontend/WhatsAppButton.tsx : pas de lien de nav ni d'ancre associée. */}
+      {modules?.whatsapp?.enabled && typeof whatsappNumber === "string" && (
+        <Suspense fallback={null}>
+          <WhatsAppButton phoneNumber={whatsappNumber} message={typeof whatsappMessage === "string" ? whatsappMessage : ""} />
+        </Suspense>
+      )}
     </div>
   );
 }

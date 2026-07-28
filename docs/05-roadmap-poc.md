@@ -437,4 +437,19 @@ Icône du module déposée dans la foulée (`frontend/public/module-icons/avis-g
 
 ---
 
+## Module WhatsApp — 2026-07-28 (même jour)
+
+Quatrième module de la catégorie A (`docs/12-plan-modules-restants.md`), après RDV, Newsletter et Avis Google. Pas de dépendance externe payante ici (un lien `wa.me` est libre-service), donc pas de blocage règle 5 — mais deux choix de conception soumis à Ethan avant de coder (`AskUserQuestion`) : couleur du bouton flottant, et message pré-rempli fixe ou configurable.
+
+- **Couleur** : vert WhatsApp officiel (`#25D366`) + icône reconnaissable, plutôt que la palette du template — décision assumée à contre-courant du principe "un module hérite de la palette du tenant" posé lors de la refonte Hestia/Helios (`docs/10-templates.md`) : un CTA WhatsApp doit rester identifiable au premier coup d'œil, contrairement à Contact/Maps/Blog/Catalogue qui n'ont pas d'identité de marque universelle à préserver.
+- **Message pré-rempli configurable** : nouveau champ `message` (en plus de `phoneNumber`) dans `ModulesConfigJson.whatsapp`, exposé via `MODULE_FIELDS` (`ModulesSection.tsx`) — même mécanisme générique que `maps.apiKey`, aucun code backend supplémentaire nécessaire.
+- **Module 100% frontend** (`modules/whatsapp/`, un seul fichier `WhatsAppButton.tsx` + `.config.ts`) : comme Maps, `ModuleRegistry`/`ModuleMetaRegistry`/l'endpoint générique `PUT /admin/modules/{name}/config` couvrent déjà tout, `Program.cs` n'a rien à mapper. Le numéro est nettoyé (chiffres uniquement) avant de construire le lien `wa.me/{numero}?text=...`.
+- **Bouton flottant hors du flux de contenu** (pas une section qu'on scrolle, pas de lien de nav/ancre) : positionné `fixed bottom-6 left-6`, symétrique au bouton "Panier" du module Catalogue (`fixed bottom-6 right-6`) pour ne jamais se chevaucher quand les deux modules sont actifs en même temps.
+
+Testé (curl pour la config/l'isolation, CDP/Chrome headless pour le rendu) sur le tenant historique : bouton visible et fixe au scroll sur Hestia et sur Helios (bascule temporaire de template pour vérifier, restauré à Hestia/Olivier après coup) ; lien `wa.me` recalculé manuellement à partir de la config et comparé au comportement attendu du composant (numéro nettoyé, message encodé) ; second tenant (Boulangerie Dupont, module jamais autorisé) → absent de `GET /config/modules`, donc bouton non rendu. Build backend inchangé (aucun fichier backend ajouté), `tsc -b` et `vite build` propres (chunk `WhatsAppButton` bien scindé).
+
+**Reste à faire par Ethan** : renseigner le numéro WhatsApp et le message depuis `/admin/{clientSiteId}/modules` (card WhatsApp) ; tarif (90€) à renseigner dans le panneau "Tarifs des modules" de `/admin/dashboard` ; générer l'icône du module (prompt prêt dans `docs/11-images-modules.md`), la card retombe sur le fallback lettre "W" en attendant.
+
+---
+
 **Note pour toi (Ethan)** : donne ce fichier à Claude Code phase par phase (« on attaque la Phase 2, voici le contexte : [colle le contenu de 02-architecture-modules.md et 03-modele-donnees.md] »). Ne lui donne pas tout le projet d'un coup, ça évite qu'il brûle des étapes ou fasse des suppositions sur les phases suivantes.

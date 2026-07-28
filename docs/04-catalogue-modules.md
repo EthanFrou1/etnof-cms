@@ -16,7 +16,7 @@ Aligné sur la grille tarifaire etnof-web actuelle. Statut : à date de rédacti
 | Paiement PayPal | Paiement PayPal (+200€) | Post-POC |
 | Newsletter | Newsletter (+190€) | Implémenté (2026-07-28). Formulaire d'inscription email public, liste + export CSV côté admin. Pas d'envoi de campagne (hors scope V1, voir `docs/12-plan-modules-restants.md`) |
 | Avis Google | Avis Google (+100€) | Implémenté (2026-07-28). L'admin lie une fiche Google Places puis récupère les avis à la demande (bouton "Actualiser") ; le client choisit ceux affichés publiquement. Jamais de rafraîchissement automatique — le champ "reviews" de l'API Google Places est payant (voir `docs/12-plan-modules-restants.md`) |
-| WhatsApp | Bouton WhatsApp (+90€) | Post-POC |
+| WhatsApp | Bouton WhatsApp (+90€) | Implémenté (2026-07-28). Bouton flottant (vert WhatsApp officiel, reconnaissable) ouvrant `wa.me` avec un message pré-rempli configurable. Aucun backend, purement frontend (même principe que Maps) |
 | Chat IA | Chat IA (+390€) | Post-POC |
 | FAQ IA | FAQ IA (+290€) | Post-POC |
 | SEO avancé | SEO avancé (+390€) | Post-POC (transverse, pas un vrai "module" isolé) |

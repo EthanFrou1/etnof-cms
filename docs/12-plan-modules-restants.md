@@ -104,11 +104,11 @@ Basé sur la note de priorité déjà actée dans `docs/04-catalogue-modules.md`
 
 **But technique sur le site** : nouveau module `whatsapp`. Bouton flottant qui ouvre une conversation WhatsApp pré-remplie vers le numéro du client (lien `wa.me/{numero}?text=...`), pas d'intégration API.
 
-**Portée V1 (rester simple)** : un simple lien `wa.me`, configurable (numéro) depuis l'admin du client. Pas de WhatsApp Business API (messagerie automatisée, statistiques...) — hors scope, coût et complexité disproportionnés pour ce que demande l'option à 90€.
+**Portée V1 (rester simple)** : un simple lien `wa.me`, configurable (numéro **et** message pré-rempli) depuis l'admin du client — décision prise avec Ethan pendant le cadrage (deux questions posées). Pas de WhatsApp Business API (messagerie automatisée, statistiques...) — hors scope, coût et complexité disproportionnés pour ce que demande l'option à 90€.
 
 **Dépendance externe** : aucune (un lien `wa.me` ne nécessite ni compte développeur ni clé API).
 
-**Statut** : [ ] à construire
+**Statut** : [x] construit (2026-07-28) — `modules/whatsapp/`. Bouton flottant vert WhatsApp officiel (décision d'Ethan : reconnaissabilité universelle plutôt que la palette du template, contrairement aux autres modules recolorés — voir `docs/05-roadmap-poc.md`), numéro et message configurables via le champ générique `MODULE_FIELDS` (même mécanisme que `maps.apiKey`). Aucun code backend : comme Maps, tout passe par `ModulesConfigJson` déjà générique.
 
 ---
 

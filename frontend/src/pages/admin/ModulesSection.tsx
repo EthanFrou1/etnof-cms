@@ -20,6 +20,7 @@ const MODULE_IMAGES: Record<string, string> = {
   rdv: "/module-icons/rdv.png",
   newsletter: "/module-icons/newsletter.png",
   "avis-google": "/module-icons/avis-google.png",
+  // Pas encore d'icône dédiée (voir docs/11-images-modules.md) — retombe sur le fallback lettre "W".
 };
 
 // Prix stocké en texte libre par Ethan (voir ModulePricingPanel, AgencyDashboardPage.tsx) — parfois
@@ -40,6 +41,10 @@ const MODULE_FIELDS: Record<string, ModuleField[]> = {
   // "address" a déménagé sur la page Établissement (partagée entre modules) — Maps lit
   // désormais content.address, voir TemplateHestia.tsx/TemplateHelios.tsx.
   maps: [{ key: "apiKey", label: "Clé Google Maps API", placeholder: "AIza…" }],
+  whatsapp: [
+    { key: "phoneNumber", label: "Numéro WhatsApp", placeholder: "+33 6 12 34 56 78" },
+    { key: "message", label: "Message pré-rempli", placeholder: "Bonjour, je vous contacte depuis votre site." },
+  ],
 };
 
 function activationMailto(clientSiteId: string, displayName: string, price: string) {
