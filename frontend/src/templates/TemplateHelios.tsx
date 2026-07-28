@@ -8,6 +8,7 @@ const ContactSection = lazy(() => import("@modules/contact/frontend/ContactSecti
 const MapsSection = lazy(() => import("@modules/maps/frontend/MapsSection"));
 const BlogSection = lazy(() => import("@modules/blog/frontend/BlogSection"));
 const CatalogueSection = lazy(() => import("@modules/catalogue/frontend/CatalogueSection"));
+const RdvSection = lazy(() => import("@modules/rdv/frontend/RdvSection"));
 
 // 3 variantes de couleurs (accent + fond + fin de dégradé) propres à ce template — voir registry.ts
 // pour le détail (aussi utilisé par le sélecteur de palette dans l'admin, SiteSection.tsx). "ink"
@@ -59,6 +60,11 @@ export default function TemplateHelios({ clientSiteId, modules, content, palette
             {modules?.blog?.enabled && (
               <a href="#blog" className="hover:text-white">
                 Blog
+              </a>
+            )}
+            {modules?.rdv?.enabled && (
+              <a href="#rdv" className="hover:text-white">
+                Rendez-vous
               </a>
             )}
             {modules?.contact?.enabled && (
@@ -147,6 +153,11 @@ export default function TemplateHelios({ clientSiteId, modules, content, palette
             {modules?.blog?.enabled && (
               <div id="blog" className="sm:col-span-2">
                 <BlogSection apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} palette={modulePalette} />
+              </div>
+            )}
+            {modules?.rdv?.enabled && (
+              <div id="rdv" className="sm:col-span-2">
+                <RdvSection apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} palette={modulePalette} />
               </div>
             )}
             {modules?.contact?.enabled && (

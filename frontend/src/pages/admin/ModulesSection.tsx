@@ -17,6 +17,7 @@ const MODULE_IMAGES: Record<string, string> = {
   blog: "/module-icons/blog.png",
   catalogue: "/module-icons/catalogue.png",
   horaires: "/module-icons/horaires.png",
+  rdv: "/module-icons/rdv.png",
 };
 
 // Prix stocké en texte libre par Ethan (voir ModulePricingPanel, AgencyDashboardPage.tsx) — parfois

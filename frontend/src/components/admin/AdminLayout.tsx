@@ -3,6 +3,7 @@ import { API_BASE_URL } from "../../config";
 import { useModules } from "../../hooks/useModules";
 import {
   IconAppearance,
+  IconClock,
   IconCustomers,
   IconDashboard,
   IconEstablishment,
@@ -23,12 +24,16 @@ export type AdminSection =
   | "messages"
   | "products"
   | "orders"
-  | "customers";
+  | "customers"
+  | "rdv";
 
 // Produits/Commandes/Clients n'existent que via le module Catalogue (un client n'apparaît que
 // s'il a passé commande) — pas de module "customers" séparé, voir docs/04-catalogue-modules.md.
 // Exporté : AdminPage.tsx et CustomerDetailPage.tsx s'en servent pour bloquer l'accès direct par URL.
 export const CATALOGUE_SECTIONS: AdminSection[] = ["products", "orders", "customers"];
+
+// Même principe que CATALOGUE_SECTIONS, un seul écran ici (voir docs/12-plan-modules-restants.md).
+export const RDV_SECTIONS: AdminSection[] = ["rdv"];
 
 const NAV_ITEMS: { id: AdminSection; label: string; icon: typeof IconDashboard }[] = [
   { id: "dashboard", label: "Tableau de bord", icon: IconDashboard },
@@ -39,6 +44,7 @@ const NAV_ITEMS: { id: AdminSection; label: string; icon: typeof IconDashboard }
   { id: "products", label: "Produits", icon: IconProducts },
   { id: "orders", label: "Commandes", icon: IconOrders },
   { id: "customers", label: "Clients", icon: IconCustomers },
+  { id: "rdv", label: "Rendez-vous", icon: IconClock },
   { id: "messages", label: "Messages", icon: IconMessages },
 ];
 
@@ -56,6 +62,7 @@ export default function AdminLayout({ clientSiteId, activeSection, children }: A
   const [siteName, setSiteName] = useState<string | null>(null);
   const modules = useModules(clientSiteId);
   const catalogueActive = Boolean(modules?.catalogue?.enabled);
+  const rdvActive = Boolean(modules?.rdv?.enabled);
 
   useEffect(() => {
     fetch(`${API_BASE_URL}/api/t/${clientSiteId}/content`)
@@ -64,7 +71,11 @@ export default function AdminLayout({ clientSiteId, activeSection, children }: A
       .catch(() => {});
   }, [clientSiteId]);
 
-  const visibleItems = NAV_ITEMS.filter((item) => !CATALOGUE_SECTIONS.includes(item.id) || catalogueActive);
+  const visibleItems = NAV_ITEMS.filter(
+    (item) =>
+      (!CATALOGUE_SECTIONS.includes(item.id) || catalogueActive) &&
+      (!RDV_SECTIONS.includes(item.id) || rdvActive)
+  );
 
   return (
     <div className="flex min-h-screen">

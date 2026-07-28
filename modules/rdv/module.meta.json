@@ -1,0 +1,6 @@
+{
+  "name": "rdv",
+  "displayName": "Prise de rendez-vous",
+  "description": "Le client crée des créneaux disponibles, les visiteurs réservent en ligne",
+  "dependencies": []
+}

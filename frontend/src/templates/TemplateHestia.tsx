@@ -9,6 +9,7 @@ const ContactSection = lazy(() => import("@modules/contact/frontend/ContactSecti
 const MapsSection = lazy(() => import("@modules/maps/frontend/MapsSection"));
 const BlogSection = lazy(() => import("@modules/blog/frontend/BlogSection"));
 const CatalogueSection = lazy(() => import("@modules/catalogue/frontend/CatalogueSection"));
+const RdvSection = lazy(() => import("@modules/rdv/frontend/RdvSection"));
 
 // 3 variantes de couleurs (accent + fond) propres à ce template — voir registry.ts pour le détail
 // (aussi utilisé par le sélecteur de palette dans l'admin, SiteSection.tsx). "ink"/blanc restent
@@ -225,6 +226,11 @@ export default function TemplateHestia({ clientSiteId, modules, content, palette
                 Blog
               </a>
             )}
+            {modules?.rdv?.enabled && (
+              <a href="#rdv" style={{ color: "inherit" }} className="hover:opacity-70">
+                Rendez-vous
+              </a>
+            )}
             {modules?.contact?.enabled && (
               <a href="#contact" style={{ color: "inherit" }} className="hover:opacity-70">
                 Contact
@@ -339,6 +345,11 @@ export default function TemplateHestia({ clientSiteId, modules, content, palette
             {modules?.blog?.enabled && (
               <div id="blog">
                 <BlogSection apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} palette={modulePalette} />
+              </div>
+            )}
+            {modules?.rdv?.enabled && (
+              <div id="rdv">
+                <RdvSection apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} palette={modulePalette} />
               </div>
             )}
             {modules?.contact?.enabled && (
