@@ -475,4 +475,20 @@ Testé : `dotnet build` et `tsc -b` propres ; migration `AddStripeModule` appliq
 
 ---
 
+## Bug corrigé : page admin Avis Google bloquée sur "Chargement…", et reconnaissance automatique de la fiche liée depuis Établissement — 2026-07-29 (même jour)
+
+Signalé par Ethan avec capture d'écran : `/admin/{clientSiteId}/avis-google` restait bloquée sur "Chargement…" pour tout tenant n'ayant jamais lié de fiche (aucune ligne `GoogleReviewSettings`).
+
+**Cause** : `Results.Ok(null)`/`Results.Json(null)` (endpoint `GET /admin/avis-google/settings`) écrivent un corps de réponse **vide** plutôt que le JSON littéral `"null"` — comportement des typed results d'ASP.NET Core, indépendant de l'helper utilisé. Le frontend (`AvisGoogleSection.tsx`) appelle `res.json()` sans filet ; parser un corps vide lève une exception silencieuse (pas de `.catch()`), donc `loaded` ne passe jamais à `true`. Fix : `Results.Text("null", "application/json")` force l'écriture du littéral.
+
+**Demande complémentaire d'Ethan dans la foulée** : s'il a déjà lié sa fiche Google depuis la page **Établissement** (recherche gratuite, `EstablishmentSection.tsx`), la page Avis Google devrait le reconnaître directement (résumé + bouton "Actualiser") plutôt que de redemander une recherche. Problème identifié avant de coder : la recherche d'Établissement ne conservait jusqu'ici **aucun identifiant de fiche** en base (juste des champs texte préremplis) — le lien Avis Google (son propre `PlaceId`) est un mécanisme volontairement indépendant, justement pour ne jamais déclencher l'appel payant "reviews" ailleurs que sur un clic explicite. Décision validée avec Ethan (`AskUserQuestion`) : mémoriser le `PlaceId`/nom au niveau de l'établissement (partagé entre modules), sans jamais que ce partage ne déclenche l'appel payant tout seul.
+
+- `SiteContent` gagne `GooglePlaceId`/`GooglePlaceName` (migration `AddSiteContentGooglePlace`), remplis par `EstablishmentSection.tsx` au choix d'une fiche dans sa recherche (persistés seulement au clic "Enregistrer", comme les autres champs de la page — même dirty-check). Les deux autres appelants du `PUT /admin/content` partagé (`SiteSection.tsx`, `OffersSection.tsx`) mis à jour pour échoer ces deux champs, sinon un enregistrement depuis ces pages les aurait silencieusement effacés (piège déjà rencontré plusieurs fois sur cet endpoint, voir plus haut dans ce fichier).
+- `AvisGoogleAdminEndpoints.GET /settings` : si aucune ligne `GoogleReviewSettings` n'existe, retombe sur `SiteContent.GooglePlaceId/GooglePlaceName` et renvoie un objet **virtuel** (note/nombre d'avis/date à `null`, jamais persisté) — la page affiche directement la vue "configuré" (résumé + boutons), sans aucun appel payant.
+- `POST /refresh` : si appelé sans ligne existante, la crée à la volée à partir de `SiteContent.GooglePlaceId` (même logique que `/link`) puis fetch — c'est ce clic explicite, jamais un chargement de page, qui déclenche pour la première fois l'appel payant.
+
+Testé : migration appliquée ; `dotnet build`/`tsc -b` propres. `GET /settings` sur le tenant historique (sans ligne réelle, `SiteContent.GooglePlaceId` posé en base pour le test) → objet virtuel renvoyé, aucune ligne `GoogleReviewSettings` créée par la seule lecture (confirmé par requête directe) ; `POST /refresh` → ligne réelle créée + 5 avis récupérés (test avec la Statue de la Liberté, déjà utilisée pour valider ce module le 2026-07-28) ; rendu vérifié par capture d'écran (résumé note/avis + liste avec toggle Affiché/Masqué, boutons "Changer d'établissement"/"Actualiser les avis" en header). Données de test supprimées et `SiteContent.GooglePlaceId` du tenant historique remis à vide après vérification.
+
+---
+
 **Note pour toi (Ethan)** : donne ce fichier à Claude Code phase par phase (« on attaque la Phase 2, voici le contexte : [colle le contenu de 02-architecture-modules.md et 03-modele-donnees.md] »). Ne lui donne pas tout le projet d'un coup, ça évite qu'il brûle des étapes ou fasse des suppositions sur les phases suivantes.

@@ -128,6 +128,7 @@ Photos affichées dans le panneau résumé de la page "Établissement" (`Establi
 | Address | string | idem — Maps (`ModulesConfigJson.maps`) la lit ici, ne la stocke plus lui-même |
 | Phone / Email | string | idem — affichés publiquement |
 | ManagerName / ManagerPhone / ManagerEmail | string | Section "Responsable de l'établissement" (même onglet) — contact interne, jamais affiché publiquement |
+| GooglePlaceId / GooglePlaceName | string | Fiche Google liée depuis la recherche de cette page (ajouté le 2026-07-29) — gratuite, ne contient jamais d'avis. Lue par le module Avis Google pour proposer directement "Actualiser les avis" sans re-chercher, sans jamais déclencher l'appel payant "reviews" toute seule |
 | OpeningHoursJson | text | JSON d'une liste de 7 `DayHoursDto` (`Closed`/`MorningOpen`/`MorningClose`/`AfternoonOpen`/`AfternoonClose`, lundi→dimanche) — colonne texte brute reformée à la frontière API, même convention que `ClientSite.ModulesConfigJson` ; onglet "Horaires", gaté par le module "Horaires" |
 
 ### Offer (core, liste liée à SiteContent)

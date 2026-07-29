@@ -305,6 +305,8 @@ export default function EstablishmentSection({ clientSiteId, password }: Establi
   const [managerName, setManagerName] = useState("");
   const [managerPhone, setManagerPhone] = useState("");
   const [managerEmail, setManagerEmail] = useState("");
+  const [googlePlaceId, setGooglePlaceId] = useState("");
+  const [googlePlaceName, setGooglePlaceName] = useState("");
   const [openingHours, setOpeningHours] = useState<DayHours[]>(WEEKDAYS.map(() => emptyDayHours()));
   const [images, setImages] = useState<EstablishmentImage[]>([]);
   const [importingPhotos, setImportingPhotos] = useState(false);
@@ -340,6 +342,8 @@ export default function EstablishmentSection({ clientSiteId, password }: Establi
         setManagerName(data.managerName);
         setManagerPhone(data.managerPhone);
         setManagerEmail(data.managerEmail);
+        setGooglePlaceId(data.googlePlaceId);
+        setGooglePlaceName(data.googlePlaceName);
         setOpeningHours(normalizeHours(data.openingHours));
       });
     loadImages();
@@ -408,6 +412,10 @@ export default function EstablishmentSection({ clientSiteId, password }: Establi
     if (data.phone) setPhone(data.phone);
     if (data.type) setEstablishmentType(data.type);
     if (data.openingHours && data.openingHours.length > 0) setOpeningHours(data.openingHours);
+    // Mémorisé pour que le module Avis Google reconnaisse directement cette fiche (voir
+    // docs/05-roadmap-poc.md) — persisté seulement au clic "Enregistrer", comme les autres champs.
+    setGooglePlaceId(placeId);
+    setGooglePlaceName(data.name || establishmentName);
 
     if (data.photoReferences.length > 0) {
       setImportingPhotos(true);
@@ -442,6 +450,8 @@ export default function EstablishmentSection({ clientSiteId, password }: Establi
         managerName !== content.managerName ||
         managerPhone !== content.managerPhone ||
         managerEmail !== content.managerEmail ||
+        googlePlaceId !== content.googlePlaceId ||
+        googlePlaceName !== content.googlePlaceName ||
         !hoursEqual(openingHours, normalizeHours(content.openingHours)))
   );
 
@@ -468,6 +478,8 @@ export default function EstablishmentSection({ clientSiteId, password }: Establi
         managerName,
         managerPhone,
         managerEmail,
+        googlePlaceId,
+        googlePlaceName,
         openingHours,
       }),
     });

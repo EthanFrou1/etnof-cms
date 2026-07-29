@@ -21,13 +21,34 @@ public static class AvisGoogleAdminEndpoints
             if (!await TenantAdminAuth.IsAuthorizedAsync(req, config, db, clientSiteId)) return Results.Unauthorized();
 
             var settings = await db.GoogleReviewSettings.FirstOrDefaultAsync(s => s.ClientSiteId == clientSiteId);
+            if (settings is not null) return Results.Json(settings);
+
+            // Aucune ligne GoogleReviewSettings pour ce tenant : reprend la fiche déjà liée depuis la
+            // page Établissement (SiteContent.GooglePlaceId, recherche Google gratuite) pour afficher
+            // directement "configuré" côté admin, sans re-chercher — décision d'Ethan, voir
+            // docs/05-roadmap-poc.md. Objet "virtuel", jamais persisté ici : la ligne réelle n'est créée
+            // qu'au clic explicite sur "Actualiser les avis" (POST /refresh), qui seul déclenche l'appel
+            // payant "reviews".
+            var content = await db.SiteContents.FirstOrDefaultAsync(c => c.ClientSiteId == clientSiteId);
+            if (content is not null && !string.IsNullOrWhiteSpace(content.GooglePlaceId))
+            {
+                return Results.Json(new
+                {
+                    PlaceId = content.GooglePlaceId,
+                    PlaceName = content.GooglePlaceName,
+                    AverageRating = (double?)null,
+                    UserRatingsTotal = (int?)null,
+                    LastFetchedAt = (DateTime?)null,
+                });
+            }
+
             // Results.Ok(null)/Results.Json(null) renvoient un corps VIDE (pas le JSON "null") : les
             // typed results d'ASP.NET Core sautent l'écriture du corps quand la valeur est null, quel
             // que soit l'helper utilisé. Le frontend appelle res.json() sans filet, ce qui plantait
-            // silencieusement sur un tenant n'ayant encore lié aucune fiche Google (aucune ligne
-            // GoogleReviewSettings) — la page restait bloquée sur "Chargement…". Results.Text force
-            // l'écriture du littéral "null", que le frontend gère déjà (`!settings`).
-            return settings is null ? Results.Text("null", "application/json") : Results.Json(settings);
+            // silencieusement sur un tenant n'ayant encore lié aucune fiche Google — la page restait
+            // bloquée sur "Chargement…". Results.Text force l'écriture du littéral "null", que le
+            // frontend gère déjà (`!settings`).
+            return Results.Text("null", "application/json");
         });
 
         group.MapPost("/link", async (Guid clientSiteId, LinkInput input, HttpRequest req, IConfiguration config, AppDbContext db, IHttpClientFactory httpFactory) =>
@@ -55,7 +76,28 @@ public static class AvisGoogleAdminEndpoints
             if (!await TenantAdminAuth.IsAuthorizedAsync(req, config, db, clientSiteId)) return Results.Unauthorized();
 
             var settings = await db.GoogleReviewSettings.FirstOrDefaultAsync(s => s.ClientSiteId == clientSiteId);
-            if (settings is null) return Results.BadRequest(new { error = "Aucun établissement lié pour l'instant." });
+            if (settings is null)
+            {
+                // Premier "Actualiser" pour ce tenant, sans passage préalable par /link : crée la
+                // ligne réelle à partir de la fiche déjà liée sur Établissement (voir GET /settings
+                // ci-dessus, même fallback). C'est cet appel-ci, jamais un chargement de page, qui
+                // déclenche pour la première fois l'appel payant "reviews".
+                var content = await db.SiteContents.FirstOrDefaultAsync(c => c.ClientSiteId == clientSiteId);
+                if (content is null || string.IsNullOrWhiteSpace(content.GooglePlaceId))
+                {
+                    return Results.BadRequest(new { error = "Aucun établissement lié pour l'instant." });
+                }
+
+                settings = new GoogleReviewSettings
+                {
+                    Id = Guid.NewGuid(),
+                    ClientSiteId = clientSiteId,
+                    PlaceId = content.GooglePlaceId,
+                    PlaceName = content.GooglePlaceName,
+                };
+                db.GoogleReviewSettings.Add(settings);
+                await db.SaveChangesAsync();
+            }
 
             var error = await FetchAndStoreReviewsAsync(clientSiteId, settings, config, db, httpFactory);
             if (error is not null) return Results.Json(new { error }, statusCode: 502);
