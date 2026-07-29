@@ -4,6 +4,7 @@ import { useModules } from "../../hooks/useModules";
 import {
   IconAppearance,
   IconCard,
+  IconChevronDown,
   IconClock,
   IconCustomers,
   IconDashboard,
@@ -47,21 +48,46 @@ export const AVIS_GOOGLE_SECTIONS: AdminSection[] = ["avis-google"];
 export const STRIPE_SECTIONS: AdminSection[] = ["stripe"];
 export const BLOG_SECTIONS: AdminSection[] = ["blog"];
 
-const NAV_ITEMS: { id: AdminSection; label: string; icon: typeof IconDashboard }[] = [
-  { id: "dashboard", label: "Tableau de bord", icon: IconDashboard },
-  { id: "site", label: "Site internet", icon: IconAppearance },
-  { id: "offers", label: "Offres", icon: IconOffers },
-  { id: "establishment", label: "Établissement", icon: IconEstablishment },
-  { id: "modules", label: "Modules", icon: IconModules },
-  { id: "blog", label: "Blog", icon: IconDocument },
-  { id: "products", label: "Produits", icon: IconProducts },
-  { id: "orders", label: "Commandes", icon: IconOrders },
-  { id: "customers", label: "Clients", icon: IconCustomers },
-  { id: "rdv", label: "Rendez-vous", icon: IconClock },
-  { id: "newsletter", label: "Newsletter", icon: IconMail },
-  { id: "avis-google", label: "Avis Google", icon: IconStar },
-  { id: "stripe", label: "Paiement Stripe", icon: IconCard },
-  { id: "messages", label: "Messages", icon: IconMessages },
+type NavLeaf = { kind: "leaf"; id: AdminSection; label: string; icon: typeof IconDashboard };
+type NavGroup = { kind: "group"; id: string; label: string; icon: typeof IconDashboard; children: NavLeaf[] };
+type NavEntry = NavLeaf | NavGroup;
+
+const leaf = (id: AdminSection, label: string, icon: typeof IconDashboard): NavLeaf => ({ kind: "leaf", id, label, icon });
+
+// La sidebar comptait 14 entrées à plat (signalé par Ethan comme trop chargé) — regroupées en deux
+// sous-menus repliables ("Site" et "Modules"), chevron qui pivote pour indiquer l'état, tableau de
+// bord/messages restent en accès direct. Voir docs/05-roadmap-poc.md.
+const NAV_ITEMS: NavEntry[] = [
+  leaf("dashboard", "Tableau de bord", IconDashboard),
+  {
+    kind: "group",
+    id: "group-site",
+    label: "Site",
+    icon: IconAppearance,
+    children: [
+      leaf("site", "Site internet", IconAppearance),
+      leaf("offers", "Offres", IconOffers),
+      leaf("establishment", "Établissement", IconEstablishment),
+    ],
+  },
+  {
+    kind: "group",
+    id: "group-modules",
+    label: "Modules",
+    icon: IconModules,
+    children: [
+      leaf("modules", "Modules", IconModules),
+      leaf("blog", "Blog", IconDocument),
+      leaf("products", "Produits", IconProducts),
+      leaf("orders", "Commandes", IconOrders),
+      leaf("customers", "Clients", IconCustomers),
+      leaf("rdv", "Rendez-vous", IconClock),
+      leaf("newsletter", "Newsletter", IconMail),
+      leaf("avis-google", "Avis Google", IconStar),
+      leaf("stripe", "Paiement Stripe", IconCard),
+    ],
+  },
+  leaf("messages", "Messages", IconMessages),
 ];
 
 function sectionHref(clientSiteId: string, section: AdminSection) {
@@ -84,6 +110,36 @@ export default function AdminLayout({ clientSiteId, activeSection, children }: A
   const stripeActive = Boolean(modules?.stripe?.enabled);
   const blogActive = Boolean(modules?.blog?.enabled);
 
+  const isSectionVisible = (id: AdminSection) =>
+    (!CATALOGUE_SECTIONS.includes(id) || catalogueActive) &&
+    (!RDV_SECTIONS.includes(id) || rdvActive) &&
+    (!NEWSLETTER_SECTIONS.includes(id) || newsletterActive) &&
+    (!AVIS_GOOGLE_SECTIONS.includes(id) || avisGoogleActive) &&
+    (!STRIPE_SECTIONS.includes(id) || stripeActive) &&
+    (!BLOG_SECTIONS.includes(id) || blogActive);
+
+  // Un groupe contenant la section active s'ouvre automatiquement (calculé une seule fois au
+  // montage : la navigation entre sections recharge la page — voir sectionHref — donc pas besoin
+  // de resynchroniser cet état après coup, un nouveau montage suffit).
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() => {
+    const initial = new Set<string>();
+    for (const entry of NAV_ITEMS) {
+      if (entry.kind === "group" && entry.children.some((c) => c.id === activeSection)) {
+        initial.add(entry.id);
+      }
+    }
+    return initial;
+  });
+
+  const toggleGroup = (id: string) => {
+    setExpandedGroups((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
   useEffect(() => {
     fetch(`${API_BASE_URL}/api/t/${clientSiteId}/content`)
       .then((res) => res.json())
@@ -91,15 +147,9 @@ export default function AdminLayout({ clientSiteId, activeSection, children }: A
       .catch(() => {});
   }, [clientSiteId]);
 
-  const visibleItems = NAV_ITEMS.filter(
-    (item) =>
-      (!CATALOGUE_SECTIONS.includes(item.id) || catalogueActive) &&
-      (!RDV_SECTIONS.includes(item.id) || rdvActive) &&
-      (!NEWSLETTER_SECTIONS.includes(item.id) || newsletterActive) &&
-      (!AVIS_GOOGLE_SECTIONS.includes(item.id) || avisGoogleActive) &&
-      (!STRIPE_SECTIONS.includes(item.id) || stripeActive) &&
-      (!BLOG_SECTIONS.includes(item.id) || blogActive)
-  );
+  const visibleEntries = NAV_ITEMS.map((entry) =>
+    entry.kind === "leaf" ? entry : { ...entry, children: entry.children.filter((c) => isSectionVisible(c.id)) }
+  ).filter((entry) => (entry.kind === "leaf" ? isSectionVisible(entry.id) : entry.children.length > 0));
 
   return (
     <div className="flex min-h-screen">
@@ -117,22 +167,65 @@ export default function AdminLayout({ clientSiteId, activeSection, children }: A
         </div>
 
         <nav className="flex flex-1 flex-col gap-1">
-          {visibleItems.map((item) => {
-            const isActive = item.id === activeSection;
-            const Icon = item.icon;
+          {visibleEntries.map((entry) => {
+            if (entry.kind === "leaf") {
+              const isActive = entry.id === activeSection;
+              const Icon = entry.icon;
+              return (
+                <a
+                  key={entry.id}
+                  href={sectionHref(clientSiteId, entry.id)}
+                  className={`flex items-center gap-3 rounded-button px-3 py-2.5 text-sm font-medium transition-colors ${
+                    isActive ? "bg-white/10 text-white" : "text-white/60 hover:bg-white/5 hover:text-white"
+                  }`}
+                >
+                  <Icon className={`h-5 w-5 ${isActive ? "text-green-accent" : ""}`} />
+                  {entry.label}
+                </a>
+              );
+            }
+
+            const isExpanded = expandedGroups.has(entry.id);
+            const groupHasActive = entry.children.some((c) => c.id === activeSection);
+            const GroupIcon = entry.icon;
+
             return (
-              <a
-                key={item.id}
-                href={sectionHref(clientSiteId, item.id)}
-                className={`flex items-center gap-3 rounded-button px-3 py-2.5 text-sm font-medium transition-colors ${
-                  isActive
-                    ? "bg-white/10 text-white"
-                    : "text-white/60 hover:bg-white/5 hover:text-white"
-                }`}
-              >
-                <Icon className={`h-5 w-5 ${isActive ? "text-green-accent" : ""}`} />
-                {item.label}
-              </a>
+              <div key={entry.id} className="flex flex-col">
+                <button
+                  type="button"
+                  onClick={() => toggleGroup(entry.id)}
+                  className={`flex items-center gap-3 rounded-button px-3 py-2.5 text-sm font-medium transition-colors ${
+                    groupHasActive ? "text-white" : "text-white/60 hover:bg-white/5 hover:text-white"
+                  }`}
+                >
+                  <GroupIcon className={`h-5 w-5 ${groupHasActive ? "text-green-accent" : ""}`} />
+                  <span className="flex-1 text-left">{entry.label}</span>
+                  <IconChevronDown
+                    className={`h-4 w-4 shrink-0 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}
+                  />
+                </button>
+
+                {isExpanded && (
+                  <div className="ml-4 flex flex-col gap-1 border-l border-white/10 py-1 pl-3">
+                    {entry.children.map((child) => {
+                      const isActive = child.id === activeSection;
+                      const ChildIcon = child.icon;
+                      return (
+                        <a
+                          key={child.id}
+                          href={sectionHref(clientSiteId, child.id)}
+                          className={`flex items-center gap-3 rounded-button px-3 py-2 text-sm font-medium transition-colors ${
+                            isActive ? "bg-white/10 text-white" : "text-white/60 hover:bg-white/5 hover:text-white"
+                          }`}
+                        >
+                          <ChildIcon className={`h-4 w-4 ${isActive ? "text-green-accent" : ""}`} />
+                          {child.label}
+                        </a>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             );
           })}
         </nav>
