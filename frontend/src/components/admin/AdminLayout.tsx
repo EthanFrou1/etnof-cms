@@ -59,16 +59,13 @@ const leaf = (id: AdminSection, label: string, icon: typeof IconDashboard): NavL
 // bord/messages restent en accès direct. Voir docs/05-roadmap-poc.md.
 const NAV_ITEMS: NavEntry[] = [
   leaf("dashboard", "Tableau de bord", IconDashboard),
+  leaf("establishment", "Établissement", IconEstablishment),
   {
     kind: "group",
     id: "group-site",
     label: "Site",
     icon: IconAppearance,
-    children: [
-      leaf("site", "Site internet", IconAppearance),
-      leaf("offers", "Offres", IconOffers),
-      leaf("establishment", "Établissement", IconEstablishment),
-    ],
+    children: [leaf("site", "Site internet", IconAppearance), leaf("offers", "Offres", IconOffers)],
   },
   {
     kind: "group",
