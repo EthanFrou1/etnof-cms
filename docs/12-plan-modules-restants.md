@@ -17,13 +17,13 @@ Marche à suivre pour construire, un par un, les modules qui manquent encore par
 | Back-office / CMS | +450€ | Largement couvert, à durcir (catégorie B) |
 | Multilingue | +250€ | Transverse (catégorie B) |
 | Prise de rendez-vous | +290€ | Implémenté (2026-07-28) |
-| Paiement Stripe | +350€ | À construire |
-| Paiement PayPal | +200€ | À construire |
+| Paiement Stripe | +350€ | Implémenté (2026-07-29) |
+| Paiement PayPal | +200€ | Abandonné (2026-07-29) — Stripe seul retenu |
 | Newsletter | +190€ | Implémenté (2026-07-28) |
-| Avis Google | +100€ | À construire |
-| WhatsApp | +90€ | À construire |
-| Chat IA | +390€ | À construire |
-| FAQ IA | +290€ | À construire |
+| Avis Google | +100€ | Implémenté (2026-07-28) |
+| WhatsApp | +90€ | Implémenté (2026-07-28) |
+| Chat IA | +390€ | Mis de côté pour l'instant (2026-07-29) |
+| FAQ IA | +290€ | Mis de côté pour l'instant (2026-07-29) |
 | SEO avancé | +390€ | Transverse (catégorie B) |
 | Logo | +190€ | Prestation hors-code (catégorie C) |
 | Charte graphique | +390€ | Prestation hors-code (catégorie C) |
@@ -45,14 +45,14 @@ On fait les modules **un par un**, jamais plusieurs en parallèle (règle 7 de `
 
 Basé sur la note de priorité déjà actée dans `docs/04-catalogue-modules.md` (RDV/Newsletter en premiers, bons candidats pour re-valider le pattern sur un cas avec plus de logique métier que Blog), puis regroupement par famille pour réutiliser ce qui vient d'être construit :
 
-1. **Prise de rendez-vous (RDV)** — 290€
-2. **Newsletter** — 190€
-3. **Avis Google** — 100€
-4. **WhatsApp** — 90€
-5. **Paiement PayPal** — 200€
-6. **Paiement Stripe** — 350€
-7. **FAQ IA** — 290€
-8. **Chat IA** — 390€
+1. **Prise de rendez-vous (RDV)** — 290€ — fait
+2. **Newsletter** — 190€ — fait
+3. **Avis Google** — 100€ — fait
+4. **WhatsApp** — 90€ — fait
+5. ~~Paiement PayPal — 200€~~ — abandonné (2026-07-29), voir section 5
+6. **Paiement Stripe** — 350€ — fait
+7. **FAQ IA** — 290€ — mis de côté pour l'instant
+8. **Chat IA** — 390€ — mis de côté pour l'instant
 
 ---
 
@@ -120,23 +120,25 @@ Basé sur la note de priorité déjà actée dans `docs/04-catalogue-modules.md`
 
 **Portée V1 (rester simple)** : PayPal Checkout standard (bouton officiel), pas d'abonnements/paiements récurrents.
 
-**Dépendance externe** : **compte développeur PayPal côté client + intégration de son SDK — à valider explicitement avec toi avant de commencer (règle 5 de `CLAUDE.md`)**, notamment le mode sandbox/test à utiliser pendant le développement.
+**Dépendance externe** : compte développeur PayPal côté client + intégration de son SDK.
 
-**Statut** : [ ] à construire
+**Statut** : abandonné (décision d'Ethan, 2026-07-29) — un seul moyen de paiement retenu : Stripe.
 
 ---
 
 ## 6. Paiement Stripe — 350€
 
-**But pour le client** : alternative/complément à PayPal, souvent préférée pour la carte bancaire directe (pas besoin de compte PayPal côté acheteur).
+**But pour le client** : encaisser réellement en ligne, seul moyen de paiement retenu par Ethan (PayPal abandonné, voir section précédente).
 
-**But technique sur le site** : même principe que PayPal — branché sur le flux de commande du Catalogue existant plutôt que dupliqué.
+**But technique sur le site** : se branche sur le flux de commande du module Catalogue plutôt que de le dupliquer. Modèle retenu après discussion avec Ethan : **compte Stripe propre à chaque client** (pas de Stripe Connect/marketplace) — chaque tenant crée son propre compte sur stripe.com et fournit sa propre clé secrète + son propre secret de webhook depuis son admin (`/admin/{clientSiteId}/stripe`). L'argent va directement sur le compte du client, jamais sur un compte agence ; Stripe prend ses propres frais de transaction, l'agence ne prélève aucune commission automatique (cohérent avec un modèle de vente au forfait, pas à la commission). Stripe Connect aurait permis une commission automatique mais est nettement plus lourd (approbation "plateforme", onboarding/KYC des clients à gérer) — écarté pour rester simple (règle 7 de `CLAUDE.md`).
 
-**Portée V1 (rester simple)** : Stripe Checkout hébergé (pas de formulaire de carte custom à maintenir soi-même — plus simple et plus sûr), pas d'abonnements.
+**Portée V1 (rester simple)** : Stripe Checkout hébergé (redirection vers une page payée par Stripe, pas de formulaire de carte custom, pas de Stripe.js côté client — le backend crée la session et renvoie son URL). Une commande n'est créée qu'à la confirmation du paiement par webhook (`checkout.session.completed`), jamais au moment du clic "Payer" : évite de décrémenter du stock sur un paiement abandonné. Paiement sur place **retiré** du module Catalogue (décision d'Ethan) — Stripe est désormais l'unique façon de finaliser une commande. Pas d'abonnements, pas de remboursement automatique depuis l'admin (à faire manuellement dans le tableau de bord Stripe si besoin).
 
-**Dépendance externe** : **compte Stripe côté client + SDK Stripe — à valider explicitement avec toi avant de commencer (règle 5)**, idem mode test pendant le développement. Construit après PayPal pour réutiliser le même branchement sur le flux de commande.
+**Dépendance externe** : compte Stripe propre à chaque client (validé avec Ethan avant de coder) + package NuGet `Stripe.net`.
 
-**Statut** : [ ] à construire
+**Statut** : [x] construit (2026-07-29) — `modules/stripe/`. Clé secrète et secret de webhook stockés dans une table dédiée (`StripeSettings`, jamais dans `ModulesConfigJson` qui est public — voir `docs/03-modele-donnees.md`). `POST /stripe/checkout` valide le panier/stock puis crée la session Stripe ; `POST /stripe/webhook` vérifie la signature puis crée la commande (idempotent via `Order.StripeSessionId`) ; `GET /stripe/session/{id}` sert à afficher une confirmation au retour sur le site public sans dépendre du webhook. Page admin `/admin/{clientSiteId}/stripe` pour coller les deux secrets, avec l'URL de webhook à créer côté Stripe affichée en clair.
+
+**Reste à faire par Ethan** : créer un compte Stripe (mode test pour commencer), coller la clé secrète + créer le webhook dans le tableau de bord Stripe (URL fournie dans l'admin), et tester un vrai paiement de bout en bout. Pour tester le webhook en local sans déployer, utiliser le [Stripe CLI](https://stripe.com/docs/stripe-cli) (`stripe listen --forward-to localhost:5162/api/t/{clientSiteId}/stripe/webhook`) plutôt que le tableau de bord Stripe (qui exige une URL publique) ; tarif (350€) à renseigner dans le panneau "Tarifs des modules" de `/admin/dashboard`.
 
 ---
 
@@ -150,7 +152,7 @@ Basé sur la note de priorité déjà actée dans `docs/04-catalogue-modules.md`
 
 **Dépendance externe** : **API Claude (ou équivalent), facturée à l'usage — à valider explicitement avec toi avant de commencer (règle 5)**, y compris qui porte le coût par appel (répercuté dans le prix client ou à la charge d'Ethan).
 
-**Statut** : [ ] à construire
+**Statut** : mis de côté pour l'instant (décision d'Ethan, 2026-07-29) — pas abandonné, juste dépriorisé après Stripe. Reprendre ce fichier au moment de l'attaquer.
 
 ---
 
@@ -164,7 +166,7 @@ Basé sur la note de priorité déjà actée dans `docs/04-catalogue-modules.md`
 
 **Dépendance externe** : même remarque que FAQ IA — **API Claude facturée à l'usage, à valider avant de commencer (règle 5)**.
 
-**Statut** : [ ] à construire
+**Statut** : mis de côté pour l'instant, même décision que FAQ IA (2026-07-29).
 
 ---
 

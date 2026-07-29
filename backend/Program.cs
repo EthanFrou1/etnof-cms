@@ -6,6 +6,7 @@ using Modules.Catalogue;
 using Modules.Contact;
 using Modules.Newsletter;
 using Modules.Rdv;
+using Modules.Stripe;
 
 // Utilitaire CLI : `dotnet run -- hash-password <mot-de-passe>` génère un hash à coller dans
 // Admin:PasswordHash ou le mot de passe d'un tenant. Voir DEMARRAGE.md.
@@ -65,5 +66,7 @@ NewsletterModule.MapEndpoints(app);
 NewsletterAdminEndpoints.MapEndpoints(app);
 AvisGoogleModule.MapEndpoints(app);
 AvisGoogleAdminEndpoints.MapEndpoints(app);
+StripeModule.MapEndpoints(app);
+StripeAdminEndpoints.MapEndpoints(app);
 
 app.Run();

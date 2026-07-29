@@ -354,7 +354,7 @@ export default function TemplateHestia({ clientSiteId, modules, content, palette
           <div className="flex flex-col gap-16">
             {modules?.catalogue?.enabled && (
               <div id="catalogue">
-                <CatalogueSection apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} palette={modulePalette} />
+                <CatalogueSection apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} palette={modulePalette} stripeEnabled={Boolean(modules?.stripe?.enabled)} />
               </div>
             )}
             {modules?.blog?.enabled && (

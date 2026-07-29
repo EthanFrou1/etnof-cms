@@ -3,6 +3,7 @@ import { API_BASE_URL } from "../../config";
 import { useModules } from "../../hooks/useModules";
 import {
   IconAppearance,
+  IconCard,
   IconClock,
   IconCustomers,
   IconDashboard,
@@ -29,7 +30,8 @@ export type AdminSection =
   | "customers"
   | "rdv"
   | "newsletter"
-  | "avis-google";
+  | "avis-google"
+  | "stripe";
 
 // Produits/Commandes/Clients n'existent que via le module Catalogue (un client n'apparaît que
 // s'il a passé commande) — pas de module "customers" séparé, voir docs/04-catalogue-modules.md.
@@ -40,6 +42,7 @@ export const CATALOGUE_SECTIONS: AdminSection[] = ["products", "orders", "custom
 export const RDV_SECTIONS: AdminSection[] = ["rdv"];
 export const NEWSLETTER_SECTIONS: AdminSection[] = ["newsletter"];
 export const AVIS_GOOGLE_SECTIONS: AdminSection[] = ["avis-google"];
+export const STRIPE_SECTIONS: AdminSection[] = ["stripe"];
 
 const NAV_ITEMS: { id: AdminSection; label: string; icon: typeof IconDashboard }[] = [
   { id: "dashboard", label: "Tableau de bord", icon: IconDashboard },
@@ -53,6 +56,7 @@ const NAV_ITEMS: { id: AdminSection; label: string; icon: typeof IconDashboard }
   { id: "rdv", label: "Rendez-vous", icon: IconClock },
   { id: "newsletter", label: "Newsletter", icon: IconMail },
   { id: "avis-google", label: "Avis Google", icon: IconStar },
+  { id: "stripe", label: "Paiement Stripe", icon: IconCard },
   { id: "messages", label: "Messages", icon: IconMessages },
 ];
 
@@ -73,6 +77,7 @@ export default function AdminLayout({ clientSiteId, activeSection, children }: A
   const rdvActive = Boolean(modules?.rdv?.enabled);
   const newsletterActive = Boolean(modules?.newsletter?.enabled);
   const avisGoogleActive = Boolean(modules?.["avis-google"]?.enabled);
+  const stripeActive = Boolean(modules?.stripe?.enabled);
 
   useEffect(() => {
     fetch(`${API_BASE_URL}/api/t/${clientSiteId}/content`)
@@ -86,7 +91,8 @@ export default function AdminLayout({ clientSiteId, activeSection, children }: A
       (!CATALOGUE_SECTIONS.includes(item.id) || catalogueActive) &&
       (!RDV_SECTIONS.includes(item.id) || rdvActive) &&
       (!NEWSLETTER_SECTIONS.includes(item.id) || newsletterActive) &&
-      (!AVIS_GOOGLE_SECTIONS.includes(item.id) || avisGoogleActive)
+      (!AVIS_GOOGLE_SECTIONS.includes(item.id) || avisGoogleActive) &&
+      (!STRIPE_SECTIONS.includes(item.id) || stripeActive)
   );
 
   return (

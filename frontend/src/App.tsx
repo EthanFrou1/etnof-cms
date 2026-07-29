@@ -19,6 +19,7 @@ const ADMIN_SECTIONS: AdminSection[] = [
   "rdv",
   "newsletter",
   "avis-google",
+  "stripe",
   "messages",
 ];
 

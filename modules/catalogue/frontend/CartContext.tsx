@@ -20,7 +20,10 @@ type CartContextValue = {
 
 const CartContext = createContext<CartContextValue | null>(null);
 
-function storageKey(clientSiteId: string) {
+// Exporté : CatalogueSection.tsx s'en sert pour vider le panier au retour d'un paiement Stripe
+// réussi, sans dépendre du contexte React (la bannière de retour doit pouvoir s'afficher même si
+// la liste de produits est vide, donc hors de <CartProvider>).
+export function storageKey(clientSiteId: string) {
   return `etnof-cart-${clientSiteId}`;
 }
 
