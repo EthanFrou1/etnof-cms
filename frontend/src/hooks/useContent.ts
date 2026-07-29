@@ -36,6 +36,8 @@ export type SiteContent = {
   managerPhone: string;
   managerEmail: string;
   openingHours: DayHours[];
+  googlePlaceId: string;
+  googlePlaceName: string;
 };
 
 export function useContent(clientSiteId: string) {

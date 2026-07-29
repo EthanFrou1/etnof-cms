@@ -35,6 +35,8 @@ public static class ContentEndpoints
             content.ManagerName = input.ManagerName;
             content.ManagerPhone = input.ManagerPhone;
             content.ManagerEmail = input.ManagerEmail;
+            content.GooglePlaceId = input.GooglePlaceId;
+            content.GooglePlaceName = input.GooglePlaceName;
             content.OpeningHoursJson = JsonSerializer.Serialize(input.OpeningHours);
 
             db.Offers.RemoveRange(content.Offers);
@@ -78,6 +80,8 @@ public static class ContentEndpoints
         content.ManagerName,
         content.ManagerPhone,
         content.ManagerEmail,
+        content.GooglePlaceId,
+        content.GooglePlaceName,
         OpeningHours = ParseOpeningHours(content.OpeningHoursJson),
     };
 
@@ -118,5 +122,7 @@ public record SiteContentInput(
     string ManagerName,
     string ManagerPhone,
     string ManagerEmail,
-    List<DayHoursDto> OpeningHours
+    List<DayHoursDto> OpeningHours,
+    string GooglePlaceId,
+    string GooglePlaceName
 );

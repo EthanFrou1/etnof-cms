@@ -23,6 +23,14 @@ public class SiteContent
     public string ManagerPhone { get; set; } = string.Empty;
     public string ManagerEmail { get; set; } = string.Empty;
 
+    // Fiche Google Places liée depuis la recherche de cette page (voir EstablishmentSection.tsx,
+    // GooglePlacesEndpoints.search/details) — gratuite, ne contient jamais d'avis. Partagée entre
+    // modules : le module Avis Google (modules/avis-google/backend/AvisGoogleAdminEndpoints.cs) la
+    // lit pour proposer directement "Actualiser les avis" sans re-chercher, sans jamais déclencher
+    // l'appel payant "reviews" tout seul (uniquement au clic explicite du client).
+    public string GooglePlaceId { get; set; } = string.Empty;
+    public string GooglePlaceName { get; set; } = string.Empty;
+
     // JSON sérialisé d'une liste de 7 DayHoursDto (lundi -> dimanche) — même convention que
     // ClientSite.ModulesConfigJson : colonne texte brute, parsée/reformée à la frontière API
     // (voir ContentEndpoints.ToResponse) plutôt qu'une collection mappée par EF Core. Le format

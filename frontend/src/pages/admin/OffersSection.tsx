@@ -110,6 +110,8 @@ export default function OffersSection({ clientSiteId, password }: OffersSectionP
         managerName: content.managerName,
         managerPhone: content.managerPhone,
         managerEmail: content.managerEmail,
+        googlePlaceId: content.googlePlaceId,
+        googlePlaceName: content.googlePlaceName,
         openingHours: content.openingHours,
       }),
     });

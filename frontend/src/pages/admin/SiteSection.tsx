@@ -276,6 +276,8 @@ export default function SiteSection({ clientSiteId, password }: SiteSectionProps
             managerName: content.managerName,
             managerPhone: content.managerPhone,
             managerEmail: content.managerEmail,
+            googlePlaceId: content.googlePlaceId,
+            googlePlaceName: content.googlePlaceName,
             openingHours: content.openingHours,
           }),
         })

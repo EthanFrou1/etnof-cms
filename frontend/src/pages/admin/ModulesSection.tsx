@@ -20,7 +20,8 @@ const MODULE_IMAGES: Record<string, string> = {
   rdv: "/module-icons/rdv.png",
   newsletter: "/module-icons/newsletter.png",
   "avis-google": "/module-icons/avis-google.png",
-  // Pas encore d'icône dédiée (voir docs/11-images-modules.md) — retombe sur le fallback lettre "W".
+  whatsapp: "/module-icons/whatsapp.png",
+  stripe: "/module-icons/stripe.png",
 };
 
 // Prix stocké en texte libre par Ethan (voir ModulePricingPanel, AgencyDashboardPage.tsx) — parfois
