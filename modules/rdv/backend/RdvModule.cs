@@ -23,7 +23,14 @@ public static class RdvModule
             var slots = GenerateAvailableSlots(schedule, bookedStarts)
                 .Select(s => new { startsAt = s.StartsAt, durationMinutes = s.DurationMinutes });
 
-            return Results.Ok(slots);
+            // "configured" (au moins un jour actif dans le gabarit) est distinct de "slots vide" :
+            // un planning réel peut temporairement n'avoir aucun créneau libre (tout est réservé),
+            // ce qui reste une information utile côté public ("aucun créneau disponible"), alors
+            // qu'un planning jamais configuré (aucun jour actif) ne doit rien afficher du tout —
+            // voir docs/05-roadmap-poc.md.
+            var configured = schedule is not null && RdvSchedule.ParseWeekdayRules(schedule.WeekdayRulesJson).Any(r => r.Enabled);
+
+            return Results.Ok(new { configured, slots });
         });
 
         app.MapPost("/api/t/{clientSiteId:guid}/rdv/bookings", async (Guid clientSiteId, BookingInput input, AppDbContext db, ModuleRegistry registry) =>

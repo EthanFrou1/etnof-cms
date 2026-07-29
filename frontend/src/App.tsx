@@ -4,6 +4,7 @@ import AdminPage from "./pages/AdminPage";
 import AgencyDashboardPage from "./pages/AgencyDashboardPage";
 import CustomerDetailPage from "./pages/CustomerDetailPage";
 import ProductDetailPage from "./pages/ProductDetailPage";
+import BlogPostDetailPage from "./pages/BlogPostDetailPage";
 import type { AdminSection } from "./components/admin/AdminLayout";
 import { API_BASE_URL } from "./config";
 
@@ -20,6 +21,7 @@ const ADMIN_SECTIONS: AdminSection[] = [
   "newsletter",
   "avis-google",
   "stripe",
+  "blog",
   "messages",
 ];
 
@@ -48,6 +50,11 @@ function App() {
   // /admin/{clientSiteId}/products/{productId} — fiche d'UN produit, même principe que customers
   if (segments[0] === "admin" && segments[1] && segments[2] === "products" && segments[3]) {
     return <ProductDetailPage clientSiteId={segments[1]} productId={segments[3]} />;
+  }
+
+  // /admin/{clientSiteId}/blog/{postId} — fiche d'UN article, même principe que products/customers
+  if (segments[0] === "admin" && segments[1] && segments[2] === "blog" && segments[3]) {
+    return <BlogPostDetailPage clientSiteId={segments[1]} postId={segments[3]} />;
   }
 
   // /admin/{clientSiteId}/{section} — admin d'UN tenant (section par défaut : dashboard)

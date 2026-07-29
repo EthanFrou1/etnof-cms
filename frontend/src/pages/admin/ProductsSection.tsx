@@ -253,7 +253,7 @@ export default function ProductsSection({ clientSiteId, password }: ProductsSect
                 }}
                 className="flex cursor-pointer flex-col overflow-hidden rounded-card bg-white shadow-card transition-all duration-200 hover:-translate-y-1 hover:shadow-soft"
               >
-                <div className="aspect-square bg-bg-page-start">
+                <div className="aspect-[16/10] bg-bg-page-start">
                   {thumbnail ? (
                     <img
                       src={`${API_BASE_URL}${thumbnail.path}`}

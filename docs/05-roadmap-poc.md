@@ -491,4 +491,28 @@ Testé : migration appliquée ; `dotnet build`/`tsc -b` propres. `GET /settings`
 
 ---
 
+## Un module actif mais pas configuré ne s'affiche plus sur le site public — 2026-07-29 (même jour)
+
+Signalé par Ethan avec deux captures d'écran : le module RDV, activé mais sans aucun jour actif dans le planning hebdomadaire, affichait quand même sa section "Réserver un créneau" sur le site public (avec "Aucun créneau disponible pour le moment.") — alors qu'il n'y a jamais eu de configuration réelle. Même souci de principe pour Maps (déjà partiellement traité : un encart "clé manquante" s'affichait à la place de la carte). Demande : un module actif mais dont les données requises ne sont pas remplies ne doit rien afficher du tout côté public, pas un encart vide ou une invite à configurer (ce message n'a de sens que côté admin).
+
+- **Maps** (`MapsSection.tsx`) : retourne `null` au lieu de l'encart "aucune clé renseignée" quand `apiKey` est vide.
+- **RDV** : distinction ajoutée entre "jamais configuré" (aucun jour actif dans `RdvSchedule.WeekdayRulesJson`) et "configuré mais temporairement complet" (tous les créneaux du planning sont déjà réservés) — ces deux cas n'ont pas la même valeur informative pour un visiteur. `GET /rdv/slots` renvoie maintenant `{ configured, slots }` au lieu d'un simple tableau ; `RdvSection.tsx` ne rend plus rien si `configured` est `false`, mais garde "Aucun créneau disponible pour le moment" si le planning est réel mais complet.
+- **Déjà correct sans changement** (vérifié à cette occasion) : Blog/Catalogue se masquent déjà s'il n'y a aucun article/produit ; Avis Google se masque déjà si aucun avis n'est sélectionné ; Horaires ne s'affiche déjà que si au moins un jour a des horaires renseignés ; WhatsApp se masque déjà si le numéro est vide (`WhatsAppButton.tsx` avait déjà ce garde-fou).
+
+Testé : `dotnet build`/`tsc -b` propres ; `GET /rdv/slots` sur le tenant historique (planning jamais configuré, capture d'écran d'Ethan) → `{"configured":false,"slots":[]}` ; rendu du site public vérifié (recherche du texte "Réserver un créneau" dans la page → absent).
+
+---
+
+## Admin Blog (créer/éditer/publier/supprimer un article) — 2026-07-29 (même jour)
+
+Ethan a remarqué qu'un article ("Premier article") s'affichait sur le site public sans se souvenir de l'avoir créé — en creusant, le module Blog (Phase 4 du POC) n'avait jamais eu d'interface d'administration : seul l'affichage public (liste + détail, lecture seule) avait été construit, l'article visible était un reliquat du seed de démonstration inséré directement en base pendant les tests de la Phase 4. Décision (deux options proposées, `AskUserQuestion`) : construire cette admin plutôt que laisser le module tel quel.
+
+- **Backend** : `BlogPost` gagne `CreatedAt` (migration `AddBlogPostCreatedAt`, backfill depuis `PublishedAt` sinon l'instant présent pour les articles déjà en base). Nouveau `modules/blog/backend/BlogAdminEndpoints.cs` : liste (triée par `CreatedAt`), lecture d'un article, création (brouillon vide "Nouvel article" avec slug auto-généré, pas de formulaire de création séparé), modification (titre/slug/contenu/publié), suppression. Génération de slug maison (accents retirés, minuscule, tirets, désambiguïsation par suffixe numérique en cas de collision) — pas de dépendance ajoutée. Republier un article déjà publié une fois ne rajeunit pas sa date d'origine ; repasser en brouillon efface `PublishedAt` (cohérent avec l'endpoint public existant : `PublishedAt != null` = publié).
+- **Piège rencontré pendant la migration** : Npgsql traduit `DateTime.MinValue` (valeur par défaut EF pour la nouvelle colonne `NOT NULL`) en sentinelle Postgres `'-infinity'`, pas en littéral `'0001-01-01'` — le premier backfill écrit avec cette hypothèse n'a rien mis à jour ; corrigé (SQL de la migration + données déjà appliquées).
+- **Frontend** : nouvelle page `/admin/{clientSiteId}/blog` (`BlogSection.tsx`, tableau recherche/tri/pagination — même pattern que Commandes/Messages) et fiche d'édition dédiée `/admin/{clientSiteId}/blog/{postId}` (`BlogPostDetailPage.tsx`, même construction que `ProductDetailPage.tsx` : dirty-check, bouton Enregistrer, suppression avec `ConfirmModal`). Nav "Blog" ajoutée (icône `IconDocument`, déjà présente mais inutilisée), gatée sur `modules.blog.enabled` comme les autres entrées de module.
+
+Testé (curl + CDP/Chrome headless) sur le tenant historique : création d'un brouillon → redirection immédiate vers sa fiche ; édition + case "Publié" cochée → apparaît sur `GET /blog/{slug}` public ; décochée → 404 public immédiat ; suppression (modal de confirmation) → retour à la liste, article disparu de la base. Les deux articles d'origine (Phase 4 : "Premier article" publié, "Brouillon non publié") retrouvés intacts après le test. Build backend et `tsc -b` propres.
+
+---
+
 **Note pour toi (Ethan)** : donne ce fichier à Claude Code phase par phase (« on attaque la Phase 2, voici le contexte : [colle le contenu de 02-architecture-modules.md et 03-modele-donnees.md] »). Ne lui donne pas tout le projet d'un coup, ça évite qu'il brûle des étapes ou fasse des suppositions sur les phases suivantes.

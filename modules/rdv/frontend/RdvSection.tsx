@@ -51,6 +51,10 @@ function groupByDay(slots: TimeSlot[]) {
 
 export default function RdvSection({ apiBaseUrl, clientSiteId, palette }: RdvSectionProps) {
   const [slots, setSlots] = useState<TimeSlot[] | null>(null);
+  // Distinct de "slots vide" (voir RdvModule.cs) : un planning jamais configuré (aucun jour actif)
+  // ne doit rien afficher sur le site public, contrairement à un planning réel temporairement
+  // complet ("aucun créneau disponible" reste une information utile dans ce cas).
+  const [configured, setConfigured] = useState<boolean | null>(null);
   const [selectedStartsAt, setSelectedStartsAt] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(initialForm);
   const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
@@ -59,7 +63,10 @@ export default function RdvSection({ apiBaseUrl, clientSiteId, palette }: RdvSec
   const loadSlots = () =>
     fetch(`${apiBaseUrl}/api/t/${clientSiteId}/rdv/slots`)
       .then((res) => res.json())
-      .then(setSlots);
+      .then((data: { configured: boolean; slots: TimeSlot[] }) => {
+        setConfigured(data.configured);
+        setSlots(data.slots);
+      });
 
   useEffect(() => {
     loadSlots();
@@ -96,6 +103,8 @@ export default function RdvSection({ apiBaseUrl, clientSiteId, palette }: RdvSec
       setStatus("error");
     }
   };
+
+  if (configured === false) return null;
 
   const groups = slots ? groupByDay(slots) : [];
 

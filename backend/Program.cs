@@ -58,6 +58,7 @@ EstablishmentEndpoints.MapEndpoints(app);
 // renvoie 404 dynamiquement, pour qu'un toggle depuis l'admin du tenant prenne effet sans redémarrage.
 ContactModule.MapEndpoints(app);
 BlogModule.MapEndpoints(app);
+BlogAdminEndpoints.MapEndpoints(app);
 CatalogueModule.MapEndpoints(app);
 CatalogueAdminEndpoints.MapEndpoints(app);
 RdvModule.MapEndpoints(app);

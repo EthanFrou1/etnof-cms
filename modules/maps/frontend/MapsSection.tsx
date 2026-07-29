@@ -9,23 +9,10 @@ type MapsSectionProps = {
 };
 
 export default function MapsSection({ address, apiKey, palette }: MapsSectionProps) {
-  if (!apiKey) {
-    return (
-      <section className="rounded-card bg-white p-8 shadow-card">
-        <span className="text-xs font-semibold uppercase tracking-[0.1em]" style={{ color: palette.accent }}>
-          Où nous trouver
-        </span>
-        <p className="mt-2 leading-relaxed text-gray-text">
-          Module actif mais aucune clé Google Maps API renseignée pour ce site. Ajoute-la dans la
-          configuration du module Maps (champ{" "}
-          <code className="rounded px-1.5 py-0.5" style={{ backgroundColor: palette.background, color: palette.ink }}>
-            apiKey
-          </code>
-          ) pour afficher la carte.
-        </p>
-      </section>
-    );
-  }
+  // Module activé mais pas encore configuré (pas de clé Google Maps) : rien à afficher sur le site
+  // public plutôt qu'un encart "configuration manquante" — ce message n'a de valeur que côté admin
+  // (voir ModulesSection.tsx, la card Maps explique déjà qu'il manque la clé).
+  if (!apiKey) return null;
 
   const src = `https://www.google.com/maps/embed/v1/place?key=${encodeURIComponent(apiKey)}&q=${encodeURIComponent(address)}`;
 

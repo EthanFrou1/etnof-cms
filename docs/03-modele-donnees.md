@@ -27,9 +27,10 @@ Représente la config globale du site (une seule ligne en POC, car un déploieme
 |---|---|---|
 | Id | Guid | |
 | Title | string | |
-| Slug | string | Unique |
+| Slug | string | Unique par tenant, généré depuis le titre puis désambiguïsé si collision (voir `BlogAdminEndpoints.UniqueSlugAsync`) |
 | Content | text | Markdown |
 | PublishedAt | datetime | Nullable (brouillon si null) |
+| CreatedAt | datetime | Ajouté le 2026-07-29 avec l'admin Blog — sert à trier la liste indépendamment de la publication |
 
 ### Product (module Catalogue)
 | Champ | Type | Note |

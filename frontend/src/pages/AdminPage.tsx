@@ -7,6 +7,7 @@ import AdminLayout, {
   NEWSLETTER_SECTIONS,
   AVIS_GOOGLE_SECTIONS,
   STRIPE_SECTIONS,
+  BLOG_SECTIONS,
   type AdminSection,
 } from "../components/admin/AdminLayout";
 import DashboardSection from "./admin/DashboardSection";
@@ -22,6 +23,7 @@ import RdvSection from "./admin/RdvSection";
 import NewsletterSection from "./admin/NewsletterSection";
 import AvisGoogleSection from "./admin/AvisGoogleSection";
 import StripeSection from "./admin/StripeSection";
+import BlogSection from "./admin/BlogSection";
 
 type AdminPageProps = {
   clientSiteId: string;
@@ -51,6 +53,7 @@ export default function AdminPage({ clientSiteId, section }: AdminPageProps) {
     : NEWSLETTER_SECTIONS.includes(section) && !modules?.newsletter?.enabled ? "Newsletter"
     : AVIS_GOOGLE_SECTIONS.includes(section) && !modules?.["avis-google"]?.enabled ? "Avis Google"
     : STRIPE_SECTIONS.includes(section) && !modules?.stripe?.enabled ? "Paiement Stripe"
+    : BLOG_SECTIONS.includes(section) && !modules?.blog?.enabled ? "Blog"
     : null;
 
   return (
@@ -75,6 +78,7 @@ export default function AdminPage({ clientSiteId, section }: AdminPageProps) {
           {section === "newsletter" && <NewsletterSection clientSiteId={clientSiteId} password={password} />}
           {section === "avis-google" && <AvisGoogleSection clientSiteId={clientSiteId} password={password} />}
           {section === "stripe" && <StripeSection clientSiteId={clientSiteId} password={password} />}
+          {section === "blog" && <BlogSection clientSiteId={clientSiteId} password={password} />}
           {section === "messages" && <MessagesSection clientSiteId={clientSiteId} password={password} />}
         </>
       )}

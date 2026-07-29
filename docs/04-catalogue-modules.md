@@ -6,7 +6,7 @@ Aligné sur la grille tarifaire etnof-web actuelle. Statut : à date de rédacti
 |---|---|---|
 | Contact | Formulaire de contact (inclus formule Essentiel) | Implémenté (Phase 2) |
 | Maps | Carte Google Maps (offert) | Implémenté (Phase 2) — clé Google Maps API à fournir par le client |
-| Blog | Blog (+250€) | Implémenté (Phase 4) |
+| Blog | Blog (+250€) | Implémenté (Phase 4, affichage public uniquement) — admin (créer/éditer/publier/supprimer un article) ajouté le 2026-07-29, `/admin/{clientSiteId}/blog` |
 | Catalogue produits | Absent de la grille tarifaire actuelle — à prioriser par Ethan | Implémenté (2026-07-26). Produits (photos, prix, description, stock) + panier + commande. Pas de paiement en ligne réel (voir note ci-dessous) |
 | Horaires | Absent de la grille tarifaire actuelle — gratuit pour l'instant (décision d'Ethan) | Implémenté (2026-07-27). Onglet Horaires dans la page Établissement (récupération auto depuis Google Places, pause méridienne) — gate l'onglet admin, pas les données (stockées dans `SiteContent` comme le reste d'Établissement). Affichage sur le site public pas encore câblé |
 | Back-office / CMS léger | Back-office/CMS (+450€) | Largement couvert par l'admin `/admin` du POC (Phase 3) — reste à durcir avant vente (voir bilan Phase 5) |

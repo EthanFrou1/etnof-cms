@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { API_BASE_URL } from "../../config";
 import { adminFetch } from "../../hooks/useAdminSession";
+import ConfirmModal from "../../components/admin/ConfirmModal";
 
 type ContactMessage = {
   id: string;
@@ -19,6 +20,10 @@ type SortField = "createdAt" | "name";
 type SortDirection = "asc" | "desc";
 
 const PAGE_SIZE = 10;
+
+// En dessous de ce seuil, le message tient déjà en entier dans la colonne "Message" (pas de
+// troncature visuelle) : déplier la ligne ne ferait qu'afficher le même texte une deuxième fois.
+const EXPAND_THRESHOLD = 80;
 
 const inputClass =
   "rounded-button border border-border-subtle bg-white px-3 py-2 text-sm text-navy placeholder:text-gray-text/60 focus:border-brand-mid focus:outline-none focus:ring-2 focus:ring-brand-mid/20";
@@ -53,13 +58,23 @@ export default function MessagesSection({ clientSiteId, password }: MessagesSect
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   const [page, setPage] = useState(1);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [messageToDelete, setMessageToDelete] = useState<ContactMessage | null>(null);
 
-  useEffect(() => {
+  const loadMessages = () =>
     adminFetch(API_BASE_URL, `/api/t/${clientSiteId}/admin/messages`, password)
       .then((res) => res.json())
       .then(setMessages);
+
+  useEffect(() => {
+    loadMessages();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const handleDelete = async (id: string) => {
+    setMessageToDelete(null);
+    await adminFetch(API_BASE_URL, `/api/t/${clientSiteId}/admin/messages/${id}`, password, { method: "DELETE" });
+    await loadMessages();
+  };
 
   const toggleSort = (field: SortField) => {
     if (field === sortField) {
@@ -153,45 +168,62 @@ export default function MessagesSection({ clientSiteId, password }: MessagesSect
                 </tr>
               </thead>
               <tbody>
-                {pageItems.map((m) => (
-                  <Fragment key={m.id}>
-                    <tr
-                      onClick={() => setExpandedId(expandedId === m.id ? null : m.id)}
-                      className="cursor-pointer border-b border-border-subtle last:border-0 hover:bg-bg-page-start"
-                    >
-                      <td className="whitespace-nowrap px-4 py-3 text-gray-text">
-                        {new Date(m.createdAt).toLocaleString("fr-FR")}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="font-medium text-navy">{m.name}</div>
-                        <a
-                          href={`mailto:${m.email}`}
-                          onClick={(e) => e.stopPropagation()}
-                          className="text-xs text-brand-mid hover:underline"
-                        >
-                          {m.email}
-                        </a>
-                      </td>
-                      <td className="max-w-xs truncate px-4 py-3 text-gray-text">{m.message}</td>
-                      <td className="px-4 py-3">
-                        <a
-                          href={replyMailto(m)}
-                          onClick={(e) => e.stopPropagation()}
-                          className="text-sm font-medium text-brand-mid hover:text-brand-start"
-                        >
-                          Répondre
-                        </a>
-                      </td>
-                    </tr>
-                    {expandedId === m.id && (
-                      <tr className="border-b border-border-subtle bg-bg-page-start last:border-0">
-                        <td colSpan={4} className="px-4 py-3">
-                          <p className="whitespace-pre-wrap text-sm leading-relaxed text-gray-text">{m.message}</p>
+                {pageItems.map((m) => {
+                  const expandable = m.message.length > EXPAND_THRESHOLD;
+                  return (
+                    <Fragment key={m.id}>
+                      <tr
+                        onClick={expandable ? () => setExpandedId(expandedId === m.id ? null : m.id) : undefined}
+                        className={`border-b border-border-subtle last:border-0 ${
+                          expandable ? "cursor-pointer hover:bg-bg-page-start" : ""
+                        }`}
+                      >
+                        <td className="whitespace-nowrap px-4 py-3 text-gray-text">
+                          {new Date(m.createdAt).toLocaleString("fr-FR")}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="font-medium text-navy">{m.name}</div>
+                          <a
+                            href={`mailto:${m.email}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-xs text-brand-mid hover:underline"
+                          >
+                            {m.email}
+                          </a>
+                        </td>
+                        <td className="max-w-xs truncate px-4 py-3 text-gray-text">{m.message}</td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-3">
+                            <a
+                              href={replyMailto(m)}
+                              onClick={(e) => e.stopPropagation()}
+                              className="text-sm font-medium text-brand-mid hover:text-brand-start"
+                            >
+                              Répondre
+                            </a>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setMessageToDelete(m);
+                              }}
+                              className="text-sm text-red-500 hover:text-red-600"
+                            >
+                              Supprimer
+                            </button>
+                          </div>
                         </td>
                       </tr>
-                    )}
-                  </Fragment>
-                ))}
+                      {expandedId === m.id && (
+                        <tr className="border-b border-border-subtle bg-bg-page-start last:border-0">
+                          <td colSpan={4} className="px-4 py-3">
+                            <p className="whitespace-pre-wrap text-sm leading-relaxed text-gray-text">{m.message}</p>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -222,6 +254,15 @@ export default function MessagesSection({ clientSiteId, password }: MessagesSect
             </div>
           )}
         </>
+      )}
+
+      {messageToDelete && (
+        <ConfirmModal
+          title={`Supprimer le message de "${messageToDelete.name}" ?`}
+          message="Cette action est définitive."
+          onConfirm={() => handleDelete(messageToDelete.id)}
+          onCancel={() => setMessageToDelete(null)}
+        />
       )}
     </div>
   );
