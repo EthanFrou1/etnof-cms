@@ -290,36 +290,43 @@ export default function AvisGoogleSection({ clientSiteId, password }: AvisGoogle
       )}
 
       {reviews && reviews.length > 0 && (
-        <section className="rounded-card bg-white shadow-card">
-          <div className="p-6 pb-0 text-sm text-gray-text">
-            {reviews.length} avis récupéré{reviews.length > 1 ? "s" : ""} — choisis lesquels afficher sur le site public.
-          </div>
-          <div className="flex flex-col gap-3 p-6">
+        <div className="flex flex-col gap-4">
+          <p className="text-sm text-gray-text">
+            {reviews.length} avis récupéré{reviews.length > 1 ? "s" : ""} — choisis lesquels afficher sur le site
+            public. Limite de Google : au plus 5 avis par fiche, quelle que soit l'API utilisée (aucun moyen d'en
+            récupérer davantage).
+          </p>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {reviews.map((review) => (
-              <div key={review.id} className="flex items-start gap-4 rounded-button bg-bg-page-start/60 p-4">
-                {review.profilePhotoUrl ? (
-                  <img src={review.profilePhotoUrl} alt="" className="h-9 w-9 shrink-0 rounded-full" referrerPolicy="no-referrer" />
-                ) : (
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-200 text-sm font-semibold text-gray-text">
-                    {review.authorName.charAt(0)}
+              <div
+                key={review.id}
+                className="flex h-full flex-col gap-3 rounded-card bg-white p-5 shadow-card transition-shadow duration-200 hover:shadow-soft"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    {review.profilePhotoUrl ? (
+                      <img src={review.profilePhotoUrl} alt="" className="h-10 w-10 shrink-0 rounded-full" referrerPolicy="no-referrer" />
+                    ) : (
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gray-200 text-sm font-semibold text-gray-text">
+                        {review.authorName.charAt(0)}
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      <p className="truncate font-medium text-navy">{review.authorName}</p>
+                      <Stars rating={review.rating} />
+                    </div>
                   </div>
-                )}
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-medium text-navy">{review.authorName}</span>
-                    <Stars rating={review.rating} />
-                    <span className="text-xs text-gray-text">{review.relativeTimeDescription}</span>
+                  <div className="flex shrink-0 flex-col items-center gap-1">
+                    <ToggleSwitch checked={review.selected} onChange={(value) => toggleReview(review.id, value)} />
+                    <span className="text-[11px] text-gray-text">{review.selected ? "Affiché" : "Masqué"}</span>
                   </div>
-                  {review.text && <p className="mt-1 text-sm text-gray-text">{review.text}</p>}
                 </div>
-                <div className="flex shrink-0 flex-col items-center gap-1">
-                  <ToggleSwitch checked={review.selected} onChange={(value) => toggleReview(review.id, value)} />
-                  <span className="text-[11px] text-gray-text">{review.selected ? "Affiché" : "Masqué"}</span>
-                </div>
+                {review.text && <p className="line-clamp-5 text-sm leading-relaxed text-gray-text">{review.text}</p>}
+                <span className="mt-auto pt-1 text-xs text-gray-text/70">{review.relativeTimeDescription}</span>
               </div>
             ))}
           </div>
-        </section>
+        </div>
       )}
 
       {reviews && reviews.length === 0 && settings && !showSearch && (
