@@ -491,4 +491,16 @@ Testé : migration appliquée ; `dotnet build`/`tsc -b` propres. `GET /settings`
 
 ---
 
+## Un module actif mais pas configuré ne s'affiche plus sur le site public — 2026-07-29 (même jour)
+
+Signalé par Ethan avec deux captures d'écran : le module RDV, activé mais sans aucun jour actif dans le planning hebdomadaire, affichait quand même sa section "Réserver un créneau" sur le site public (avec "Aucun créneau disponible pour le moment.") — alors qu'il n'y a jamais eu de configuration réelle. Même souci de principe pour Maps (déjà partiellement traité : un encart "clé manquante" s'affichait à la place de la carte). Demande : un module actif mais dont les données requises ne sont pas remplies ne doit rien afficher du tout côté public, pas un encart vide ou une invite à configurer (ce message n'a de sens que côté admin).
+
+- **Maps** (`MapsSection.tsx`) : retourne `null` au lieu de l'encart "aucune clé renseignée" quand `apiKey` est vide.
+- **RDV** : distinction ajoutée entre "jamais configuré" (aucun jour actif dans `RdvSchedule.WeekdayRulesJson`) et "configuré mais temporairement complet" (tous les créneaux du planning sont déjà réservés) — ces deux cas n'ont pas la même valeur informative pour un visiteur. `GET /rdv/slots` renvoie maintenant `{ configured, slots }` au lieu d'un simple tableau ; `RdvSection.tsx` ne rend plus rien si `configured` est `false`, mais garde "Aucun créneau disponible pour le moment" si le planning est réel mais complet.
+- **Déjà correct sans changement** (vérifié à cette occasion) : Blog/Catalogue se masquent déjà s'il n'y a aucun article/produit ; Avis Google se masque déjà si aucun avis n'est sélectionné ; Horaires ne s'affiche déjà que si au moins un jour a des horaires renseignés ; WhatsApp se masque déjà si le numéro est vide (`WhatsAppButton.tsx` avait déjà ce garde-fou).
+
+Testé : `dotnet build`/`tsc -b` propres ; `GET /rdv/slots` sur le tenant historique (planning jamais configuré, capture d'écran d'Ethan) → `{"configured":false,"slots":[]}` ; rendu du site public vérifié (recherche du texte "Réserver un créneau" dans la page → absent).
+
+---
+
 **Note pour toi (Ethan)** : donne ce fichier à Claude Code phase par phase (« on attaque la Phase 2, voici le contexte : [colle le contenu de 02-architecture-modules.md et 03-modele-donnees.md] »). Ne lui donne pas tout le projet d'un coup, ça évite qu'il brûle des étapes ou fasse des suppositions sur les phases suivantes.
