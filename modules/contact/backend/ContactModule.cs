@@ -46,6 +46,18 @@ public static class ContactModule
 
             return Results.Ok(messages);
         });
+
+        app.MapDelete("/api/t/{clientSiteId:guid}/admin/messages/{id:guid}", async (Guid clientSiteId, Guid id, HttpRequest req, IConfiguration config, AppDbContext db) =>
+        {
+            if (!await TenantAdminAuth.IsAuthorizedAsync(req, config, db, clientSiteId)) return Results.Unauthorized();
+
+            var message = await db.ContactMessages.FirstOrDefaultAsync(m => m.ClientSiteId == clientSiteId && m.Id == id);
+            if (message is null) return Results.NotFound();
+
+            db.ContactMessages.Remove(message);
+            await db.SaveChangesAsync();
+            return Results.NoContent();
+        });
     }
 }
 
