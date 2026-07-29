@@ -11,6 +11,7 @@ const CatalogueSection = lazy(() => import("@modules/catalogue/frontend/Catalogu
 const RdvSection = lazy(() => import("@modules/rdv/frontend/RdvSection"));
 const NewsletterSection = lazy(() => import("@modules/newsletter/frontend/NewsletterSection"));
 const AvisGoogleSection = lazy(() => import("@modules/avis-google/frontend/AvisGoogleSection"));
+const WhatsAppButton = lazy(() => import("@modules/whatsapp/frontend/WhatsAppButton"));
 
 // 3 variantes de couleurs (accent + fond + fin de dégradé) propres à ce template — voir registry.ts
 // pour le détail (aussi utilisé par le sélecteur de palette dans l'admin, SiteSection.tsx). "ink"
@@ -39,6 +40,8 @@ function SunRayDivider({ color }: { color: string }) {
 export default function TemplateHelios({ clientSiteId, modules, content, paletteId }: TemplateProps) {
   const mapsAddress = content?.address;
   const mapsApiKey = modules?.maps?.apiKey;
+  const whatsappNumber = modules?.whatsapp?.phoneNumber;
+  const whatsappMessage = modules?.whatsapp?.message;
   const siteName = content?.siteName ?? "etnof-cms";
   const palette = HELIOS_PALETTES.find((p) => p.id === paletteId) ?? HELIOS_PALETTES[0];
   const { accent, background, gradientEnd } = palette;
@@ -159,7 +162,7 @@ export default function TemplateHelios({ clientSiteId, modules, content, palette
           <div className="grid gap-8 sm:grid-cols-2">
             {modules?.catalogue?.enabled && (
               <div id="catalogue" className="sm:col-span-2">
-                <CatalogueSection apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} palette={modulePalette} />
+                <CatalogueSection apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} palette={modulePalette} stripeEnabled={Boolean(modules?.stripe?.enabled)} />
               </div>
             )}
             {modules?.blog?.enabled && (
@@ -199,6 +202,14 @@ export default function TemplateHelios({ clientSiteId, modules, content, palette
 
         <SiteFooter content={content} palette={modulePalette} />
       </div>
+
+      {/* Bouton flottant hors du flux normal (persistant, pas une section qu'on scrolle) — voir
+          modules/whatsapp/frontend/WhatsAppButton.tsx : pas de lien de nav ni d'ancre associée. */}
+      {modules?.whatsapp?.enabled && typeof whatsappNumber === "string" && (
+        <Suspense fallback={null}>
+          <WhatsAppButton phoneNumber={whatsappNumber} message={typeof whatsappMessage === "string" ? whatsappMessage : ""} />
+        </Suspense>
+      )}
     </div>
   );
 }

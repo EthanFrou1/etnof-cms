@@ -5,6 +5,7 @@ using Modules.Catalogue;
 using Modules.Contact;
 using Modules.Newsletter;
 using Modules.Rdv;
+using Modules.Stripe;
 
 namespace Backend;
 
@@ -29,4 +30,5 @@ public class AppDbContext : DbContext
     public DbSet<NewsletterSubscriber> NewsletterSubscribers => Set<NewsletterSubscriber>();
     public DbSet<GoogleReviewSettings> GoogleReviewSettings => Set<GoogleReviewSettings>();
     public DbSet<GoogleReview> GoogleReviews => Set<GoogleReview>();
+    public DbSet<StripeSettings> StripeSettings => Set<StripeSettings>();
 }

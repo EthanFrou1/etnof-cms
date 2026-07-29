@@ -12,13 +12,13 @@ Aligné sur la grille tarifaire etnof-web actuelle. Statut : à date de rédacti
 | Back-office / CMS léger | Back-office/CMS (+450€) | Largement couvert par l'admin `/admin` du POC (Phase 3) — reste à durcir avant vente (voir bilan Phase 5) |
 | Multilingue | Multilingue (+250€) | Post-POC |
 | RDV | Prise de rendez-vous (+290€) | Implémenté (2026-07-28). Gabarit hebdomadaire récurrent (durée de créneau globale + plage horaire active par jour, indépendante du module Horaires), créneaux générés à la volée, réservation publique (nom/email/téléphone/note), annulation côté admin qui libère le créneau. Voir `docs/12-plan-modules-restants.md` pour la portée détaillée |
-| Paiement Stripe | Paiement Stripe (+350€) | Post-POC |
-| Paiement PayPal | Paiement PayPal (+200€) | Post-POC |
+| Paiement Stripe | Paiement Stripe (+350€) | Implémenté (2026-07-29). Compte Stripe propre à chaque client (pas de Stripe Connect) — décision d'Ethan : simple, cohérent avec le pattern déjà utilisé pour Maps/Google Places, et son modèle économique facture le module une fois plutôt qu'une commission par vente. Remplace entièrement le paiement sur place du module Catalogue (retiré) : une commande n'existe désormais que si Stripe confirme le paiement |
+| Paiement PayPal | Paiement PayPal (+200€) | Abandonné — Ethan a choisi de ne garder que Stripe comme moyen de paiement (2026-07-29) |
 | Newsletter | Newsletter (+190€) | Implémenté (2026-07-28). Formulaire d'inscription email public, liste + export CSV côté admin. Pas d'envoi de campagne (hors scope V1, voir `docs/12-plan-modules-restants.md`) |
 | Avis Google | Avis Google (+100€) | Implémenté (2026-07-28). L'admin lie une fiche Google Places puis récupère les avis à la demande (bouton "Actualiser") ; le client choisit ceux affichés publiquement. Jamais de rafraîchissement automatique — le champ "reviews" de l'API Google Places est payant (voir `docs/12-plan-modules-restants.md`) |
-| WhatsApp | Bouton WhatsApp (+90€) | Post-POC |
-| Chat IA | Chat IA (+390€) | Post-POC |
-| FAQ IA | FAQ IA (+290€) | Post-POC |
+| WhatsApp | Bouton WhatsApp (+90€) | Implémenté (2026-07-28). Bouton flottant (vert WhatsApp officiel, reconnaissable) ouvrant `wa.me` avec un message pré-rempli configurable. Aucun backend, purement frontend (même principe que Maps) |
+| Chat IA | Chat IA (+390€) | Mis de côté pour l'instant (décision d'Ethan, 2026-07-29) — pas abandonné, juste dépriorisé après Stripe |
+| FAQ IA | FAQ IA (+290€) | Mis de côté pour l'instant (décision d'Ethan, 2026-07-29) — pas abandonné, juste dépriorisé après Stripe |
 | SEO avancé | SEO avancé (+390€) | Post-POC (transverse, pas un vrai "module" isolé) |
 
 ## Note (mise à jour après le bilan Phase 5)
@@ -35,4 +35,4 @@ Demandé par Ethan : catalogue de produits (photos, prix, description) avec gest
 
 **Ce qui est fait** : produits multi-photos (upload admin, stockage local `backend/wwwroot/uploads/`, servi via fichiers statiques), stock, panier côté client (React Context + `localStorage`), commande qui décrémente le stock en base dans une transaction, page admin "Commandes" pour marquer une commande traitée ou l'annuler (l'annulation restaure le stock).
 
-**Ce qui n'est volontairement pas fait** (voir règle 5 de `CLAUDE.md` — pas de dépendance/service externe sans validation) : pas d'intégration de paiement en ligne réel (Stripe/PayPal). La "commande" est un enregistrement (type retrait/virement/règlement sur place), pas une transaction carte bancaire. Si un vrai paiement est nécessaire, ce sera un module à part (`Paiement Stripe`/`Paiement PayPal`, déjà dans la grille tarifaire, post-POC) qui viendra se brancher sur le flux de commande déjà en place plutôt que de le dupliquer.
+**Mise à jour du 2026-07-29** : le paiement en ligne réel est arrivé avec le module Stripe (voir plus bas), qui se branche sur ce flux de commande plutôt que de le dupliquer, comme anticipé ci-dessous. Le paiement sur place (commande enregistrée sans encaissement) a été retiré à la demande d'Ethan — Stripe est désormais la seule façon de finaliser une commande.

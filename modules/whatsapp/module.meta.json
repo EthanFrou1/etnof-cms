@@ -1,0 +1,6 @@
+{
+  "name": "whatsapp",
+  "displayName": "WhatsApp",
+  "description": "Bouton flottant ouvrant une conversation WhatsApp pré-remplie vers le numéro du client",
+  "dependencies": []
+}

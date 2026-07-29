@@ -86,7 +86,20 @@ Pas de navigation EF `Order.Customer` (évite le cycle de sérialisation JSON d�
 | UnitPrice | decimal | Copie du prix au moment de la commande |
 | Quantity | int | |
 
-Pas de paiement en ligne réel : une commande est enregistrée et décrémente le stock à la validation, mais rien n'est prélevé automatiquement (voir `docs/04-catalogue-modules.md`, entrée Catalogue produits).
+### Order.StripeSessionId (ajouté le 2026-07-29, module Stripe)
+Colonne nullable ajoutée à `Order` (voir plus haut) : identifiant de la session Stripe Checkout ayant produit la commande. Sert de clé d'idempotence pour le webhook (Stripe peut renvoyer le même événement plusieurs fois) — `null` pour les commandes créées avant le module Stripe.
+
+### StripeSettings (module Stripe, ajouté le 2026-07-29)
+| Champ | Type | Note |
+|---|---|---|
+| Id | Guid | |
+| ClientSiteId | Guid | Une seule ligne par tenant (même convention que `RdvSchedule`/`GoogleReviewSettings`) |
+| SecretKey | string? | Clé secrète du compte Stripe **propre au client** (pas de compte plateforme/Connect) |
+| WebhookSecret | string? | Secret de signature du endpoint webhook créé par le client dans son propre tableau de bord Stripe |
+
+Volontairement **pas** dans `ClientSite.ModulesConfigJson` comme les autres champs de config module (ex. `maps.apiKey`) : cette colonne est renvoyée telle quelle par l'endpoint public `/api/t/{clientSiteId}/config/modules` (lu par `useModules()` sur le site public) — une clé secrète Stripe n'a rien à faire dans une réponse publique. Table dédiée, lue/écrite uniquement par les endpoints admin authentifiés (`TenantAdminAuth`) de `modules/stripe/backend/StripeAdminEndpoints.cs`.
+
+Paiement en ligne réel depuis le module Stripe (voir plus bas, `StripeSettings`) : une commande n'est désormais créée qu'après confirmation du paiement (webhook Stripe), plus de paiement sur place — voir `docs/04-catalogue-modules.md`, entrée Catalogue produits.
 
 ### ModulePrice (agence, ajouté le 2026-07-26)
 | Champ | Type | Note |

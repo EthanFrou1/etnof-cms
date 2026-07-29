@@ -1,0 +1,6 @@
+{
+  "name": "stripe",
+  "displayName": "Paiement Stripe",
+  "description": "Encaissement en ligne par carte bancaire via Stripe (compte Stripe propre au client), branché sur le panier du module Catalogue",
+  "dependencies": ["catalogue"]
+}

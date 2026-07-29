@@ -16,5 +16,10 @@ public class Order
     public decimal Total { get; set; }
     public DateTime CreatedAt { get; set; }
 
+    // Nullable : les commandes créées avant le module Stripe (voir docs/05-roadmap-poc.md) n'en ont
+    // pas. Sert de clé d'idempotence pour le webhook Stripe (Stripe peut renvoyer le même événement
+    // plusieurs fois) — voir modules/stripe/backend/StripeModule.cs.
+    public string? StripeSessionId { get; set; }
+
     public List<OrderItem> Items { get; set; } = new();
 }

@@ -12,45 +12,48 @@ type CartDrawerProps = {
   apiBaseUrl: string;
   clientSiteId: string;
   palette: ModulePalette;
+  stripeEnabled: boolean;
   open: boolean;
   onClose: () => void;
 };
 
-export default function CartDrawer({ apiBaseUrl, clientSiteId, palette, open, onClose }: CartDrawerProps) {
-  const { items, updateQuantity, removeItem, clear, total } = useCart();
+export default function CartDrawer({ apiBaseUrl, clientSiteId, palette, stripeEnabled, open, onClose }: CartDrawerProps) {
+  const { items, updateQuantity, removeItem, total } = useCart();
   const [customerName, setCustomerName] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
   const [status, setStatus] = useState<"idle" | "sending" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
-  const [confirmation, setConfirmation] = useState<{ orderId: string; total: number } | null>(null);
 
   if (!open) return null;
 
+  // Redirige vers Stripe Checkout (page hébergée par Stripe) — le panier n'est vidé qu'au retour
+  // en cas de succès (voir CatalogueSection.tsx), pas ici : si le client annule sur la page Stripe,
+  // il retrouve son panier intact. Aucune commande n'est créée à cette étape, seulement à la
+  // confirmation du paiement par webhook (voir modules/stripe/backend/StripeModule.cs).
   const handleCheckout = async () => {
     setStatus("sending");
     setError(null);
 
-    const res = await fetch(`${apiBaseUrl}/api/t/${clientSiteId}/catalogue/checkout`, {
+    const res = await fetch(`${apiBaseUrl}/api/t/${clientSiteId}/stripe/checkout`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         customerName,
         customerEmail,
         items: items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
+        returnBaseUrl: `${window.location.origin}/t/${clientSiteId}`,
       }),
     });
 
     if (!res.ok) {
       const body = await res.json().catch(() => null);
-      setError(body?.error ?? "La commande n'a pas pu être enregistrée.");
+      setError(body?.error ?? "Le paiement n'a pas pu être initié.");
       setStatus("error");
       return;
     }
 
-    const data = (await res.json()) as { orderId: string; total: number };
-    setConfirmation(data);
-    clear();
-    setStatus("idle");
+    const data = (await res.json()) as { url: string };
+    window.location.href = data.url;
   };
 
   return (
@@ -66,25 +69,7 @@ export default function CartDrawer({ apiBaseUrl, clientSiteId, palette, open, on
           </button>
         </div>
 
-        {confirmation ? (
-          <div className="flex flex-col gap-3">
-            <p style={{ color: palette.accent }}>
-              Commande enregistrée — merci ! Total : {formatPrice(confirmation.total)}.
-            </p>
-            <p className="text-xs text-gray-text">Référence : {confirmation.orderId}</p>
-            <button
-              type="button"
-              onClick={() => {
-                setConfirmation(null);
-                onClose();
-              }}
-              className="self-start text-sm font-medium hover:opacity-70"
-              style={{ color: palette.accent }}
-            >
-              Fermer
-            </button>
-          </div>
-        ) : items.length === 0 ? (
+        {items.length === 0 ? (
           <p className="text-gray-text">Le panier est vide.</p>
         ) : (
           <>
@@ -135,31 +120,35 @@ export default function CartDrawer({ apiBaseUrl, clientSiteId, palette, open, on
               </span>
             </div>
 
-            <div className="flex flex-col gap-2">
-              <input
-                className="rounded-button border border-border-subtle px-3 py-2 text-sm"
-                placeholder="Nom"
-                value={customerName}
-                onChange={(e) => setCustomerName(e.target.value)}
-              />
-              <input
-                className="rounded-button border border-border-subtle px-3 py-2 text-sm"
-                placeholder="Email"
-                type="email"
-                value={customerEmail}
-                onChange={(e) => setCustomerEmail(e.target.value)}
-              />
-              {status === "error" && error && <p className="text-sm text-red-500">{error}</p>}
-              <button
-                type="button"
-                onClick={handleCheckout}
-                disabled={status === "sending" || !customerName || !customerEmail}
-                className="rounded-button px-4 py-2.5 font-semibold text-white hover:opacity-90 disabled:opacity-50"
-                style={{ backgroundColor: palette.accent }}
-              >
-                {status === "sending" ? "Envoi…" : "Valider la commande"}
-              </button>
-            </div>
+            {stripeEnabled ? (
+              <div className="flex flex-col gap-2">
+                <input
+                  className="rounded-button border border-border-subtle px-3 py-2 text-sm"
+                  placeholder="Nom"
+                  value={customerName}
+                  onChange={(e) => setCustomerName(e.target.value)}
+                />
+                <input
+                  className="rounded-button border border-border-subtle px-3 py-2 text-sm"
+                  placeholder="Email"
+                  type="email"
+                  value={customerEmail}
+                  onChange={(e) => setCustomerEmail(e.target.value)}
+                />
+                {status === "error" && error && <p className="text-sm text-red-500">{error}</p>}
+                <button
+                  type="button"
+                  onClick={handleCheckout}
+                  disabled={status === "sending" || !customerName || !customerEmail}
+                  className="rounded-button px-4 py-2.5 font-semibold text-white hover:opacity-90 disabled:opacity-50"
+                  style={{ backgroundColor: palette.accent }}
+                >
+                  {status === "sending" ? "Redirection…" : "Payer par carte"}
+                </button>
+              </div>
+            ) : (
+              <p className="text-sm text-gray-text">Le paiement en ligne n'est pas encore disponible sur ce site.</p>
+            )}
           </>
         )}
       </div>
