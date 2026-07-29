@@ -21,7 +21,13 @@ public static class AvisGoogleAdminEndpoints
             if (!await TenantAdminAuth.IsAuthorizedAsync(req, config, db, clientSiteId)) return Results.Unauthorized();
 
             var settings = await db.GoogleReviewSettings.FirstOrDefaultAsync(s => s.ClientSiteId == clientSiteId);
-            return Results.Ok(settings);
+            // Results.Ok(null)/Results.Json(null) renvoient un corps VIDE (pas le JSON "null") : les
+            // typed results d'ASP.NET Core sautent l'écriture du corps quand la valeur est null, quel
+            // que soit l'helper utilisé. Le frontend appelle res.json() sans filet, ce qui plantait
+            // silencieusement sur un tenant n'ayant encore lié aucune fiche Google (aucune ligne
+            // GoogleReviewSettings) — la page restait bloquée sur "Chargement…". Results.Text force
+            // l'écriture du littéral "null", que le frontend gère déjà (`!settings`).
+            return settings is null ? Results.Text("null", "application/json") : Results.Json(settings);
         });
 
         group.MapPost("/link", async (Guid clientSiteId, LinkInput input, HttpRequest req, IConfiguration config, AppDbContext db, IHttpClientFactory httpFactory) =>
