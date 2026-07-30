@@ -1,3 +1,8 @@
+// Écart assumé à "un module reste isolé" (docs/02-architecture-modules.md) : import direct du
+// dictionnaire i18n du module Multilingue plutôt que de dupliquer une chaîne ici — voir
+// modules/multilingue/frontend/translations.ts.
+import { t, type Locale } from "@modules/multilingue/frontend/translations";
+
 // Voir docs/10-templates.md : un module reste isolé, redéclare localement la forme de la palette
 // du template actif plutôt que d'importer PaletteDef.
 type ModulePalette = { accent: string; background: string; ink: string };
@@ -6,9 +11,10 @@ type MapsSectionProps = {
   address: string;
   apiKey: string;
   palette: ModulePalette;
+  locale?: Locale;
 };
 
-export default function MapsSection({ address, apiKey, palette }: MapsSectionProps) {
+export default function MapsSection({ address, apiKey, palette, locale }: MapsSectionProps) {
   // Module activé mais pas encore configuré (pas de clé Google Maps) : rien à afficher sur le site
   // public plutôt qu'un encart "configuration manquante" — ce message n'a de valeur que côté admin
   // (voir ModulesSection.tsx, la card Maps explique déjà qu'il manque la clé).
@@ -19,7 +25,7 @@ export default function MapsSection({ address, apiKey, palette }: MapsSectionPro
   return (
     <section className="flex flex-col gap-4">
       <span className="text-xs font-semibold uppercase tracking-[0.1em]" style={{ color: palette.accent }}>
-        Où nous trouver
+        {t(locale, "maps.findUs")}
       </span>
       <div className="overflow-hidden rounded-card shadow-card">
         <iframe title="Carte" src={src} className="h-72 w-full border-0" loading="lazy" />

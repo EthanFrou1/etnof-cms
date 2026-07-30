@@ -1,0 +1,6 @@
+{
+  "name": "multilingue",
+  "displayName": "Multilingue",
+  "description": "Traduit le site (nom, description, offres) et les articles de blog en anglais et espagnol, en plus du français",
+  "dependencies": []
+}

@@ -254,9 +254,25 @@ Aucune table de créneaux persistée : les créneaux disponibles sont calculés 
 | Id | Guid | |
 | Name | string | Nom de la formule (ex "Essentiel") |
 | Price | string | Texte libre, même convention que `ModulePrice.Price` (ex "690€") |
+| Description | string | Ajouté le 2026-07-30 (même jour) — texte affiché sur la card publique de la formule |
+| FeaturesJson | string | Ajouté le 2026-07-30 (même jour) — liste JSON de fonctionnalités (bullet points), même convention que `ModulesConfigJson` (colonne texte brute, reformée en liste à la frontière API) |
+| Highlighted | bool | Ajouté le 2026-07-30 (même jour) — affiche le badge "Le plus populaire" sur la card |
 | SortOrder | int | Ordre d'affichage |
 
-Liste (pas un singleton) éditable depuis l'onglet "Formules" de `/admin/dashboard/facturation` — auto-seedée avec les 3 formules connues (Essentiel/Business/Sur mesure) si la table est entièrement vide, jamais re-seedée après une suppression manuelle. Sert, avec `ModulePrice`, à préremplir rapidement une ligne de devis/facture (`TariffPicker`, `AgencyBillingPage.tsx`).
+Liste (pas un singleton) éditable depuis la section "Formules" de `/admin/dashboard` (`frontend/src/pages/agency/PackageOffersSection.tsx`, voir `docs/07-admin-global.md`) — auto-seedée avec les 3 formules connues (Essentiel/Business/Sur mesure, reprises du contenu du site public etnof-web) si la table est entièrement vide, jamais re-seedée après une suppression manuelle. Sert, avec `ModulePrice`, à préremplir rapidement une ligne de devis/facture (`TariffPicker`, `frontend/src/pages/agency/shared.tsx`). Affichée en cards (pas en liste) : la formule `Highlighted` reprend le dégradé de marque et un badge, les autres un simple encadré.
+
+### ContentTranslation (module Multilingue, ajouté le 2026-07-30)
+| Champ | Type | Note |
+|---|---|---|
+| Id | Guid | |
+| ClientSiteId | Guid | |
+| EntityType | string | `"site"` (SiteContent, singleton) / `"offer"` / `"blog-post"` |
+| EntityId | Guid? | `null` pour `"site"`, sinon l'Id de l'`Offer`/`BlogPost` traduit |
+| Locale | string | `"en"` / `"es"` — jamais `"fr"` : le français reste la valeur "de base" déjà stockée dans `SiteContent`/`Offer`/`BlogPost`, pas dupliquée ici |
+| Field | string | `"siteName"` / `"description"` / `"title"` / `"content"` selon l'entité |
+| Value | string | Texte traduit — vide retombe sur l'original côté API (`MultilingueModule.Merge`), jamais un champ blanc affiché |
+
+Table générique plutôt que d'ajouter des colonnes `Locale` à `SiteContent`/`Offer`/`BlogPost` (ceux-ci restent inchangés) — voir `docs/12-plan-modules-restants.md`, catégorie B ("transverse"). Pas de FK stricte ni de navigation EF vers l'entité traduite, même choix qu'`Offer.ProductId`. `GET /api/t/{clientSiteId}/content` et `GET/{slug}` du module Blog acceptent un paramètre `?locale=en|es` optionnel, ignoré (contenu français inchangé) si le module Multilingue n'est pas autorisé+activé pour ce tenant. CRUD admin dans `MultilingueAdminEndpoints.cs` (`/api/t/{clientSiteId}/admin/multilingue/...`).
 
 ## Note sur le module Maps
 

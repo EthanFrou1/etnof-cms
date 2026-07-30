@@ -15,7 +15,7 @@ Marche à suivre pour construire, un par un, les modules qui manquent encore par
 | Blog | +250€ | Déjà implémenté |
 | Page supplémentaire | +80€ | À trancher (voir catégorie C) |
 | Back-office / CMS | +450€ | Largement couvert, à durcir (catégorie B) |
-| Multilingue | +250€ | Transverse (catégorie B) |
+| Multilingue | +250€ | Implémenté (2026-07-30), voir catégorie B |
 | Prise de rendez-vous | +290€ | Implémenté (2026-07-28) |
 | Paiement Stripe | +350€ | Implémenté (2026-07-29) |
 | Paiement PayPal | +200€ | Abandonné (2026-07-29) — Stripe seul retenu |
@@ -175,8 +175,27 @@ Basé sur la note de priorité déjà actée dans `docs/04-catalogue-modules.md`
 Ces trois options ne suivront **pas** le pattern "dossier `/modules/xxx`" de `docs/02-architecture-modules.md` — elles touchent plusieurs modules à la fois plutôt que d'en ajouter un nouveau.
 
 - **Back-office / CMS (450€)** : déjà largement couvert par l'admin construit en Phase 3/5. Reste à durcir avant vente (vrai hash de mot de passe, gestion multi-utilisateurs) plutôt qu'à construire — voir le bilan de Phase 5 dans `docs/05-roadmap-poc.md`.
-- **Multilingue (250€)** : nécessite de repenser `SiteContent`/`Offer`/etc. pour porter plusieurs langues (pas juste un module en plus) — à traiter comme un chantier de modèle de données à part entière, pas dans cette liste module-par-module.
 - **SEO avancé (390€)** : optimisations transverses (métadonnées, sitemap, structured data...) qui s'appliquent à tout le site, pas une fonctionnalité qu'on active/désactive.
+
+### Multilingue (250€) — implémenté (2026-07-30)
+
+**But pour le client** : afficher son site (et ses articles de blog) en anglais et espagnol en plus du français, sans ressaisir tout son contenu dans un back-office séparé par langue.
+
+**But technique** : ce fichier prévoyait initialement de "repenser `SiteContent`/`Offer`/etc. pour porter plusieurs langues" — décision finalement plus simple à l'implémentation : une table générique `ContentTranslation` (voir `docs/03-modele-donnees.md`) stocke un champ traduit à la fois (`EntityType`/`EntityId`/`Locale`/`Field`/`Value`), **sans toucher au schéma** de `SiteContent`/`Offer`/`BlogPost`. Le français reste la valeur "de base" déjà en place ; l'anglais/espagnol ne sont que des lignes optionnelles dans cette table à part. `GET /content` et `GET /blog(/{slug})` acceptent `?locale=en|es`, fusionné dans la réponse seulement si le module est autorisé+activé pour ce tenant — sinon comportement inchangé. Toujours "transverse" au sens où le code touche `ContentEndpoints.cs`/`BlogModule.cs` (core + un autre module) plutôt que d'être 100% isolé dans `/modules/multilingue`, mais le `module.meta.json`/`authorized`/`enabled` suit le pattern standard (précédent : `Offer.ProductId` référencé par le module Catalogue, `GooglePlaceId` lu par Avis Google).
+
+**Portée V1 (rester simple, décision d'Ethan)** : anglais et espagnol seulement (pas de liste de langues configurable). Traduit : nom du site, description, offres (titre/description), articles de blog (titre/contenu). **Ne traduit pas** : établissement (adresse/téléphone/horaires — faits, pas du texte marketing), ni les autres modules (RDV, Newsletter, etc.). Saisie manuelle des traductions par le client depuis `/admin/{clientSiteId}/multilingue` (onglets English/Español, 3 panneaux Site/Offres/Blog) — aucune traduction automatique, donc aucune dépendance externe (règle 5 de `CLAUDE.md`).
+
+**Dépendance externe** : aucune pour la saisie manuelle.
+
+**Mise à jour du 2026-07-30 (même jour)** : ajout d'un bouton "Traduire automatiquement" (par champ groupé — nom+description, ou titre+contenu) qui préremplit le brouillon depuis l'**API DeepL**, validée explicitement avec Ethan avant de coder (règle 5 de `CLAUDE.md`) — offre gratuite 500 000 caractères/mois. Le bouton ne fait que proposer une traduction dans le brouillon : il ne sauvegarde jamais tout seul, le client relit/corrige puis clique "Enregistrer" comme pour une traduction manuelle. Clé configurée dans `DeepL:ApiKey` (`backend/appsettings.Development.json`, gitignoré) — si absente, le bouton affiche une erreur explicite plutôt que de planter silencieusement. Voir `modules/multilingue/backend/DeepLTranslator.cs`.
+
+**Statut** : [x] construit (2026-07-30) — `modules/multilingue/` (backend : entité + helper `MultilingueModule`, traduction automatique `DeepLTranslator.cs`, CRUD admin `MultilingueAdminEndpoints.cs` ; frontend : `LanguageSwitcher.tsx` affiché dans la nav d'Hestia/Helios si le module est actif). Page admin `MultilingueSection.tsx` (bouton "✨ Traduire automatiquement" par champ groupé). Testé avec le tenant historique : `?locale=en` sans traduction retombe sur le français, avec une traduction elle s'affiche ; `?locale=en` ignoré tant que le module n'est pas autorisé+activé.
+
+**Reste à faire par Ethan** : créer un compte DeepL (gratuit) sur deepl.com, générer une clé API, la coller dans `DeepL:ApiKey` de `backend/appsettings.Development.json` (et en production, variable d'environnement `DeepL__ApiKey`).
+
+**Mise à jour du 2026-07-30 (même jour) — habillage du site traduit aussi** : au-delà du contenu propre à chaque client (ci-dessus), les textes fixes du site public (liens de nav, titres de section "Bienvenue"/"Établissement"/"Horaires"/"Offres", et tous les formulaires/libellés internes de chaque module : Contact, RDV, Newsletter, Avis Google, Blog, Catalogue/panier/paiement) sont désormais traduits eux aussi, dans les 3 langues (le français redevient alors le contenu du dictionnaire plutôt que la valeur "de base" de `SiteContent`). Décision d'Ethan : périmètre complet plutôt que la seule "coquille" des templates.
+
+Un unique dictionnaire statique `modules/multilingue/frontend/translations.ts` (`t(locale, clé, vars?)` + `localeTag(locale)` pour les dates `Intl`) porte ces chaînes — **distinct** de `ContentTranslation` (qui reste réservé au contenu propre à chaque tenant) : ce dictionnaire est identique pour tous les tenants, écrit à la main une fois pour toutes, jamais éditable depuis l'admin, aucun appel DeepL. Écart assumé à "un module reste isolé" (`docs/02-architecture-modules.md`) : chaque module public (Contact, Maps, RDV, Newsletter, Avis Google, Blog, Catalogue) importe ce fichier directement via l'alias `@modules/...` plutôt que de dupliquer ~90 chaînes — l'i18n est par nature transverse. Les avis Google eux-mêmes (texte de l'avis, nom de l'auteur) restent en français : ce sont des données Google en lecture seule (voir `GooglePlacesEndpoints.cs`, `language=fr`), pas du texte du site.
 
 ## Catégorie C — Prestations hors-code
 

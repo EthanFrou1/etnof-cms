@@ -23,6 +23,8 @@ Depuis le passage en multi-tenant (2026-07-26, voir `00-vision.md`), toutes les 
 > Écart assumé avec la version initiale de ce doc : le backend utilise des *minimal API* (`app.MapPost(...)` directement dans `XModule.cs`) plutôt que des Controllers MVC classiques — cohérent avec `Program.cs` qui est lui-même en minimal API depuis la Phase 0. Pas de fichier `XController.cs` séparé.
 >
 > `module.meta.json` est utilisé depuis le bilan de la Phase 5 : `ModuleMetaRegistry` (`backend/ModuleMetaRegistry.cs`) le lit pour donner un nom lisible aux modules dans l'admin (`displayName`/`description`). `XSection.config.ts` reste non exploité par le code — connu, pas bloquant.
+>
+> **Écart assumé (2026-07-30, module Multilingue)** : le composant public de chaque module (Contact, Maps, RDV, Newsletter, Avis Google, Blog, Catalogue) importe `@modules/multilingue/frontend/translations.ts` pour ses textes fixes (nav, formulaires, boutons) plutôt que de les coder en dur — seule exception connue à "un module reste isolé" pour ces fichiers-là. L'i18n est par nature transverse (voir `docs/12-plan-modules-restants.md`, catégorie B) ; dupliquer le dictionnaire dans chaque module aurait été pire pour la maintenance qu'un import direct. Un **nouveau** module public avec du texte visiteur doit suivre le même pattern : ajouter ses clés dans `translations.ts` (fr/en/es), importer `t`/`Locale` depuis ce fichier, accepter une prop `locale?: Locale` optionnelle transmise par le template appelant.
 
 ## La config des modules : en base, par tenant
 

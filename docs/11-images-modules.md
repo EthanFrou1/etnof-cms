@@ -31,6 +31,7 @@ Subject: [SUJET DU MODULE]
 | `avis-google.png` | a stylized five-pointed star (filled) next to a rounded speech bubble containing a few small horizontal lines, representing a customer review/rating |
 | `whatsapp.png` | a stylized rounded speech bubble containing a simple phone handset icon, floating above a minimal smartphone outline, representing an instant chat/contact button |
 | `stripe.png` | a stylized bank card tilted at a slight angle with a small rounded checkmark badge floating above one corner, representing secure online card payment |
+| `multilingue.png` | a stylized globe with simplified continents, paired with two small overlapping speech bubbles containing a few short horizontal lines, representing translation and multiple languages |
 
 ## Notes
 

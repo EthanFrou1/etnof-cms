@@ -11,6 +11,7 @@ import {
   IconDocument,
   IconEstablishment,
   IconExternalLink,
+  IconGlobe,
   IconMail,
   IconMessages,
   IconModules,
@@ -34,7 +35,8 @@ export type AdminSection =
   | "newsletter"
   | "avis-google"
   | "stripe"
-  | "blog";
+  | "blog"
+  | "multilingue";
 
 // Produits/Commandes/Clients n'existent que via le module Catalogue (un client n'apparaît que
 // s'il a passé commande) — pas de module "customers" séparé, voir docs/04-catalogue-modules.md.
@@ -47,6 +49,7 @@ export const NEWSLETTER_SECTIONS: AdminSection[] = ["newsletter"];
 export const AVIS_GOOGLE_SECTIONS: AdminSection[] = ["avis-google"];
 export const STRIPE_SECTIONS: AdminSection[] = ["stripe"];
 export const BLOG_SECTIONS: AdminSection[] = ["blog"];
+export const MULTILINGUE_SECTIONS: AdminSection[] = ["multilingue"];
 
 type NavLeaf = { kind: "leaf"; id: AdminSection; label: string; icon: typeof IconDashboard };
 type NavGroup = { kind: "group"; id: string; label: string; icon: typeof IconDashboard; children: NavLeaf[] };
@@ -82,6 +85,7 @@ const NAV_ITEMS: NavEntry[] = [
       leaf("newsletter", "Newsletter", IconMail),
       leaf("avis-google", "Avis Google", IconStar),
       leaf("stripe", "Paiement Stripe", IconCard),
+      leaf("multilingue", "Multilingue", IconGlobe),
     ],
   },
   leaf("messages", "Messages", IconMessages),

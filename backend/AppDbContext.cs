@@ -3,6 +3,7 @@ using Modules.AvisGoogle;
 using Modules.Blog;
 using Modules.Catalogue;
 using Modules.Contact;
+using Modules.Multilingue;
 using Modules.Newsletter;
 using Modules.Rdv;
 using Modules.Stripe;
@@ -38,4 +39,5 @@ public class AppDbContext : DbContext
     public DbSet<AgencyStripeSettings> AgencyStripeSettings => Set<AgencyStripeSettings>();
     public DbSet<AgencyEmailSettings> AgencyEmailSettings => Set<AgencyEmailSettings>();
     public DbSet<PackageOffer> PackageOffers => Set<PackageOffer>();
+    public DbSet<ContentTranslation> ContentTranslations => Set<ContentTranslation>();
 }
