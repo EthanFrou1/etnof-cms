@@ -31,4 +31,11 @@ public class AppDbContext : DbContext
     public DbSet<GoogleReviewSettings> GoogleReviewSettings => Set<GoogleReviewSettings>();
     public DbSet<GoogleReview> GoogleReviews => Set<GoogleReview>();
     public DbSet<StripeSettings> StripeSettings => Set<StripeSettings>();
+    public DbSet<CompanyProfile> CompanyProfiles => Set<CompanyProfile>();
+    public DbSet<BillingClient> BillingClients => Set<BillingClient>();
+    public DbSet<Quote> Quotes => Set<Quote>();
+    public DbSet<Invoice> Invoices => Set<Invoice>();
+    public DbSet<AgencyStripeSettings> AgencyStripeSettings => Set<AgencyStripeSettings>();
+    public DbSet<AgencyEmailSettings> AgencyEmailSettings => Set<AgencyEmailSettings>();
+    public DbSet<PackageOffer> PackageOffers => Set<PackageOffer>();
 }

@@ -16,6 +16,10 @@ if (args.Length == 2 && args[0] == "hash-password")
     return;
 }
 
+// Licence Community (gratuite tant que le CA de la structure qui l'utilise est sous 1M$/an —
+// largement le cas d'etnof-web, auto-entreprise) — voir docs/13-facturation-devis.md.
+QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Scoped (pas Singleton) : ModuleRegistry dépend d'AppDbContext, qui est scoped par requête —
@@ -53,6 +57,14 @@ TemplateEndpoints.MapEndpoints(app);
 AgencyDashboardEndpoints.MapEndpoints(app);
 GooglePlacesEndpoints.MapEndpoints(app);
 EstablishmentEndpoints.MapEndpoints(app);
+CompanyProfileEndpoints.MapEndpoints(app);
+BillingClientEndpoints.MapEndpoints(app);
+QuoteEndpoints.MapEndpoints(app);
+InvoiceEndpoints.MapEndpoints(app);
+AgencyStripeEndpoints.MapEndpoints(app);
+InvoicePaymentEndpoints.MapEndpoints(app);
+AgencyEmailEndpoints.MapEndpoints(app);
+PackageOfferEndpoints.MapEndpoints(app);
 
 // La route reste mappée même si le module est désactivé ; le handler vérifie l'état courant et
 // renvoie 404 dynamiquement, pour qu'un toggle depuis l'admin du tenant prenne effet sans redémarrage.
