@@ -515,4 +515,60 @@ Testé (curl + CDP/Chrome headless) sur le tenant historique : création d'un br
 
 ---
 
+## Facturation & devis de l'agence (CompanyProfile, BillingClient, Quote, Invoice) — 2026-07-30
+
+Demandé par Ethan : automatiser la création des devis/factures qu'il envoie à ses propres clients etnof-web (pas un module vendu aux clients tenants — voir `docs/13-facturation-devis.md` pour la recherche juridique complète et `docs/07-admin-global.md` pour le détail de la section admin). Recherche + décisions de portée validées avec Ethan avant tout code (plan approuvé), puis construit étape par étape le même jour :
+
+1. **Config entreprise** (`CompanyProfile`, une seule ligne) : SIRET, adresse, mention TVA, IBAN, mention pénalités de retard, lien CGV, logo (upload, même pattern que `EstablishmentImage`).
+2. **Clients de facturation** (`BillingClient`) : lien facultatif vers un `ClientSite` existant, ou prospect/prestation hors plateforme.
+3. **Devis** (`Quote`) : lignes libres, PDF (nouvelle dépendance NuGet **QuestPDF**, licence Community gratuite, approuvée par Ethan avant ajout — règle 5 de `CLAUDE.md`), passage "envoyé", puis acceptation par le client via un lien public **sans authentification** (`/devis/{id}`) — signature électronique simple (nom/email/IP capturés).
+4. **Factures** (`Invoice`) : créées manuellement ou depuis un devis accepté (acompte/solde/facture unique). Numéro légal (`2026-0001`) attribué uniquement à la **finalisation** (jamais à la création en brouillon), pour respecter l'obligation de séquence chronologique sans trou — une facture finalisée est verrouillée (`IsFinalized`), seule l'annulation reste possible ensuite.
+
+Nouvelle page `/admin/dashboard/facturation` (`AgencyBillingPage.tsx`, 4 onglets), accessible depuis un lien sur `/admin/dashboard` — même auth agence que le reste (`AdminAuth`), pas de nouveau mécanisme d'authentification.
+
+Testé (curl, migrations EF Core appliquées une à une) : devis créé (2 lignes) → PDF valide généré à la volée → passé "envoyé" → accepté via le lien public sans aucun header d'auth (nom/email/IP capturés) → facture d'acompte créée depuis le devis accepté, finalisée → `Number = "2026-0001"` → facture de solde créée et finalisée → `Number = "2026-0002"` (séquence continue confirmée) → modification/suppression refusées après finalisation (400) → marquage payée → PDF facture valide (mentions légales incluses). `dotnet build` et `tsc -b` propres après chaque étape.
+
+**Reste à vérifier par Ethan dans le navigateur** (pas d'outil de capture d'écran dans cet environnement) : remplir la config entreprise avec les vraies infos etnof-web, tester le flux complet visuellement, notamment le lien public d'acceptation en navigation privée. Un client de facturation et deux factures de test (`2026-0001` payée, `2026-0002`) restent en base — laissés comme données d'exemple, à supprimer ou garder au choix d'Ethan (la facture finalisée ne peut être supprimée, seulement annulée).
+
+---
+
+## Paiement en ligne Stripe sur les factures de l'agence — 2026-07-30 (même jour)
+
+Suite immédiate de la facturation ci-dessus : Ethan veut que ses clients paient ses factures en ligne, argent versé sur son propre compte Stripe (question de légalité posée et répondue avant de coder — voir `docs/13-facturation-devis.md`). Repris à l'identique le pattern du module Stripe tenant (`modules/stripe/`) mais au niveau agence :
+
+- `AgencyStripeSettings` (singleton, comme `CompanyProfile`) + `Invoice.StripeSessionId` (idempotence webhook, migration `AddAgencyStripePayment`).
+- `backend/InvoicePaymentEndpoints.cs` : `GET /api/public/invoices/{id}` (jamais un brouillon), `POST /api/public/invoices/{id}/checkout` (session Stripe Checkout, refuse si facture non `sent` ou déjà payée), `POST /api/public/invoices/stripe-webhook` (marque `paid` sur `checkout.session.completed`, idempotent).
+- Frontend : 5e onglet "Paiement" dans `AgencyBillingPage.tsx` (clé secrète + secret webhook, calqué sur `StripeSection.tsx`), page publique `/facture/{id}` (`InvoicePublicPage.tsx`, bouton "Payer en ligne", poll léger au retour de Stripe).
+
+Testé (curl) : auth agence sur la config (401 sans mot de passe) ; paiement refusé sur facture déjà payée, sur un brouillon (jamais public, 404), et tant qu'aucune clé Stripe n'est configurée (400 explicite dans chaque cas). `dotnet build`/`tsc -b` propres. **Testé ensuite de bout en bout avec le vrai compte Stripe d'Ethan** (voir entrée suivante) : clé restreinte créée en mode test (`Checkout Sessions: écriture` uniquement, pas la clé standard partagée avec son autre projet Fidélité Pro Plus), `stripe login` + `stripe listen --forward-to localhost:5052/api/public/invoices/stripe-webhook` en local pour recevoir le webhook (pas de déploiement public pour l'instant), paiement réel avec une carte de test Stripe → facture passée à "Payée" automatiquement, confirmé côté base et dans les logs du listener.
+
+## Email de confirmation de paiement (Brevo) — 2026-07-30 (même jour)
+
+Juste après avoir validé le paiement Stripe de bout en bout, Ethan a demandé un email de confirmation automatique au client (avec la facture en PDF) dès qu'une facture est payée. Nouvelle dépendance externe signalée et confirmée : **Brevo**, déjà utilisé par Ethan sur son autre projet, expéditeur `etnofweb@gmail.com`.
+
+- `AgencyEmailSettings` (singleton, clé API Brevo) + `Invoice.ConfirmationEmailSentAt` (évite un double envoi si Stripe rejoue l'événement webhook), migration `AddAgencyEmailSettings`.
+- `backend/BrevoEmailService.cs` : simple appel REST (`POST https://api.brevo.com/v3/smtp/email`), aucun SDK NuGet ajouté — réutilise `IHttpClientFactory` déjà enregistré (même pattern que `GooglePlacesEndpoints.cs`).
+- Branché dans le webhook Stripe (`InvoicePaymentEndpoints.cs`) juste après le passage à "payée" : génère le PDF (réutilise `InvoicePdfDocument`, déjà utilisé par l'endpoint de téléchargement), envoie l'email avec la facture en pièce jointe. Tout le bloc est dans un `try/catch` : un échec Brevo ne fait jamais échouer la confirmation du paiement déjà enregistrée en base.
+- Frontend : nouvelle section "Email de confirmation" dans le même onglet "Paiement" de `AgencyBillingPage.tsx` (clé API Brevo, rappel de vérifier que l'expéditeur est validé côté Brevo).
+
+Déclencheur V1 : uniquement le paiement automatique confirmé par Stripe (pas le marquage manuel "payée", pas la confirmation de devis — à reprendre plus tard si besoin). `dotnet build`/`tsc -b` propres.
+
+**Reste à faire par Ethan** : coller sa clé API Brevo dans l'onglet Paiement (idéalement une clé restreinte à l'envoi transactionnel si son plan Brevo le permet), puis rejouer un paiement de test pour vérifier que l'email arrive bien avec la facture en pièce jointe.
+
+## Lignes de devis/facture depuis les tarifs (PackageOffer, TariffPicker) — 2026-07-30 (même jour)
+
+Dernière demande d'Ethan de la session facturation : piocher rapidement une ligne de devis/facture depuis ses tarifs déjà connus (modules + formules de base), au lieu de tout retaper à la main à chaque fois.
+
+- `PackageOffer` (nouvelle entité, liste — pas un singleton) : nom + prix libre, `SortOrder`. `GET /api/admin/package-offers` auto-seed les 3 formules connues (Essentiel 690€, Business 1090€, Sur mesure 1990€) si la table est entièrement vide, jamais re-seedé après une suppression manuelle — testé (suppression d'une formule → re-GET confirme qu'elle ne revient pas).
+- 6e onglet **"Formules"** dans `AgencyBillingPage.tsx` : CRUD simple (nom, prix), même niveau que `BillingClientsPanel`.
+- `TariffPicker` (composant partagé) : charge `PackageOffer` + `GET /api/admin/modules` (déjà utilisé par le panneau "Tarifs des modules" de `/admin/dashboard`), affiche un `<select>` groupé (Formules/Modules) à côté du bouton "+ Ajouter une ligne" dans les panneaux Devis et Factures — sélectionner un élément ajoute une ligne préremplie (désignation + prix converti en nombre, quantité 1). Modules sans prix renseigné filtrés (pas affichés).
+
+Testé (curl) : seed automatique confirmé, CRUD complet sur `PackageOffer`. `dotnet build`/`tsc -b` propres. Une correction de bug a été faite au passage sur `InvoicePaymentEndpoints.cs`/`BrevoEmailService.cs` : le lien "Voir ma facture" de l'email de confirmation était codé en dur sur `localhost:5173` — remplacé par `Cors:AllowedOrigin` (config déjà existante, représente l'origine réelle du frontend), pour que le lien reste valide une fois le site déployé publiquement.
+
+**Remise à zéro de la numérotation** : les tests de la session (2026-0001 à 2026-0006) ont été supprimés directement en base (client de facturation de test + devis + factures associés) à la demande d'Ethan, pour que sa première vraie facture soit bien `2026-0001`. Un brouillon d'exemple ("Client Demo (exemple)") a été laissé en base, volontairement non finalisé, pour illustrer le principe des lignes sans consommer de numéro — à supprimer ou finaliser au choix d'Ethan.
+
+**Reste avant un usage réel** (non traité cette session) : déploiement public du site (les liens envoyés aux clients supposent une URL publique — `Cors:AllowedOrigin` doit être configuré en conséquence), bascule de la clé Stripe de test vers la clé live (`rk_live_...`, déjà créée mais pas encore reconfigurée) et création d'un vrai webhook Stripe (destination permanente dans le dashboard, à la place de `stripe listen` qui ne sert qu'aux tests locaux — penser à arrêter ce process une fois les tests terminés).
+
+---
+
 **Note pour toi (Ethan)** : donne ce fichier à Claude Code phase par phase (« on attaque la Phase 2, voici le contexte : [colle le contenu de 02-architecture-modules.md et 03-modele-donnees.md] »). Ne lui donne pas tout le projet d'un coup, ça évite qu'il brûle des étapes ou fasse des suppositions sur les phases suivantes.

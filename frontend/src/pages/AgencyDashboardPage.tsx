@@ -481,11 +481,19 @@ export default function AgencyDashboardPage() {
       <div className="mx-auto flex max-w-5xl flex-col gap-12 py-10">
         <header className="flex flex-wrap items-center justify-between gap-4 rounded-pill bg-white px-6 py-4 shadow-soft">
           <BrandMark />
-          <div className="text-right">
-            <span className="text-xs font-semibold uppercase tracking-[0.15em] text-green-accent">
-              Vue globale
-            </span>
-            <h1 className="text-lg font-extrabold text-navy">Mes sites clients</h1>
+          <div className="flex items-center gap-4">
+            <a
+              href="/admin/dashboard/facturation"
+              className="rounded-button border border-border-subtle px-3 py-2 text-sm font-medium text-gray-text hover:bg-bg-page-start hover:text-navy"
+            >
+              Facturation & devis →
+            </a>
+            <div className="text-right">
+              <span className="text-xs font-semibold uppercase tracking-[0.15em] text-green-accent">
+                Vue globale
+              </span>
+              <h1 className="text-lg font-extrabold text-navy">Mes sites clients</h1>
+            </div>
           </div>
         </header>
 

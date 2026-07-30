@@ -2,6 +2,9 @@ import { lazy, Suspense, useEffect } from "react";
 import PublicSite from "./pages/PublicSite";
 import AdminPage from "./pages/AdminPage";
 import AgencyDashboardPage from "./pages/AgencyDashboardPage";
+import AgencyBillingPage from "./pages/admin/AgencyBillingPage";
+import QuoteAcceptancePage from "./pages/QuoteAcceptancePage";
+import InvoicePublicPage from "./pages/InvoicePublicPage";
 import CustomerDetailPage from "./pages/CustomerDetailPage";
 import ProductDetailPage from "./pages/ProductDetailPage";
 import BlogPostDetailPage from "./pages/BlogPostDetailPage";
@@ -36,6 +39,21 @@ function Redirect({ to }: { to: string }) {
 
 function App() {
   const segments = window.location.pathname.split("/").filter(Boolean);
+
+  // /devis/{id} — page publique d'acceptation d'un devis, sans auth (lien envoyé par email)
+  if (segments[0] === "devis" && segments[1]) {
+    return <QuoteAcceptancePage quoteId={segments[1]} />;
+  }
+
+  // /facture/{id} — page publique de paiement en ligne d'une facture, sans auth
+  if (segments[0] === "facture" && segments[1]) {
+    return <InvoicePublicPage invoiceId={segments[1]} />;
+  }
+
+  // /admin/dashboard/facturation — devis/factures de l'agence elle-même, voir docs/13-facturation-devis.md
+  if (segments[0] === "admin" && segments[1] === "dashboard" && segments[2] === "facturation") {
+    return <AgencyBillingPage />;
+  }
 
   // /admin/dashboard — vue globale d'Ethan sur tous les tenants
   if (segments[0] === "admin" && segments[1] === "dashboard") {

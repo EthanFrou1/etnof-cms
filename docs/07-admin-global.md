@@ -33,6 +33,40 @@ Contrairement à l'approche initialement envisagée ci-dessous (outil séparé),
 - Historique des échanges / gestion de prospects (Prospect, Mockup, EmailEnvoyé...) — toujours hors scope, non implémenté.
 - Mécanisme de dépendance entre modules (ex. rendre "Catalogue" prérequis d'un futur module) — toujours juste documenté dans `module.meta.json`, jamais appliqué (décision explicite d'Ethan de ne pas le construire pour l'instant, voir `docs/05-roadmap-poc.md`).
 
+## Facturation & devis (ajouté le 2026-07-30)
+
+Outil de facturation pour l'agence elle-même (etnof-web), pas pour les clients tenants — voir `docs/13-facturation-devis.md` pour la recherche juridique et la décision de portée V1. Accessible via un lien "Facturation & devis →" depuis `/admin/dashboard`, page dédiée `/admin/dashboard/facturation` (`AgencyBillingPage.tsx`), même auth que le reste de l'agence (`AdminAuth`, mot de passe agence).
+
+Six onglets au total à ce jour (Entreprise, Clients, Formules, Devis, Factures, Paiement), ajoutés progressivement dans la même journée. Les quatre briques cœur ci-dessous, dans l'ordre où elles ont été construites :
+1. **Entreprise** (`CompanyProfile`) : SIRET, adresse, mention TVA, IBAN, pénalités de retard, lien CGV, logo — une seule ligne, réutilisée sur chaque PDF.
+2. **Clients** (`BillingClient`) : destinataires des devis/factures — un `ClientSite` existant (lien facultatif) ou un prospect hors plateforme.
+3. **Devis** (`Quote`) : lignes libres, PDF téléchargeable (QuestPDF, génération à la volée), passage en "envoyé", puis acceptation par le client via un lien public **sans authentification** (`/devis/{id}`, `QuoteAcceptancePage.tsx`) — signature électronique simple (nom/email/IP capturés, pas de service tiers).
+4. **Factures** (`Invoice`) : créées manuellement ou depuis un devis accepté (bouton "Créer une facture", choix acompte/solde/facture unique). Le numéro légal (`2026-0001`, séquence sans trou) n'est attribué qu'à la **finalisation** — une facture finalisée est verrouillée (plus de modification/suppression), seule l'annulation reste possible.
+
+**Dépendance ajoutée** : package NuGet QuestPDF (licence Community gratuite, approuvée par Ethan — voir `docs/13-facturation-devis.md`) pour la génération des PDF, aucun service externe payant.
+
+**Hors scope V1** (à reprendre plus tard si besoin) : envoi d'email automatique des devis/factures (le lien PDF/public est partagé manuellement par Ethan pour l'instant), avoirs/notes de crédit, conformité Factur-X/PDP (échéance légale de la réforme de facturation électronique : 1er septembre 2027 pour l'émission B2B des micro-entreprises).
+
+Testé (curl, tenant historique + client de facturation de test) : devis créé → PDF valide (QuestPDF) → passé "envoyé" → accepté via le lien public sans aucun header d'auth → facture d'acompte créée depuis le devis accepté, finalisée (`2026-0001`) → facture de solde créée et finalisée (`2026-0002`, séquence continue confirmée) → modification/suppression refusées après finalisation (400) → marquage payée → PDF facture valide.
+
+### Paiement en ligne des factures (ajouté le 2026-07-30)
+
+5e onglet **Paiement** : compte Stripe **de l'agence** (`AgencyStripeSettings`, singleton) — distinct des comptes Stripe de chaque tenant (module Stripe, `docs/04-catalogue-modules.md`). Même mécanisme que ce module (session Checkout + webhook confirme le paiement), transposé au niveau agence : `backend/InvoicePaymentEndpoints.cs` expose `GET /api/public/invoices/{id}` (jamais un brouillon), `POST /api/public/invoices/{id}/checkout` (refuse si la facture n'est pas `sent` ou déjà `paid`) et `POST /api/public/invoices/stripe-webhook` (idempotent via `Invoice.StripeSessionId`). Page publique `/facture/{id}` (`InvoicePublicPage.tsx`) : bouton "Payer en ligne" si `sent`, bandeau de confirmation si `paid`, poll léger au retour de Stripe (`?checkout=success`) le temps que le webhook confirme.
+
+Légalité confirmée avec Ethan avant de coder : Stripe est un PSP agréé, aucune autorisation spéciale requise pour un auto-entrepreneur ; la facture reste obligatoire quel que soit le moyen de paiement ; le CA encaissé via Stripe compte normalement pour le plafond micro-entreprise, à verser sur le compte bancaire dédié (obligatoire au-delà de 10 000€ de CA deux années de suite).
+
+Testé (curl) : `GET /api/admin/stripe-settings` refusé sans mot de passe agence (401) ; paiement refusé sur une facture déjà payée et sur un brouillon (400, jamais exposé publiquement — 404) ; paiement refusé tant qu'aucune clé Stripe n'est configurée (400 explicite). **Testé de bout en bout avec le vrai compte Stripe d'Ethan** (mode test, clé restreinte `Checkout Sessions: écriture` uniquement — pas la clé standard partagée avec son autre projet, `stripe listen` en local pour le webhook faute de déploiement public) : paiement réel avec la carte de test Stripe, facture passée à "Payée" automatiquement, confirmé côté base et dans les logs du webhook.
+
+### Email de confirmation de paiement (ajouté le 2026-07-30, même session)
+
+Dès qu'une facture est payée via le webhook Stripe ci-dessus, un email de confirmation part automatiquement au client (`BillingClient.Email`) avec la facture en PDF jointe — via **Brevo** (déjà utilisé par Ethan sur un autre projet), en simple appel REST (`backend/BrevoEmailService.cs`, `POST https://api.brevo.com/v3/smtp/email`), pas de SDK NuGet ajouté. Config (clé API Brevo) dans une nouvelle section "Email de confirmation" du même onglet "Paiement" (`AgencyEmailSettings`, singleton comme `AgencyStripeSettings`). L'envoi est entouré d'un `try/catch` dans le webhook : un échec Brevo ne fait jamais échouer la confirmation du paiement déjà enregistrée. `Invoice.ConfirmationEmailSentAt` évite un double envoi si Stripe rejoue l'événement.
+
+Déclencheur V1 : uniquement le paiement automatique via Stripe (pas le marquage manuel "payée", pas la confirmation de devis — à reprendre plus tard si le besoin se confirme).
+
+### Lignes de devis/facture depuis les tarifs (ajouté le 2026-07-30, même session)
+
+6e onglet **"Formules"** : gère `PackageOffer` (nom + prix libre, ex "Essentiel — 690€"), auto-seedé avec les 3 formules connues à la première consultation si la table est vide, entièrement éditable ensuite. Dans les onglets Devis et Factures, un nouveau sélecteur **`TariffPicker`** (à côté du bouton "+ Ajouter une ligne") liste les formules et les modules déjà tarifés (`GET /api/admin/modules`, déjà utilisé par le panneau "Tarifs des modules" de `/admin/dashboard`) — cliquer un élément ajoute une ligne préremplie (désignation + prix, quantité 1). Le prix (texte libre, ex "250€"/"Offert") est converti en nombre en ne gardant que les chiffres, même principe que `formatPriceEur`/`onlyDigits` déjà utilisés côté `ModulesSection.tsx`.
+
 ## Pourquoi la séparation stricte n'a pas été retenue
 
 L'argument initial ("aucune donnée d'un client ne transite par un système partagé") reste valable **pour les données des clients eux-mêmes** (contenu de leur site, messages de contact, etc. — toujours isolés par déploiement). Il ne s'appliquait pas vraiment à ce tableau de bord : c'est Ethan qui saisit manuellement des métadonnées **à propos de** ses clients (pas une réplication de leurs données), donc le coupler au starter-kit n'introduit pas de fuite de données entre clients.

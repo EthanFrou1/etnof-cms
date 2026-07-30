@@ -169,6 +169,17 @@ export function IconChevronDown({ className = base }: IconProps) {
   );
 }
 
+export function IconInvoice({ className = base }: IconProps) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
+      <path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3z" />
+      <line x1="9" y1="8" x2="15" y2="8" />
+      <line x1="9" y1="12" x2="15" y2="12" />
+      <line x1="9" y1="16" x2="12" y2="16" />
+    </svg>
+  );
+}
+
 export function IconExternalLink({ className = base }: IconProps) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">

@@ -190,6 +190,74 @@ Aucune table de créneaux persistée : les créneaux disponibles sont calculés 
 | Selected | bool | Choisi par le client dans son back-office pour affichage public (défaut `false` à l'import) |
 | FetchedAt | datetime | Date de la dernière actualisation ayant touché cet avis |
 
+### CompanyProfile (agence, ajouté le 2026-07-30)
+| Champ | Type | Note |
+|---|---|---|
+| Id | Guid | Une seule ligne en base (get-or-create), pas de `ClientSiteId` — config de l'agence elle-même, pas d'un tenant |
+| LegalName / TradeName / LegalForm / Siret / Address / Email / Phone | string | Identité de l'agence, affichée sur les devis/factures |
+| VatMention | string | Mention TVA à faire figurer sur chaque document (défaut : franchise en base, art. 293 B du CGI) |
+| Iban / Bic | string | Coordonnées bancaires affichées sur les factures |
+| LatePaymentMention | string | Texte libre en pied de facture (pénalités de retard + indemnité forfaitaire de 40€, mention obligatoire) |
+| CgvUrl | string | Lien vers les CGV publiées (pas de duplication du texte sur chaque document) |
+| LogoPath | string? | `/uploads/agency/logo/{fichier}`, même pattern d'upload que `EstablishmentImage` |
+| UpdatedAt | datetime | |
+
+### BillingClient (agence, ajouté le 2026-07-30)
+| Champ | Type | Note |
+|---|---|---|
+| Id | Guid | |
+| ClientSiteId | Guid? | Lien facultatif vers un `ClientSite` existant — pas de FK stricte ni de navigation EF, même choix qu'`Offer.ProductId`. `null` pour un prospect ou une prestation hors plateforme |
+| Name / IsCompany / Siret / Address / Email / Phone / Notes | string/bool | Destinataire des devis/factures |
+| CreatedAt | datetime | |
+
+### Quote (agence, ajouté le 2026-07-30)
+| Champ | Type | Note |
+|---|---|---|
+| Id | Guid | |
+| Number | string | Format `D-2026-0001`, généré à la création (`MAX+1` par année) — pas d'obligation légale de séquence sans trou pour un devis, contrairement à `Invoice.Number` |
+| BillingClientId | Guid | |
+| Status | string | `draft` / `sent` / `accepted` / `refused` / `expired` |
+| IssueDate / ValidUntil | datetime | `ValidUntil` par défaut = +30 jours (cohérent avec les CGV : devis non confirmé sous 30 jours = caduc) |
+| LineItemsJson | text | JSON d'une liste de `QuoteLineDto(Label, Quantity, UnitPrice)` — même convention que `SiteContent.OpeningHoursJson` |
+| TotalHt | decimal | Calculé et figé à l'enregistrement, comme `Order.Total` |
+| Notes | string | |
+| AcceptedAt / AcceptedByName / AcceptedByEmail / AcceptedFromIp | datetime?/string? | Signature électronique simple capturée via la page publique d'acceptation (`/devis/{id}`, sans auth) |
+| CreatedAt | datetime | |
+
+### Invoice (agence, ajouté le 2026-07-30)
+| Champ | Type | Note |
+|---|---|---|
+| Id | Guid | |
+| Number | string? | **Null tant que brouillon** — assigné uniquement à la finalisation (`POST /finalize`), format `2026-0001` par année, séquence légale sans trou. Une facture finalisée n'est jamais supprimée ni renumérotée |
+| BillingClientId | Guid | |
+| QuoteId | Guid? | Lien facultatif vers le devis d'origine (pas de FK stricte), permet plusieurs factures par devis (acompte + solde) |
+| InvoiceType | string | `acompte` / `solde` / `unique` |
+| Status | string | `draft` / `sent` / `paid` / `overdue` (calculé côté frontend, pas stocké) / `cancelled` |
+| IssueDate / DueDate | datetime | `DueDate` par défaut = +30 jours |
+| LineItemsJson | text | JSON d'une liste de `InvoiceLineDto`, même convention que `Quote.LineItemsJson` |
+| TotalHt | decimal | |
+| Notes | string | |
+| PaidAt | datetime? | |
+| IsFinalized | bool | Verrouille les lignes et le numéro — `PUT`/`DELETE` refusés si `true` |
+| StripeSessionId | string? | Idempotence du webhook de paiement en ligne (ajouté le 2026-07-30), même rôle qu'`Order.StripeSessionId` |
+| CreatedAt | datetime | |
+
+### AgencyStripeSettings (agence, ajouté le 2026-07-30)
+| Champ | Type | Note |
+|---|---|---|
+| Id | Guid | Une seule ligne en base (get-or-create), comme `CompanyProfile` |
+| SecretKey / WebhookSecret | string? | Compte Stripe **de l'agence** (pas celui d'un tenant) — encaisse les factures qu'Ethan émet lui-même. Jamais exposé sur un endpoint public, distinct de `StripeSettings` (module Stripe, par tenant) |
+
+### PackageOffer (agence, ajouté le 2026-07-30)
+| Champ | Type | Note |
+|---|---|---|
+| Id | Guid | |
+| Name | string | Nom de la formule (ex "Essentiel") |
+| Price | string | Texte libre, même convention que `ModulePrice.Price` (ex "690€") |
+| SortOrder | int | Ordre d'affichage |
+
+Liste (pas un singleton) éditable depuis l'onglet "Formules" de `/admin/dashboard/facturation` — auto-seedée avec les 3 formules connues (Essentiel/Business/Sur mesure) si la table est entièrement vide, jamais re-seedée après une suppression manuelle. Sert, avec `ModulePrice`, à préremplir rapidement une ligne de devis/facture (`TariffPicker`, `AgencyBillingPage.tsx`).
+
 ## Note sur le module Maps
 
 Pas de table dédiée pour Maps lui-même. L'adresse qu'il affiche n'est **pas** stockée dans sa config module — elle vit dans `SiteContent.Address` (voir `docs/06-contenu-site.md`), partagée avec d'autres usages potentiels de l'adresse de l'établissement. Seul `apiKey` (propre à l'embed Google Maps) reste dans `ModulesConfigJson.maps`.
