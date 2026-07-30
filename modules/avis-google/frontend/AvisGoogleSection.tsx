@@ -1,4 +1,8 @@
 import { useEffect, useState } from "react";
+// Écart assumé à "un module reste isolé" (docs/02-architecture-modules.md) : import direct du
+// dictionnaire i18n du module Multilingue plutôt que de dupliquer des chaînes ici — voir
+// modules/multilingue/frontend/translations.ts.
+import { t, type Locale } from "@modules/multilingue/frontend/translations";
 
 // Couleurs du template actif — voir docs/10-templates.md : un module reste isolé (ne dépend
 // d'aucun import de frontend/src ou d'un autre module), donc redéclare localement cette forme
@@ -9,6 +13,7 @@ type AvisGoogleSectionProps = {
   apiBaseUrl: string;
   clientSiteId: string;
   palette: ModulePalette;
+  locale?: Locale;
 };
 
 type Review = {
@@ -44,15 +49,16 @@ function Stars({ rating, size = "h-4 w-4" }: { rating: number; size?: string }) 
   );
 }
 
-export default function AvisGoogleSection({ apiBaseUrl, clientSiteId, palette }: AvisGoogleSectionProps) {
+export default function AvisGoogleSection({ apiBaseUrl, clientSiteId, palette, locale }: AvisGoogleSectionProps) {
   const [data, setData] = useState<AvisGoogleResponse | null>(null);
 
   useEffect(() => {
-    fetch(`${apiBaseUrl}/api/t/${clientSiteId}/avis-google`)
+    const query = locale && locale !== "fr" ? `?locale=${locale}` : "";
+    fetch(`${apiBaseUrl}/api/t/${clientSiteId}/avis-google${query}`)
       .then((res) => res.json())
       .then(setData)
       .catch(() => {});
-  }, [apiBaseUrl, clientSiteId]);
+  }, [apiBaseUrl, clientSiteId, locale]);
 
   // Rien tant qu'aucun avis n'a été sélectionné par le client dans son back-office — mieux qu'une
   // section vide muette (même principe que BlogSection sans article publié).
@@ -64,11 +70,11 @@ export default function AvisGoogleSection({ apiBaseUrl, clientSiteId, palette }:
       style={{ "--module-accent": palette.accent } as React.CSSProperties}
     >
       <span className="text-xs font-semibold uppercase tracking-[0.1em]" style={{ color: palette.accent }}>
-        Avis Google
+        {t(locale, "avisGoogle.label")}
       </span>
       <div className="mb-5 mt-1 flex flex-wrap items-center gap-3">
         <h2 className="text-2xl font-extrabold" style={{ color: palette.ink }}>
-          Ce qu'en disent nos clients
+          {t(locale, "avisGoogle.title")}
         </h2>
         {data.averageRating !== null && (
           <div className="flex items-center gap-2">
@@ -77,7 +83,9 @@ export default function AvisGoogleSection({ apiBaseUrl, clientSiteId, palette }:
               {data.averageRating.toFixed(1)}
             </span>
             {data.userRatingsTotal !== null && (
-              <span className="text-sm text-gray-text">({data.userRatingsTotal} avis)</span>
+              <span className="text-sm text-gray-text">
+                ({data.userRatingsTotal} {t(locale, "avisGoogle.reviewsCount")})
+              </span>
             )}
           </div>
         )}

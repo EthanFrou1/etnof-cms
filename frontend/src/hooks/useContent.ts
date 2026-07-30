@@ -40,15 +40,19 @@ export type SiteContent = {
   googlePlaceName: string;
 };
 
-export function useContent(clientSiteId: string) {
+// `locale` optionnel (module Multilingue) — "fr" ou omis n'ajoute pas de paramètre, le backend
+// renvoie alors toujours le contenu français tel quel (comportement inchangé pour un tenant sans
+// ce module).
+export function useContent(clientSiteId: string, locale?: string) {
   const [content, setContent] = useState<SiteContent | null>(null);
 
   useEffect(() => {
-    fetch(`${API_BASE_URL}/api/t/${clientSiteId}/content`)
+    const query = locale && locale !== "fr" ? `?locale=${locale}` : "";
+    fetch(`${API_BASE_URL}/api/t/${clientSiteId}/content${query}`)
       .then((res) => res.json())
       .then((data: SiteContent) => setContent(data))
       .catch((err) => console.error("Erreur useContent :", err));
-  }, [clientSiteId]);
+  }, [clientSiteId, locale]);
 
   return content;
 }

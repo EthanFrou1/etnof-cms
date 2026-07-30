@@ -1,5 +1,9 @@
 import { useState } from "react";
 import { useCart } from "./CartContext";
+// Écart assumé à "un module reste isolé" (docs/02-architecture-modules.md) : import direct du
+// dictionnaire i18n du module Multilingue plutôt que de dupliquer des chaînes ici — voir
+// modules/multilingue/frontend/translations.ts.
+import { t, type Locale } from "@modules/multilingue/frontend/translations";
 
 const formatPrice = (value: number) =>
   value.toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
@@ -15,9 +19,10 @@ type CartDrawerProps = {
   stripeEnabled: boolean;
   open: boolean;
   onClose: () => void;
+  locale?: Locale;
 };
 
-export default function CartDrawer({ apiBaseUrl, clientSiteId, palette, stripeEnabled, open, onClose }: CartDrawerProps) {
+export default function CartDrawer({ apiBaseUrl, clientSiteId, palette, stripeEnabled, open, onClose, locale }: CartDrawerProps) {
   const { items, updateQuantity, removeItem, total } = useCart();
   const [customerName, setCustomerName] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
@@ -47,7 +52,7 @@ export default function CartDrawer({ apiBaseUrl, clientSiteId, palette, stripeEn
 
     if (!res.ok) {
       const body = await res.json().catch(() => null);
-      setError(body?.error ?? "Le paiement n'a pas pu être initié.");
+      setError(body?.error ?? t(locale, "catalogue.checkoutFailed"));
       setStatus("error");
       return;
     }
@@ -62,15 +67,15 @@ export default function CartDrawer({ apiBaseUrl, clientSiteId, palette, stripeEn
       <div className="relative flex w-full max-w-sm flex-col gap-4 bg-white p-6 shadow-soft">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold" style={{ color: palette.ink }}>
-            Panier
+            {t(locale, "catalogue.cart")}
           </h2>
           <button type="button" onClick={onClose} className="text-sm text-gray-text hover:opacity-70">
-            Fermer
+            {t(locale, "catalogue.close")}
           </button>
         </div>
 
         {items.length === 0 ? (
-          <p className="text-gray-text">Le panier est vide.</p>
+          <p className="text-gray-text">{t(locale, "catalogue.cartEmpty")}</p>
         ) : (
           <>
             <div className="flex flex-col gap-3 overflow-y-auto">
@@ -80,7 +85,9 @@ export default function CartDrawer({ apiBaseUrl, clientSiteId, palette, stripeEn
                     <span className="text-sm font-semibold" style={{ color: palette.ink }}>
                       {item.name}
                     </span>
-                    <span className="text-xs text-gray-text">{formatPrice(item.price)} / unité</span>
+                    <span className="text-xs text-gray-text">
+                      {formatPrice(item.price)} {t(locale, "catalogue.perUnit")}
+                    </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <button
@@ -104,7 +111,7 @@ export default function CartDrawer({ apiBaseUrl, clientSiteId, palette, stripeEn
                       onClick={() => removeItem(item.productId)}
                       className="text-xs text-red-500 hover:text-red-600"
                     >
-                      Retirer
+                      {t(locale, "catalogue.remove")}
                     </button>
                   </div>
                 </div>
@@ -113,7 +120,7 @@ export default function CartDrawer({ apiBaseUrl, clientSiteId, palette, stripeEn
 
             <div className="flex items-baseline justify-between border-t border-border-subtle pt-3">
               <span className="font-semibold" style={{ color: palette.ink }}>
-                Total
+                {t(locale, "catalogue.total")}
               </span>
               <span className="font-bold" style={{ color: palette.ink }}>
                 {formatPrice(total)}
@@ -124,13 +131,13 @@ export default function CartDrawer({ apiBaseUrl, clientSiteId, palette, stripeEn
               <div className="flex flex-col gap-2">
                 <input
                   className="rounded-button border border-border-subtle px-3 py-2 text-sm"
-                  placeholder="Nom"
+                  placeholder={t(locale, "catalogue.namePlaceholder")}
                   value={customerName}
                   onChange={(e) => setCustomerName(e.target.value)}
                 />
                 <input
                   className="rounded-button border border-border-subtle px-3 py-2 text-sm"
-                  placeholder="Email"
+                  placeholder={t(locale, "catalogue.emailPlaceholder")}
                   type="email"
                   value={customerEmail}
                   onChange={(e) => setCustomerEmail(e.target.value)}
@@ -143,11 +150,11 @@ export default function CartDrawer({ apiBaseUrl, clientSiteId, palette, stripeEn
                   className="rounded-button px-4 py-2.5 font-semibold text-white hover:opacity-90 disabled:opacity-50"
                   style={{ backgroundColor: palette.accent }}
                 >
-                  {status === "sending" ? "Redirection…" : "Payer par carte"}
+                  {status === "sending" ? t(locale, "catalogue.redirecting") : t(locale, "catalogue.payByCard")}
                 </button>
               </div>
             ) : (
-              <p className="text-sm text-gray-text">Le paiement en ligne n'est pas encore disponible sur ce site.</p>
+              <p className="text-sm text-gray-text">{t(locale, "catalogue.paymentUnavailable")}</p>
             )}
           </>
         )}

@@ -4,6 +4,7 @@ using Modules.AvisGoogle;
 using Modules.Blog;
 using Modules.Catalogue;
 using Modules.Contact;
+using Modules.Multilingue;
 using Modules.Newsletter;
 using Modules.Rdv;
 using Modules.Stripe;
@@ -81,5 +82,6 @@ AvisGoogleModule.MapEndpoints(app);
 AvisGoogleAdminEndpoints.MapEndpoints(app);
 StripeModule.MapEndpoints(app);
 StripeAdminEndpoints.MapEndpoints(app);
+MultilingueAdminEndpoints.MapEndpoints(app);
 
 app.Run();

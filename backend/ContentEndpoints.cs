@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using Modules.Multilingue;
 
 namespace Backend;
 
@@ -7,13 +8,23 @@ public static class ContentEndpoints
 {
     public static void MapEndpoints(WebApplication app)
     {
-        // Public : lu par le site du tenant pour afficher nom / description / offres.
-        app.MapGet("/api/t/{clientSiteId:guid}/content", async (Guid clientSiteId, AppDbContext db) =>
+        // Public : lu par le site du tenant pour afficher nom / description / offres. `locale`
+        // optionnel (module Multilingue, voir docs/12-plan-modules-restants.md) — ignoré si le
+        // module n'est pas autorisé+activé pour ce tenant ou si la locale n'est pas supportée,
+        // le contenu français reste alors inchangé.
+        app.MapGet("/api/t/{clientSiteId:guid}/content", async (Guid clientSiteId, string? locale, AppDbContext db, ModuleRegistry registry) =>
         {
             var content = await db.SiteContents
                 .Include(c => c.Offers)
                 .FirstOrDefaultAsync(c => c.ClientSiteId == clientSiteId);
-            return content is null ? Results.NotFound() : Results.Ok(ToResponse(content));
+            if (content is null) return Results.NotFound();
+
+            if (MultilingueModule.IsSupportedLocale(locale) && await registry.IsEnabledAsync(clientSiteId, MultilingueModule.Name))
+            {
+                return Results.Ok(await ToTranslatedResponseAsync(content, locale!, clientSiteId, db));
+            }
+
+            return Results.Ok(ToResponse(content));
         });
 
         app.MapPut("/api/t/{clientSiteId:guid}/admin/content", async (Guid clientSiteId, SiteContentInput input, HttpRequest req, IConfiguration config, AppDbContext db) =>
@@ -84,6 +95,49 @@ public static class ContentEndpoints
         content.GooglePlaceName,
         OpeningHours = ParseOpeningHours(content.OpeningHoursJson),
     };
+
+    // Même forme que ToResponse, mais SiteName/Description/Offers.Title/Offers.Description passent
+    // par MultilingueModule.Merge (retombe sur le français si la traduction pour ce champ est vide).
+    // Adresse/téléphone/établissement restent toujours en français (pas des textes marketing).
+    private static async Task<object> ToTranslatedResponseAsync(SiteContent content, string locale, Guid clientSiteId, AppDbContext db)
+    {
+        var siteFields = await MultilingueModule.GetFieldsAsync(db, clientSiteId, "site", null, locale);
+        var offerFields = await MultilingueModule.GetFieldsForManyAsync(db, clientSiteId, "offer", locale);
+
+        var translatedOffers = content.Offers.Select(o =>
+        {
+            var fields = offerFields.GetValueOrDefault(o.Id) ?? new Dictionary<string, string>();
+            return new
+            {
+                o.Id,
+                o.SiteContentId,
+                Title = MultilingueModule.Merge(o.Title, fields, "title"),
+                o.Price,
+                Description = MultilingueModule.Merge(o.Description, fields, "description"),
+                o.ProductId,
+            };
+        });
+
+        return new
+        {
+            content.Id,
+            content.ClientSiteId,
+            SiteName = MultilingueModule.Merge(content.SiteName, siteFields, "siteName"),
+            Description = MultilingueModule.Merge(content.Description, siteFields, "description"),
+            Offers = translatedOffers,
+            content.EstablishmentName,
+            content.EstablishmentType,
+            content.Address,
+            content.Phone,
+            content.Email,
+            content.ManagerName,
+            content.ManagerPhone,
+            content.ManagerEmail,
+            content.GooglePlaceId,
+            content.GooglePlaceName,
+            OpeningHours = ParseOpeningHours(content.OpeningHoursJson),
+        };
+    }
 
     // La colonne existe en base avec un défaut "" (pas "[]") sur les lignes créées avant la
     // migration qui l'a ajoutée, et son format a changé une fois depuis (liste de chaînes ->

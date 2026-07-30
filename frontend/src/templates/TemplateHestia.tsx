@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useRef, type ReactNode } from "react";
 import { API_BASE_URL } from "../config";
 import { useEstablishmentImages, type EstablishmentImage } from "../hooks/useEstablishmentImages";
+import { t, type Locale } from "@modules/multilingue/frontend/translations";
 import { TEMPLATES } from "./registry";
 import SiteFooter from "./SiteFooter";
 import type { TemplateProps } from "./types";
@@ -13,6 +14,7 @@ const RdvSection = lazy(() => import("@modules/rdv/frontend/RdvSection"));
 const NewsletterSection = lazy(() => import("@modules/newsletter/frontend/NewsletterSection"));
 const AvisGoogleSection = lazy(() => import("@modules/avis-google/frontend/AvisGoogleSection"));
 const WhatsAppButton = lazy(() => import("@modules/whatsapp/frontend/WhatsAppButton"));
+const LanguageSwitcher = lazy(() => import("@modules/multilingue/frontend/LanguageSwitcher"));
 
 // 3 variantes de couleurs (accent + fond) propres à ce template — voir registry.ts pour le détail
 // (aussi utilisé par le sélecteur de palette dans l'admin, SiteSection.tsx). "ink"/blanc restent
@@ -44,22 +46,28 @@ function useHestiaFonts() {
   }, []);
 }
 
-// Même ordre/libellés que WEEKDAYS dans EstablishmentSection.tsx (index 0 = lundi, cf.
-// SiteContent.openingHours) — dupliqué ici plutôt qu'importé : un template reste un composant de
-// présentation autonome (docs/10-templates.md), pas couplé aux pages admin.
-const WEEKDAYS_SHORT = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
-
-function formatTime(value: string) {
-  return value.replace(":", "h");
+// Même ordre que WEEKDAYS dans EstablishmentSection.tsx (index 0 = lundi, cf.
+// SiteContent.openingHours). Libellés tirés du dictionnaire partagé (module Multilingue) plutôt que
+// codés en dur, pour suivre la langue choisie par le visiteur.
+function weekdaysShort(locale: Locale) {
+  return ["mon", "tue", "wed", "thu", "fri", "sat", "sun"].map((key) => t(locale, `weekday.${key}`));
 }
 
-function formatDayHours(day: { closed: boolean; morningOpen: string; morningClose: string; afternoonOpen: string; afternoonClose: string }) {
+// "09h30" en français (convention locale), "09:30" dans les autres langues.
+function formatTime(value: string, locale: Locale) {
+  return locale === "fr" ? value.replace(":", "h") : value;
+}
+
+function formatDayHours(
+  day: { closed: boolean; morningOpen: string; morningClose: string; afternoonOpen: string; afternoonClose: string },
+  locale: Locale
+) {
   const ranges = [
-    day.morningOpen && day.morningClose ? `${formatTime(day.morningOpen)}–${formatTime(day.morningClose)}` : null,
-    day.afternoonOpen && day.afternoonClose ? `${formatTime(day.afternoonOpen)}–${formatTime(day.afternoonClose)}` : null,
+    day.morningOpen && day.morningClose ? `${formatTime(day.morningOpen, locale)}–${formatTime(day.morningClose, locale)}` : null,
+    day.afternoonOpen && day.afternoonClose ? `${formatTime(day.afternoonOpen, locale)}–${formatTime(day.afternoonClose, locale)}` : null,
   ].filter((r): r is string => r !== null);
 
-  if (day.closed || ranges.length === 0) return "Fermé";
+  if (day.closed || ranges.length === 0) return t(locale, "hours.closed");
   return ranges.join(", ");
 }
 
@@ -166,7 +174,7 @@ function Band({ background, children }: { background: string; children: ReactNod
   );
 }
 
-export default function TemplateHestia({ clientSiteId, modules, content, paletteId }: TemplateProps) {
+export default function TemplateHestia({ clientSiteId, modules, content, paletteId, locale, onChangeLocale }: TemplateProps) {
   useHestiaFonts();
 
   const mapsAddress = content?.address;
@@ -223,33 +231,40 @@ export default function TemplateHestia({ clientSiteId, modules, content, palette
           <div className="flex items-center gap-5 text-sm font-medium" style={{ color: `${ink}99` }}>
             {modules?.catalogue?.enabled && (
               <a href="#catalogue" style={{ color: "inherit" }} className="hover:opacity-70">
-                Catalogue
+                {t(locale, "nav.catalogue")}
               </a>
             )}
             {modules?.blog?.enabled && (
               <a href="#blog" style={{ color: "inherit" }} className="hover:opacity-70">
-                Blog
+                {t(locale, "nav.blog")}
               </a>
             )}
             {modules?.rdv?.enabled && (
               <a href="#rdv" style={{ color: "inherit" }} className="hover:opacity-70">
-                Rendez-vous
+                {t(locale, "nav.rdv")}
               </a>
             )}
             {modules?.contact?.enabled && (
               <a href="#contact" style={{ color: "inherit" }} className="hover:opacity-70">
-                Contact
+                {t(locale, "nav.contact")}
               </a>
             )}
             {modules?.newsletter?.enabled && (
               <a href="#newsletter" style={{ color: "inherit" }} className="hover:opacity-70">
-                Newsletter
+                {t(locale, "nav.newsletter")}
               </a>
             )}
             {modules?.["avis-google"]?.enabled && (
               <a href="#avis-google" style={{ color: "inherit" }} className="hover:opacity-70">
-                Avis
+                {t(locale, "nav.avisGoogle")}
               </a>
+            )}
+            {modules?.multilingue?.enabled && (
+              <Suspense fallback={null}>
+                <div className="border-l pl-4" style={{ borderColor: `${ink}1A` }}>
+                  <LanguageSwitcher locale={locale} onChange={onChangeLocale} accent={accent} />
+                </div>
+              </Suspense>
             )}
           </div>
         </nav>
@@ -257,7 +272,7 @@ export default function TemplateHestia({ clientSiteId, modules, content, palette
 
       <Band background={background}>
         <header className="flex flex-col items-center gap-5 px-2 text-center">
-          <Overline accent={accent}>Bienvenue</Overline>
+          <Overline accent={accent}>{t(locale, "hero.welcome")}</Overline>
           <h1 className="text-[40px] font-black leading-[1.04] sm:text-[84px]" style={{ color: ink }}>
             {siteName}
           </h1>
@@ -269,7 +284,7 @@ export default function TemplateHestia({ clientSiteId, modules, content, palette
         <Band background={establishmentBg}>
           <div className="flex flex-col gap-8">
             <div className="flex flex-col gap-3">
-              <Overline accent={accent}>Établissement</Overline>
+              <Overline accent={accent}>{t(locale, "section.establishment")}</Overline>
               {content?.description && (
                 <p className="max-w-2xl text-lg leading-relaxed" style={{ color: `${ink}B3` }}>
                   {content.description}
@@ -294,7 +309,7 @@ export default function TemplateHestia({ clientSiteId, modules, content, palette
       {showHours && (
         <Band background={hoursBg}>
           <div className="flex flex-col gap-4">
-            <Overline accent={accent}>Horaires</Overline>
+            <Overline accent={accent}>{t(locale, "section.hours")}</Overline>
             <div className="grid max-w-xl gap-3 sm:grid-cols-2">
               {content!.openingHours.map((day, index) => (
                 <div
@@ -303,10 +318,10 @@ export default function TemplateHestia({ clientSiteId, modules, content, palette
                   style={{ borderColor: `${ink}1A` }}
                 >
                   <span className="text-sm font-bold" style={{ color: ink }}>
-                    {WEEKDAYS_SHORT[index]}
+                    {weekdaysShort(locale)[index]}
                   </span>
                   <span className="text-sm" style={{ color: `${ink}99` }}>
-                    {formatDayHours(day)}
+                    {formatDayHours(day, locale)}
                   </span>
                 </div>
               ))}
@@ -318,7 +333,7 @@ export default function TemplateHestia({ clientSiteId, modules, content, palette
       {hasOffers && (
         <Band background={offersBg}>
           <section className="flex flex-col gap-4">
-            <Overline accent={accent}>Offres</Overline>
+            <Overline accent={accent}>{t(locale, "section.offers")}</Overline>
             <div className="grid gap-4 sm:grid-cols-2">
               {content!.offers.map((offer) => (
                 <div
@@ -354,32 +369,32 @@ export default function TemplateHestia({ clientSiteId, modules, content, palette
           <div className="flex flex-col gap-16">
             {modules?.catalogue?.enabled && (
               <div id="catalogue">
-                <CatalogueSection apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} palette={modulePalette} stripeEnabled={Boolean(modules?.stripe?.enabled)} />
+                <CatalogueSection apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} palette={modulePalette} stripeEnabled={Boolean(modules?.stripe?.enabled)} locale={locale} />
               </div>
             )}
             {modules?.blog?.enabled && (
               <div id="blog">
-                <BlogSection apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} palette={modulePalette} />
+                <BlogSection apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} palette={modulePalette} locale={locale} />
               </div>
             )}
             {modules?.rdv?.enabled && (
               <div id="rdv">
-                <RdvSection apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} palette={modulePalette} />
+                <RdvSection apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} palette={modulePalette} locale={locale} />
               </div>
             )}
             {modules?.contact?.enabled && (
               <div id="contact">
-                <ContactSection apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} palette={modulePalette} />
+                <ContactSection apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} palette={modulePalette} locale={locale} />
               </div>
             )}
             {modules?.newsletter?.enabled && (
               <div id="newsletter">
-                <NewsletterSection apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} palette={modulePalette} />
+                <NewsletterSection apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} palette={modulePalette} locale={locale} />
               </div>
             )}
             {modules?.["avis-google"]?.enabled && (
               <div id="avis-google">
-                <AvisGoogleSection apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} palette={modulePalette} />
+                <AvisGoogleSection apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} palette={modulePalette} locale={locale} />
               </div>
             )}
             {modules?.maps?.enabled && typeof mapsAddress === "string" && (
@@ -387,6 +402,7 @@ export default function TemplateHestia({ clientSiteId, modules, content, palette
                 address={mapsAddress}
                 apiKey={typeof mapsApiKey === "string" ? mapsApiKey : ""}
                 palette={modulePalette}
+                locale={locale}
               />
             )}
           </div>

@@ -8,6 +8,7 @@ import AdminLayout, {
   AVIS_GOOGLE_SECTIONS,
   STRIPE_SECTIONS,
   BLOG_SECTIONS,
+  MULTILINGUE_SECTIONS,
   type AdminSection,
 } from "../components/admin/AdminLayout";
 import DashboardSection from "./admin/DashboardSection";
@@ -24,6 +25,7 @@ import NewsletterSection from "./admin/NewsletterSection";
 import AvisGoogleSection from "./admin/AvisGoogleSection";
 import StripeSection from "./admin/StripeSection";
 import BlogSection from "./admin/BlogSection";
+import MultilingueSection from "./admin/MultilingueSection";
 
 type AdminPageProps = {
   clientSiteId: string;
@@ -54,6 +56,7 @@ export default function AdminPage({ clientSiteId, section }: AdminPageProps) {
     : AVIS_GOOGLE_SECTIONS.includes(section) && !modules?.["avis-google"]?.enabled ? "Avis Google"
     : STRIPE_SECTIONS.includes(section) && !modules?.stripe?.enabled ? "Paiement Stripe"
     : BLOG_SECTIONS.includes(section) && !modules?.blog?.enabled ? "Blog"
+    : MULTILINGUE_SECTIONS.includes(section) && !modules?.multilingue?.enabled ? "Multilingue"
     : null;
 
   return (
@@ -79,6 +82,7 @@ export default function AdminPage({ clientSiteId, section }: AdminPageProps) {
           {section === "avis-google" && <AvisGoogleSection clientSiteId={clientSiteId} password={password} />}
           {section === "stripe" && <StripeSection clientSiteId={clientSiteId} password={password} />}
           {section === "blog" && <BlogSection clientSiteId={clientSiteId} password={password} />}
+          {section === "multilingue" && <MultilingueSection clientSiteId={clientSiteId} password={password} />}
           {section === "messages" && <MessagesSection clientSiteId={clientSiteId} password={password} />}
         </>
       )}

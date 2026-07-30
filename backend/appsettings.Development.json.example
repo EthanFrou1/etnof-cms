@@ -13,5 +13,8 @@
   },
   "GooglePlaces": {
     "ApiKey": "<clé API Google Cloud avec Places API activée — sert à la recherche d'établissement sur la page Établissement de l'admin>"
+  },
+  "DeepL": {
+    "ApiKey": "<clé API DeepL (se termine par \":fx\" en offre gratuite) — sert à la traduction automatique du module Multilingue, laisser vide pour désactiver le bouton>"
   }
 }

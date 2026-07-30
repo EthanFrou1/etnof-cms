@@ -1,14 +1,14 @@
 import { lazy, Suspense, useEffect } from "react";
 import PublicSite from "./pages/PublicSite";
 import AdminPage from "./pages/AdminPage";
-import AgencyDashboardPage from "./pages/AgencyDashboardPage";
-import AgencyBillingPage from "./pages/admin/AgencyBillingPage";
+import AgencyPage from "./pages/AgencyPage";
 import QuoteAcceptancePage from "./pages/QuoteAcceptancePage";
 import InvoicePublicPage from "./pages/InvoicePublicPage";
 import CustomerDetailPage from "./pages/CustomerDetailPage";
 import ProductDetailPage from "./pages/ProductDetailPage";
 import BlogPostDetailPage from "./pages/BlogPostDetailPage";
 import type { AdminSection } from "./components/admin/AdminLayout";
+import type { AgencySection } from "./components/admin/AgencyLayout";
 import { API_BASE_URL } from "./config";
 
 const ADMIN_SECTIONS: AdminSection[] = [
@@ -26,6 +26,19 @@ const ADMIN_SECTIONS: AdminSection[] = [
   "stripe",
   "blog",
   "messages",
+  "multilingue",
+];
+
+const AGENCY_SECTIONS: AgencySection[] = [
+  "dashboard",
+  "tarifs",
+  "sites",
+  "entreprise",
+  "clients",
+  "formules",
+  "devis",
+  "factures",
+  "paiement",
 ];
 
 const BlogPostPage = lazy(() => import("@modules/blog/frontend/BlogPostPage"));
@@ -50,14 +63,18 @@ function App() {
     return <InvoicePublicPage invoiceId={segments[1]} />;
   }
 
-  // /admin/dashboard/facturation — devis/factures de l'agence elle-même, voir docs/13-facturation-devis.md
+  // /admin/dashboard/facturation — ancienne URL de la facturation, redirige vers l'onglet Entreprise
+  // de l'espace agence fusionné (voir AgencyPage.tsx).
   if (segments[0] === "admin" && segments[1] === "dashboard" && segments[2] === "facturation") {
-    return <AgencyBillingPage />;
+    return <Redirect to="/admin/dashboard/entreprise" />;
   }
 
-  // /admin/dashboard — vue globale d'Ethan sur tous les tenants
+  // /admin/dashboard(/{section}) — espace agence d'Ethan : vue globale, tarifs, sites clients,
+  // facturation (section par défaut : dashboard). Voir AgencyLayout.tsx pour la nav.
   if (segments[0] === "admin" && segments[1] === "dashboard") {
-    return <AgencyDashboardPage />;
+    const requested = segments[2] as AgencySection | undefined;
+    const section = requested && AGENCY_SECTIONS.includes(requested) ? requested : "dashboard";
+    return <AgencyPage section={section} />;
   }
 
   // /admin/{clientSiteId}/customers/{customerId} — fiche d'UN client, sort du switch section générique

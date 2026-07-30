@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Backend;
 using Microsoft.EntityFrameworkCore;
+using Modules.Multilingue;
 
 namespace Modules.AvisGoogle;
 
@@ -15,6 +16,49 @@ public static class AvisGoogleAdminEndpoints
     public static void MapEndpoints(WebApplication app)
     {
         var group = app.MapGroup("/api/t/{clientSiteId:guid}/admin/avis-google");
+
+        // Traduction du texte des avis (module Multilingue) — seul le champ "text" est traduisible,
+        // pas le nom de l'auteur ni la date relative (générée par Google). Onglet "Traduction" de
+        // AvisGoogleSection.tsx, même pattern que MultilingueSection.tsx (réutilise le endpoint
+        // générique /admin/multilingue/translate pour l'appel DeepL lui-même). Uniquement les avis
+        // affichés publiquement (Selected) — inutile de traduire un avis masqué, même filtre que le
+        // endpoint public (AvisGoogleModule.cs).
+        group.MapGet("/translations", async (Guid clientSiteId, string locale, HttpRequest req, IConfiguration config, AppDbContext db) =>
+        {
+            if (!await TenantAdminAuth.IsAuthorizedAsync(req, config, db, clientSiteId)) return Results.Unauthorized();
+            if (!MultilingueModule.IsSupportedLocale(locale)) return Results.BadRequest("Locale non supportée.");
+
+            var reviews = await db.GoogleReviews
+                .Where(r => r.ClientSiteId == clientSiteId && r.Selected)
+                .OrderByDescending(r => r.GoogleTime)
+                .ToListAsync();
+
+            var translations = await MultilingueModule.GetFieldsForManyAsync(db, clientSiteId, "google-review", locale);
+
+            var result = reviews.Select(r => new
+            {
+                reviewId = r.Id,
+                authorName = r.AuthorName,
+                original = new { text = r.Text },
+                translated = new { text = translations.GetValueOrDefault(r.Id)?.GetValueOrDefault("text", "") ?? "" },
+            });
+
+            return Results.Ok(result);
+        });
+
+        group.MapPut("/translations/{reviewId:guid}", async (Guid clientSiteId, Guid reviewId, ReviewTranslationInput input, HttpRequest req, IConfiguration config, AppDbContext db) =>
+        {
+            if (!await TenantAdminAuth.IsAuthorizedAsync(req, config, db, clientSiteId)) return Results.Unauthorized();
+            if (!MultilingueModule.IsSupportedLocale(input.Locale)) return Results.BadRequest("Locale non supportée.");
+
+            var review = await db.GoogleReviews.FirstOrDefaultAsync(r => r.Id == reviewId && r.ClientSiteId == clientSiteId);
+            if (review is null) return Results.NotFound();
+
+            await MultilingueModule.UpsertAsync(db, clientSiteId, "google-review", reviewId, input.Locale, "text", input.Text);
+            await db.SaveChangesAsync();
+
+            return Results.Ok();
+        });
 
         group.MapGet("/settings", async (Guid clientSiteId, HttpRequest req, IConfiguration config, AppDbContext db) =>
         {
@@ -191,3 +235,4 @@ public static class AvisGoogleAdminEndpoints
 
 public record LinkInput(string PlaceId, string PlaceName);
 public record SelectInput(bool Selected);
+public record ReviewTranslationInput(string Locale, string Text);

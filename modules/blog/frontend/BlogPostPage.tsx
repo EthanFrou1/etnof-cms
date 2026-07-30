@@ -1,4 +1,18 @@
 import { useEffect, useState } from "react";
+// Écart assumé à "un module reste isolé" (docs/02-architecture-modules.md) : import direct du
+// dictionnaire i18n du module Multilingue — voir modules/multilingue/frontend/translations.ts.
+import { t, type Locale } from "@modules/multilingue/frontend/translations";
+
+// Duplique la petite logique de lecture de useLocale.ts (frontend/src/hooks) plutôt que d'importer
+// à travers la frontière module/frontend — un module reste isolé, voir docs/02-architecture-modules.md
+// (même principe que ModulePalette redéclaré dans BlogSection.tsx). Cette page est montée seule
+// (route dédiée dans App.tsx, pas nichée dans PublicSite/un template), donc pas de state partagé
+// possible avec le sélecteur de langue affiché sur la page d'accueil : on relit juste le choix déjà
+// persisté par l'utilisateur pour ce tenant.
+function readStoredLocale(clientSiteId: string): Locale {
+  const stored = localStorage.getItem(`etnof-locale-${clientSiteId}`);
+  return stored === "en" || stored === "es" ? stored : "fr";
+}
 
 type BlogPost = {
   id: string;
@@ -17,9 +31,11 @@ type BlogPostPageProps = {
 export default function BlogPostPage({ slug, apiBaseUrl, clientSiteId }: BlogPostPageProps) {
   const [post, setPost] = useState<BlogPost | null>(null);
   const [notFound, setNotFound] = useState(false);
+  const locale = readStoredLocale(clientSiteId);
 
   useEffect(() => {
-    fetch(`${apiBaseUrl}/api/t/${clientSiteId}/blog/${slug}`)
+    const query = locale !== "fr" ? `?locale=${locale}` : "";
+    fetch(`${apiBaseUrl}/api/t/${clientSiteId}/blog/${slug}${query}`)
       .then((res) => {
         if (res.status === 404) {
           setNotFound(true);
@@ -28,6 +44,7 @@ export default function BlogPostPage({ slug, apiBaseUrl, clientSiteId }: BlogPos
         return res.json();
       })
       .then((data: BlogPost | null) => data && setPost(data));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug, apiBaseUrl, clientSiteId]);
 
   return (
@@ -37,11 +54,11 @@ export default function BlogPostPage({ slug, apiBaseUrl, clientSiteId }: BlogPos
           href={`/t/${clientSiteId}`}
           className="self-start text-sm font-medium text-gray-text hover:text-navy"
         >
-          ← Retour au site
+          {t(locale, "blog.backToSite")}
         </a>
 
         {notFound && (
-          <p className="rounded-card bg-white p-8 text-red-500 shadow-card">Article introuvable.</p>
+          <p className="rounded-card bg-white p-8 text-red-500 shadow-card">{t(locale, "blog.notFound")}</p>
         )}
 
         {post && (

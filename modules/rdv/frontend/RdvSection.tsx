@@ -1,4 +1,8 @@
 import { useEffect, useState, type CSSProperties, type FormEvent } from "react";
+// Écart assumé à "un module reste isolé" (docs/02-architecture-modules.md) : import direct du
+// dictionnaire i18n du module Multilingue plutôt que de dupliquer des chaînes ici — voir
+// modules/multilingue/frontend/translations.ts.
+import { t, localeTag, type Locale } from "@modules/multilingue/frontend/translations";
 
 // Couleurs du template actif — voir docs/10-templates.md : un module reste isolé (ne dépend
 // d'aucun import de frontend/src ou d'un autre module), donc redéclare localement cette forme
@@ -9,6 +13,7 @@ type RdvSectionProps = {
   apiBaseUrl: string;
   clientSiteId: string;
   palette: ModulePalette;
+  locale?: Locale;
 };
 
 type TimeSlot = {
@@ -30,18 +35,18 @@ const inputClass =
 
 const labelClass = "mt-2 text-xs font-semibold text-gray-text first:mt-0";
 
-function dayLabel(iso: string) {
-  return new Date(iso).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
+function dayLabel(iso: string, locale?: Locale) {
+  return new Date(iso).toLocaleDateString(localeTag(locale), { weekday: "long", day: "numeric", month: "long" });
 }
 
-function timeLabel(iso: string) {
-  return new Date(iso).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+function timeLabel(iso: string, locale?: Locale) {
+  return new Date(iso).toLocaleTimeString(localeTag(locale), { hour: "2-digit", minute: "2-digit" });
 }
 
-function groupByDay(slots: TimeSlot[]) {
+function groupByDay(slots: TimeSlot[], locale?: Locale) {
   const groups: { day: string; slots: TimeSlot[] }[] = [];
   for (const slot of slots) {
-    const day = dayLabel(slot.startsAt);
+    const day = dayLabel(slot.startsAt, locale);
     const group = groups.find((g) => g.day === day);
     if (group) group.slots.push(slot);
     else groups.push({ day, slots: [slot] });
@@ -49,7 +54,7 @@ function groupByDay(slots: TimeSlot[]) {
   return groups;
 }
 
-export default function RdvSection({ apiBaseUrl, clientSiteId, palette }: RdvSectionProps) {
+export default function RdvSection({ apiBaseUrl, clientSiteId, palette, locale }: RdvSectionProps) {
   const [slots, setSlots] = useState<TimeSlot[] | null>(null);
   // Distinct de "slots vide" (voir RdvModule.cs) : un planning jamais configuré (aucun jour actif)
   // ne doit rien afficher sur le site public, contrairement à un planning réel temporairement
@@ -88,7 +93,7 @@ export default function RdvSection({ apiBaseUrl, clientSiteId, palette }: RdvSec
 
       if (!res.ok) {
         const body = await res.json().catch(() => null);
-        setErrorMessage(body?.error ?? "Erreur d'envoi, réessaie.");
+        setErrorMessage(body?.error ?? t(locale, "rdv.genericError"));
         setStatus("error");
         loadSlots();
         return;
@@ -99,14 +104,14 @@ export default function RdvSection({ apiBaseUrl, clientSiteId, palette }: RdvSec
       setStatus("sent");
       loadSlots();
     } catch {
-      setErrorMessage("Erreur d'envoi, réessaie.");
+      setErrorMessage(t(locale, "rdv.genericError"));
       setStatus("error");
     }
   };
 
   if (configured === false) return null;
 
-  const groups = slots ? groupByDay(slots) : [];
+  const groups = slots ? groupByDay(slots, locale) : [];
 
   return (
     <section
@@ -114,16 +119,16 @@ export default function RdvSection({ apiBaseUrl, clientSiteId, palette }: RdvSec
       style={{ "--module-accent": palette.accent } as CSSProperties}
     >
       <span className="text-xs font-semibold uppercase tracking-[0.1em]" style={{ color: palette.accent }}>
-        Rendez-vous
+        {t(locale, "rdv.label")}
       </span>
       <h2 className="mb-5 mt-1 text-2xl font-extrabold" style={{ color: palette.ink }}>
-        Réserver un créneau
+        {t(locale, "rdv.title")}
       </h2>
 
       {!slots ? (
-        <p className="text-sm text-gray-text">Chargement des créneaux…</p>
+        <p className="text-sm text-gray-text">{t(locale, "rdv.loading")}</p>
       ) : groups.length === 0 ? (
-        <p className="text-sm text-gray-text">Aucun créneau disponible pour le moment.</p>
+        <p className="text-sm text-gray-text">{t(locale, "rdv.noSlots")}</p>
       ) : (
         <div className="flex flex-col gap-4">
           {groups.map((group) => (
@@ -149,7 +154,7 @@ export default function RdvSection({ apiBaseUrl, clientSiteId, palette }: RdvSec
                           : { borderColor: "var(--module-accent)", color: palette.ink }
                       }
                     >
-                      {timeLabel(slot.startsAt)}
+                      {timeLabel(slot.startsAt, locale)}
                     </button>
                   );
                 })}
@@ -160,46 +165,46 @@ export default function RdvSection({ apiBaseUrl, clientSiteId, palette }: RdvSec
           {selectedStartsAt && (
             <form onSubmit={handleSubmit} className="mt-2 flex flex-col gap-1.5 border-t border-border-subtle pt-4">
               <label htmlFor="rdv-name" className={labelClass}>
-                Nom
+                {t(locale, "rdv.name")}
               </label>
               <input
                 id="rdv-name"
                 className={inputClass}
-                placeholder="Votre nom"
+                placeholder={t(locale, "rdv.namePlaceholder")}
                 value={form.customerName}
                 onChange={(e) => setForm({ ...form, customerName: e.target.value })}
                 required
               />
               <label htmlFor="rdv-email" className={labelClass}>
-                Email
+                {t(locale, "rdv.email")}
               </label>
               <input
                 id="rdv-email"
                 type="email"
                 className={inputClass}
-                placeholder="vous@exemple.fr"
+                placeholder={t(locale, "rdv.emailPlaceholder")}
                 value={form.customerEmail}
                 onChange={(e) => setForm({ ...form, customerEmail: e.target.value })}
                 required
               />
               <label htmlFor="rdv-phone" className={labelClass}>
-                Téléphone
+                {t(locale, "rdv.phone")}
               </label>
               <input
                 id="rdv-phone"
                 className={inputClass}
-                placeholder="06 12 34 56 78"
+                placeholder={t(locale, "rdv.phonePlaceholder")}
                 value={form.customerPhone}
                 onChange={(e) => setForm({ ...form, customerPhone: e.target.value })}
                 required
               />
               <label htmlFor="rdv-note" className={labelClass}>
-                Précision (facultatif)
+                {t(locale, "rdv.note")}
               </label>
               <textarea
                 id="rdv-note"
                 className={inputClass}
-                placeholder="Un détail à préciser ?"
+                placeholder={t(locale, "rdv.notePlaceholder")}
                 rows={2}
                 value={form.note}
                 onChange={(e) => setForm({ ...form, note: e.target.value })}
@@ -210,7 +215,7 @@ export default function RdvSection({ apiBaseUrl, clientSiteId, palette }: RdvSec
                 className="mt-4 rounded-button px-4 py-2.5 font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
                 style={{ backgroundColor: palette.accent }}
               >
-                Confirmer le rendez-vous
+                {t(locale, "rdv.confirm")}
               </button>
               {status === "error" && <p className="mt-1 text-red-500">{errorMessage}</p>}
             </form>
@@ -218,7 +223,7 @@ export default function RdvSection({ apiBaseUrl, clientSiteId, palette }: RdvSec
 
           {status === "sent" && (
             <p className="mt-1" style={{ color: palette.accent }}>
-              Rendez-vous confirmé !
+              {t(locale, "rdv.confirmed")}
             </p>
           )}
         </div>

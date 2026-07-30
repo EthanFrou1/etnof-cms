@@ -18,7 +18,7 @@ Contrairement à l'approche initialement envisagée ci-dessous (outil séparé),
 - Endpoints (protégés par le même mot de passe admin que le reste de `/api/admin`, voir `backend/AgencyDashboardEndpoints.cs`) :
   - `GET/POST/PUT/DELETE /api/admin/client-sites[/{id}]` — CRUD du catalogue
   - `GET /api/admin/stats` — agrégats (total, répartition par statut/type/module) pour les graphiques
-- Page `/admin/dashboard` (`frontend/src/pages/AgencyDashboardPage.tsx`), accessible depuis un lien discret sur `/admin` — stat tiles (total, par statut) + graphiques en barres horizontales (modules les plus utilisés, types de site), plus la liste/formulaire CRUD des sites clients.
+- Page `/admin/dashboard` — stat tiles (total, par statut) + graphiques en barres horizontales (modules les plus utilisés, types de site), plus la liste/formulaire CRUD des sites clients. Voir la mise à jour du 2026-07-30 ci-dessous pour l'emplacement actuel du code (la page a depuis été restructurée avec une sidebar).
 - Graphiques construits à la main (SVG/HTML, pas de librairie de charts ajoutée) en suivant la skill dataviz : une seule teinte séquentielle (bleu `#2a78d6`, palette de référence validée) pour les comparaisons de magnitude, stat tiles pour les nombres clés plutôt qu'un graphique à 3 tranches.
 
 ### Mise à jour du 2026-07-26 : modules autorisés + tarifs
@@ -33,9 +33,22 @@ Contrairement à l'approche initialement envisagée ci-dessous (outil séparé),
 - Historique des échanges / gestion de prospects (Prospect, Mockup, EmailEnvoyé...) — toujours hors scope, non implémenté.
 - Mécanisme de dépendance entre modules (ex. rendre "Catalogue" prérequis d'un futur module) — toujours juste documenté dans `module.meta.json`, jamais appliqué (décision explicite d'Ethan de ne pas le construire pour l'instant, voir `docs/05-roadmap-poc.md`).
 
+### Navigation fusionnée en sidebar (2026-07-30)
+
+`AgencyDashboardPage.tsx` (vue globale, une seule page qui scrollait) et `AgencyBillingPage.tsx` (facturation, ses propres onglets internes) sont remplacées par une navigation unique, même pattern que l'admin par tenant (`AdminLayout.tsx`) :
+
+- `frontend/src/components/admin/AgencyLayout.tsx` — sidebar avec les sections en accès direct (Tableau de bord, Tarifs des modules, Sites clients) et un groupe repliable "Facturation" (Entreprise, Clients, Formules, Devis, Factures, Paiement).
+- `frontend/src/pages/AgencyPage.tsx` — page orchestratrice (login + layout + switch de section), remplace les deux anciens fichiers.
+- `frontend/src/pages/agency/*.tsx` — un fichier par section (`OverviewSection`, `PricingSection`, `SitesSection`, `CompanySection`, `BillingClientsSection`, `PackageOffersSection`, `QuotesSection`, `InvoicesSection`, `PaymentSection`), plus `shared.tsx` pour les types/composants communs (`TariffPicker`, `formatPrice`...).
+- Ancienne URL `/admin/dashboard/facturation` redirigée vers `/admin/dashboard/entreprise` (voir `App.tsx`) pour ne pas casser un lien existant.
+
+**Pattern de création généralisé** (Sites clients, Clients de facturation, Devis, Factures) : un bouton dans le header de la page ouvre une modal contenant le formulaire, réutilisée aussi pour l'édition ; le bouton de soumission reste désactivé tant que les seules infos réellement nécessaires à la création ne sont pas renseignées (ex. nom + mot de passe pour un site, client sélectionné pour un devis/une facture).
+
+**Formules en cards** : `PackageOffersSection.tsx` affiche les formules en cards (reprend le style de la page tarifs publique du site etnof-web) plutôt qu'en liste — `PackageOffer` a gagné `Description`, `FeaturesJson` (liste de fonctionnalités) et `Highlighted` (badge "Le plus populaire"), voir `docs/03-modele-donnees.md`.
+
 ## Facturation & devis (ajouté le 2026-07-30)
 
-Outil de facturation pour l'agence elle-même (etnof-web), pas pour les clients tenants — voir `docs/13-facturation-devis.md` pour la recherche juridique et la décision de portée V1. Accessible via un lien "Facturation & devis →" depuis `/admin/dashboard`, page dédiée `/admin/dashboard/facturation` (`AgencyBillingPage.tsx`), même auth que le reste de l'agence (`AdminAuth`, mot de passe agence).
+Outil de facturation pour l'agence elle-même (etnof-web), pas pour les clients tenants — voir `docs/13-facturation-devis.md` pour la recherche juridique et la décision de portée V1. À l'origine une page séparée `/admin/dashboard/facturation` (`AgencyBillingPage.tsx`) reliée par un lien depuis `/admin/dashboard` — fusionnée depuis dans la même navigation (voir mise à jour du 2026-07-30 ci-dessous), même auth que le reste de l'agence (`AdminAuth`, mot de passe agence).
 
 Six onglets au total à ce jour (Entreprise, Clients, Formules, Devis, Factures, Paiement), ajoutés progressivement dans la même journée. Les quatre briques cœur ci-dessous, dans l'ordre où elles ont été construites :
 1. **Entreprise** (`CompanyProfile`) : SIRET, adresse, mention TVA, IBAN, pénalités de retard, lien CGV, logo — une seule ligne, réutilisée sur chaque PDF.

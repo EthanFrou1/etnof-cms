@@ -1,4 +1,8 @@
 import { useEffect, useState } from "react";
+// Écart assumé à "un module reste isolé" (docs/02-architecture-modules.md) : import direct du
+// dictionnaire i18n du module Multilingue plutôt que de dupliquer des chaînes ici — voir
+// modules/multilingue/frontend/translations.ts.
+import { t, type Locale } from "@modules/multilingue/frontend/translations";
 import { CartProvider, storageKey, useCart } from "./CartContext";
 import CartDrawer from "./CartDrawer";
 
@@ -25,6 +29,7 @@ type CatalogueSectionProps = {
   clientSiteId: string;
   palette: ModulePalette;
   stripeEnabled: boolean;
+  locale?: Locale;
 };
 
 const formatPrice = (value: number) =>
@@ -35,7 +40,17 @@ const formatPrice = (value: number) =>
 // un client peut revenir de Stripe après avoir acheté le dernier exemplaire d'un produit qui reste
 // affiché (juste en rupture de stock), mais on ne veut pas dépendre de cette hypothèse pour afficher
 // la confirmation — d'où la lecture directe du localStorage plutôt que du contexte React du panier.
-function CheckoutReturnBanner({ apiBaseUrl, clientSiteId, palette }: { apiBaseUrl: string; clientSiteId: string; palette: ModulePalette }) {
+function CheckoutReturnBanner({
+  apiBaseUrl,
+  clientSiteId,
+  palette,
+  locale,
+}: {
+  apiBaseUrl: string;
+  clientSiteId: string;
+  palette: ModulePalette;
+  locale?: Locale;
+}) {
   const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
@@ -53,16 +68,16 @@ function CheckoutReturnBanner({ apiBaseUrl, clientSiteId, palette }: { apiBaseUr
           .then((data) => {
             setMessage(
               data && data.status === "paid"
-                ? `Paiement reçu — merci pour votre commande de ${formatPrice(data.amountTotal)} !`
-                : "Commande enregistrée — merci !"
+                ? t(locale, "catalogue.paymentReceived", { price: formatPrice(data.amountTotal) })
+                : t(locale, "catalogue.orderRecorded")
             );
           })
-          .catch(() => setMessage("Commande enregistrée — merci !"));
+          .catch(() => setMessage(t(locale, "catalogue.orderRecorded")));
       } else {
-        setMessage("Commande enregistrée — merci !");
+        setMessage(t(locale, "catalogue.orderRecorded"));
       }
     } else if (checkout === "cancel") {
-      setMessage("Paiement annulé — votre panier a été conservé.");
+      setMessage(t(locale, "catalogue.paymentCancelled"));
     }
 
     const url = new URL(window.location.href);
@@ -84,7 +99,17 @@ function CheckoutReturnBanner({ apiBaseUrl, clientSiteId, palette }: { apiBaseUr
   );
 }
 
-function ProductCard({ apiBaseUrl, product, palette }: { apiBaseUrl: string; product: Product; palette: ModulePalette }) {
+function ProductCard({
+  apiBaseUrl,
+  product,
+  palette,
+  locale,
+}: {
+  apiBaseUrl: string;
+  product: Product;
+  palette: ModulePalette;
+  locale?: Locale;
+}) {
   const { addItem } = useCart();
   const [quantity, setQuantity] = useState(1);
   const inStock = product.stock > 0;
@@ -101,7 +126,7 @@ function ProductCard({ apiBaseUrl, product, palette }: { apiBaseUrl: string; pro
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-gray-text/40">
-            Pas de photo
+            {t(locale, "catalogue.noPhoto")}
           </div>
         )}
       </div>
@@ -121,7 +146,7 @@ function ProductCard({ apiBaseUrl, product, palette }: { apiBaseUrl: string; pro
           className={`w-fit rounded-pill px-2.5 py-1 text-xs font-semibold ${inStock ? "" : "bg-black/5 text-red-500"}`}
           style={inStock ? { backgroundColor: `${palette.accent}24`, color: palette.accent } : undefined}
         >
-          {inStock ? `En stock (${product.stock})` : "Rupture de stock"}
+          {inStock ? `${t(locale, "catalogue.inStock")} (${product.stock})` : t(locale, "catalogue.outOfStock")}
         </span>
         <div className="flex items-center gap-2">
           <input
@@ -140,7 +165,7 @@ function ProductCard({ apiBaseUrl, product, palette }: { apiBaseUrl: string; pro
             className="flex-1 rounded-button px-3 py-1.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40"
             style={{ backgroundColor: palette.accent }}
           >
-            Ajouter au panier
+            {t(locale, "catalogue.addToCart")}
           </button>
         </div>
       </div>
@@ -148,7 +173,7 @@ function ProductCard({ apiBaseUrl, product, palette }: { apiBaseUrl: string; pro
   );
 }
 
-function CartButton({ apiBaseUrl, clientSiteId, palette, stripeEnabled }: CatalogueSectionProps) {
+function CartButton({ apiBaseUrl, clientSiteId, palette, stripeEnabled, locale }: CatalogueSectionProps) {
   const { itemCount } = useCart();
   const [open, setOpen] = useState(false);
 
@@ -160,7 +185,7 @@ function CartButton({ apiBaseUrl, clientSiteId, palette, stripeEnabled }: Catalo
         className="fixed bottom-6 right-6 z-40 flex items-center gap-2 rounded-pill px-5 py-3 text-sm font-semibold text-white shadow-soft"
         style={{ backgroundColor: palette.ink }}
       >
-        Panier {itemCount > 0 && `(${itemCount})`}
+        {t(locale, "catalogue.cart")} {itemCount > 0 && `(${itemCount})`}
       </button>
       <CartDrawer
         apiBaseUrl={apiBaseUrl}
@@ -169,12 +194,13 @@ function CartButton({ apiBaseUrl, clientSiteId, palette, stripeEnabled }: Catalo
         stripeEnabled={stripeEnabled}
         open={open}
         onClose={() => setOpen(false)}
+        locale={locale}
       />
     </>
   );
 }
 
-export default function CatalogueSection({ apiBaseUrl, clientSiteId, palette, stripeEnabled }: CatalogueSectionProps) {
+export default function CatalogueSection({ apiBaseUrl, clientSiteId, palette, stripeEnabled, locale }: CatalogueSectionProps) {
   const [products, setProducts] = useState<Product[]>([]);
 
   useEffect(() => {
@@ -192,22 +218,22 @@ export default function CatalogueSection({ apiBaseUrl, clientSiteId, palette, st
 
   return (
     <CartProvider clientSiteId={clientSiteId}>
-      <CheckoutReturnBanner apiBaseUrl={apiBaseUrl} clientSiteId={clientSiteId} palette={palette} />
+      <CheckoutReturnBanner apiBaseUrl={apiBaseUrl} clientSiteId={clientSiteId} palette={palette} locale={locale} />
 
       {products.length === 0 ? null : (
       <section className="flex flex-col gap-4">
         <span className="text-xs font-semibold uppercase tracking-[0.1em]" style={{ color: palette.accent }}>
-          Catalogue
+          {t(locale, "catalogue.label")}
         </span>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {products.map((product) => (
-            <ProductCard key={product.id} apiBaseUrl={apiBaseUrl} product={product} palette={palette} />
+            <ProductCard key={product.id} apiBaseUrl={apiBaseUrl} product={product} palette={palette} locale={locale} />
           ))}
         </div>
       </section>
       )}
       {products.length > 0 && (
-        <CartButton apiBaseUrl={apiBaseUrl} clientSiteId={clientSiteId} palette={palette} stripeEnabled={stripeEnabled} />
+        <CartButton apiBaseUrl={apiBaseUrl} clientSiteId={clientSiteId} palette={palette} stripeEnabled={stripeEnabled} locale={locale} />
       )}
     </CartProvider>
   );

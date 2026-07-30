@@ -22,9 +22,10 @@ const MODULE_IMAGES: Record<string, string> = {
   "avis-google": "/module-icons/avis-google.png",
   whatsapp: "/module-icons/whatsapp.png",
   stripe: "/module-icons/stripe.png",
+  multilingue: "/module-icons/multilingue.png",
 };
 
-// Prix stocké en texte libre par Ethan (voir ModulePricingPanel, AgencyDashboardPage.tsx) — parfois
+// Prix stocké en texte libre par Ethan (voir PricingSection.tsx, espace agence) — parfois
 // avec "EUR" ou "€" déjà tapé, parfois juste un nombre. On n'affiche jamais cette valeur brute : on
 // n'en garde que les chiffres et on ajoute systématiquement "€", pour que l'unité soit toujours la
 // même quelle que soit la façon dont le prix a été saisi.
@@ -183,7 +184,7 @@ function ModuleCard({
         </span>
       </div>
 
-      {authorized && fields && fields.length > 0 && (
+      {authorized && enabled && fields && fields.length > 0 && (
         <div className="flex flex-col gap-2 p-4">
           {fields.map((field) => (
             <label key={field.key} className="flex flex-col gap-1 text-xs font-medium text-gray-text">

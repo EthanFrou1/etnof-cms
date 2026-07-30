@@ -1,5 +1,6 @@
 import { lazy, Suspense } from "react";
 import { API_BASE_URL } from "../config";
+import { t } from "@modules/multilingue/frontend/translations";
 import { TEMPLATES } from "./registry";
 import SiteFooter from "./SiteFooter";
 import type { TemplateProps } from "./types";
@@ -12,6 +13,7 @@ const RdvSection = lazy(() => import("@modules/rdv/frontend/RdvSection"));
 const NewsletterSection = lazy(() => import("@modules/newsletter/frontend/NewsletterSection"));
 const AvisGoogleSection = lazy(() => import("@modules/avis-google/frontend/AvisGoogleSection"));
 const WhatsAppButton = lazy(() => import("@modules/whatsapp/frontend/WhatsAppButton"));
+const LanguageSwitcher = lazy(() => import("@modules/multilingue/frontend/LanguageSwitcher"));
 
 // 3 variantes de couleurs (accent + fond + fin de dégradé) propres à ce template — voir registry.ts
 // pour le détail (aussi utilisé par le sélecteur de palette dans l'admin, SiteSection.tsx). "ink"
@@ -37,7 +39,7 @@ function SunRayDivider({ color }: { color: string }) {
   );
 }
 
-export default function TemplateHelios({ clientSiteId, modules, content, paletteId }: TemplateProps) {
+export default function TemplateHelios({ clientSiteId, modules, content, paletteId, locale, onChangeLocale }: TemplateProps) {
   const mapsAddress = content?.address;
   const mapsApiKey = modules?.maps?.apiKey;
   const whatsappNumber = modules?.whatsapp?.phoneNumber;
@@ -59,33 +61,40 @@ export default function TemplateHelios({ clientSiteId, modules, content, palette
           <div className="flex items-center gap-6 text-sm font-medium text-white/80">
             {modules?.catalogue?.enabled && (
               <a href="#catalogue" className="hover:text-white">
-                Catalogue
+                {t(locale, "nav.catalogue")}
               </a>
             )}
             {modules?.blog?.enabled && (
               <a href="#blog" className="hover:text-white">
-                Blog
+                {t(locale, "nav.blog")}
               </a>
             )}
             {modules?.rdv?.enabled && (
               <a href="#rdv" className="hover:text-white">
-                Rendez-vous
+                {t(locale, "nav.rdv")}
               </a>
             )}
             {modules?.contact?.enabled && (
               <a href="#contact" className="hover:text-white">
-                Contact
+                {t(locale, "nav.contact")}
               </a>
             )}
             {modules?.newsletter?.enabled && (
               <a href="#newsletter" className="hover:text-white">
-                Newsletter
+                {t(locale, "nav.newsletter")}
               </a>
             )}
             {modules?.["avis-google"]?.enabled && (
               <a href="#avis-google" className="hover:text-white">
-                Avis
+                {t(locale, "nav.avisGoogle")}
               </a>
+            )}
+            {modules?.multilingue?.enabled && (
+              <Suspense fallback={null}>
+                <div className="border-l border-white/20 pl-4">
+                  <LanguageSwitcher locale={locale} onChange={onChangeLocale} accent={accent} />
+                </div>
+              </Suspense>
             )}
           </div>
         </div>
@@ -114,7 +123,7 @@ export default function TemplateHelios({ clientSiteId, modules, content, palette
               style={{ boxShadow: "0 12px 40px rgba(0,0,0,0.12)" }}
             >
               <span className="text-xs font-semibold uppercase tracking-[0.1em]" style={{ color: accent }}>
-                Offre du moment
+                {t(locale, "section.offerOfTheMoment")}
               </span>
               <div className="mt-2 flex flex-wrap items-baseline justify-between gap-4">
                 <span className="text-2xl font-extrabold" style={{ color: ink }}>
@@ -162,32 +171,32 @@ export default function TemplateHelios({ clientSiteId, modules, content, palette
           <div className="grid gap-8 sm:grid-cols-2">
             {modules?.catalogue?.enabled && (
               <div id="catalogue" className="sm:col-span-2">
-                <CatalogueSection apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} palette={modulePalette} stripeEnabled={Boolean(modules?.stripe?.enabled)} />
+                <CatalogueSection apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} palette={modulePalette} stripeEnabled={Boolean(modules?.stripe?.enabled)} locale={locale} />
               </div>
             )}
             {modules?.blog?.enabled && (
               <div id="blog" className="sm:col-span-2">
-                <BlogSection apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} palette={modulePalette} />
+                <BlogSection apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} palette={modulePalette} locale={locale} />
               </div>
             )}
             {modules?.rdv?.enabled && (
               <div id="rdv" className="sm:col-span-2">
-                <RdvSection apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} palette={modulePalette} />
+                <RdvSection apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} palette={modulePalette} locale={locale} />
               </div>
             )}
             {modules?.contact?.enabled && (
               <div id="contact">
-                <ContactSection apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} palette={modulePalette} />
+                <ContactSection apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} palette={modulePalette} locale={locale} />
               </div>
             )}
             {modules?.newsletter?.enabled && (
               <div id="newsletter">
-                <NewsletterSection apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} palette={modulePalette} />
+                <NewsletterSection apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} palette={modulePalette} locale={locale} />
               </div>
             )}
             {modules?.["avis-google"]?.enabled && (
               <div id="avis-google" className="sm:col-span-2">
-                <AvisGoogleSection apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} palette={modulePalette} />
+                <AvisGoogleSection apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} palette={modulePalette} locale={locale} />
               </div>
             )}
             {modules?.maps?.enabled && typeof mapsAddress === "string" && (
@@ -195,6 +204,7 @@ export default function TemplateHelios({ clientSiteId, modules, content, palette
                 address={mapsAddress}
                 apiKey={typeof mapsApiKey === "string" ? mapsApiKey : ""}
                 palette={modulePalette}
+                locale={locale}
               />
             )}
           </div>
