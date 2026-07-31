@@ -11,15 +11,24 @@ public static class TenantAdminEndpoints
     {
         app.MapPost("/api/t/{clientSiteId:guid}/admin/login", async (Guid clientSiteId, AdminLoginInput input, IConfiguration config, AppDbContext db) =>
         {
-            if (AdminPasswordHasher.Verify(input.Password, config["Admin:PasswordHash"])) return Results.Ok();
+            string token;
+            if (AdminPasswordHasher.Verify(input.Password, config["Admin:PasswordHash"]))
+            {
+                token = AdminToken.Issue(config, "agency");
+            }
+            else
+            {
+                var tenantHash = await db.ClientSites
+                    .Where(c => c.Id == clientSiteId)
+                    .Select(c => c.PasswordHash)
+                    .FirstOrDefaultAsync();
 
-            var tenantHash = await db.ClientSites
-                .Where(c => c.Id == clientSiteId)
-                .Select(c => c.PasswordHash)
-                .FirstOrDefaultAsync();
+                if (!AdminPasswordHasher.Verify(input.Password, tenantHash)) return Results.Unauthorized();
+                token = AdminToken.Issue(config, "tenant", clientSiteId);
+            }
 
-            return AdminPasswordHasher.Verify(input.Password, tenantHash) ? Results.Ok() : Results.Unauthorized();
-        });
+            return Results.Ok(new { token, expiresAt = AdminToken.ExpiresAtUnixSeconds(token) });
+        }).RequireRateLimiting("login");
 
         app.MapGet("/api/t/{clientSiteId:guid}/admin/modules", async (Guid clientSiteId, HttpRequest req, IConfiguration config, AppDbContext db, ModuleRegistry registry, ModuleMetaRegistry metaRegistry) =>
         {
@@ -79,8 +88,36 @@ public static class TenantAdminEndpoints
 
             return await registry.SetFieldsAsync(clientSiteId, name, fields) ? Results.Ok() : Results.NotFound();
         });
+
+        // Bulle d'aide de l'admin client (SupportBubble.tsx, visible sur toutes les pages via
+        // AdminLayout.tsx) — envoie un email réel à l'agence via Brevo, pas juste un mailto:.
+        app.MapPost("/api/t/{clientSiteId:guid}/admin/support", async (
+            Guid clientSiteId, SupportRequestInput input, HttpRequest req, IConfiguration config, AppDbContext db, IHttpClientFactory httpFactory) =>
+        {
+            if (!await TenantAdminAuth.IsAuthorizedAsync(req, config, db, clientSiteId)) return Results.Unauthorized();
+            if (string.IsNullOrWhiteSpace(input.Message)) return Results.BadRequest("Message vide.");
+
+            var siteName = await db.ClientSites
+                .Where(c => c.Id == clientSiteId)
+                .Select(c => c.Name)
+                .FirstOrDefaultAsync();
+            if (siteName is null) return Results.NotFound();
+
+            var emailSettings = await AgencyEmailEndpoints.GetOrCreateAsync(db);
+            if (string.IsNullOrWhiteSpace(emailSettings.BrevoApiKey))
+            {
+                return Results.BadRequest("Envoi indisponible pour le moment.");
+            }
+
+            var http = httpFactory.CreateClient();
+            var sent = await BrevoEmailService.SendSupportRequestAsync(
+                http, emailSettings.BrevoApiKey, siteName, clientSiteId, input.Message, input.ReplyToEmail);
+
+            return sent ? Results.Ok(new { sent = true }) : Results.Json(new { error = "Envoi indisponible pour le moment." }, statusCode: StatusCodes.Status500InternalServerError);
+        });
     }
 }
 
 public record AdminLoginInput(string Password);
 public record ToggleModuleInput(bool Enabled);
+public record SupportRequestInput(string Message, string? ReplyToEmail);

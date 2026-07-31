@@ -66,7 +66,7 @@ function SitePanel({ clientSiteId, password, locale }: { clientSiteId: string; p
 
   return (
     <section className="rounded-card bg-white p-6 shadow-card">
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-lg font-bold text-navy">Site internet</h2>
           <p className="text-sm text-gray-text">Nom et description affichés sur la page d'accueil publique.</p>
@@ -184,7 +184,7 @@ function OffersPanel({ clientSiteId, password, locale }: { clientSiteId: string;
             const isDirty = JSON.stringify(draft) !== JSON.stringify(offer.translated);
             return (
               <div key={offer.offerId} className="flex flex-col gap-3 border-t border-border-subtle pt-4 first:border-0 first:pt-0">
-                <div className="flex items-center justify-between gap-3">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <span className="text-sm font-semibold text-navy">{offer.original.title || "(sans titre)"}</span>
                   <div className="flex items-center gap-3">
                     {savedId === offer.offerId && <span className="text-sm text-green-accent">Enregistré</span>}
@@ -292,7 +292,7 @@ function BlogPanel({ clientSiteId, password, locale }: { clientSiteId: string; p
             const isDirty = JSON.stringify(draft) !== JSON.stringify(post.translated);
             return (
               <div key={post.postId} className="flex flex-col gap-3 border-t border-border-subtle pt-4 first:border-0 first:pt-0">
-                <div className="flex items-center justify-between gap-3">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <span className="text-sm font-semibold text-navy">{post.original.title || "(sans titre)"}</span>
                   <div className="flex items-center gap-3">
                     {savedId === post.postId && <span className="text-sm text-green-accent">Enregistré</span>}

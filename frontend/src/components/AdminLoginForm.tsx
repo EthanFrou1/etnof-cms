@@ -6,7 +6,7 @@ const inputClass =
 
 type AdminLoginFormProps = {
   loginPath: string;
-  onLoggedIn: (password: string) => void;
+  onLoggedIn: (token: string, expiresAt: number) => void;
 };
 
 export default function AdminLoginForm({ loginPath, onLoggedIn }: AdminLoginFormProps) {
@@ -22,7 +22,8 @@ export default function AdminLoginForm({ loginPath, onLoggedIn }: AdminLoginForm
     });
 
     if (res.ok) {
-      onLoggedIn(password);
+      const { token, expiresAt } = await res.json();
+      onLoggedIn(token, expiresAt);
     } else {
       setError(true);
     }

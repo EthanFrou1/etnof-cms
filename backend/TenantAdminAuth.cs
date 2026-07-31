@@ -1,26 +1,22 @@
-using Microsoft.EntityFrameworkCore;
-
 namespace Backend;
 
-// Auth pour l'admin d'UN tenant précis (/admin/{clientSiteId}) : accepte le mot de passe propre du
-// tenant, OU le mot de passe agence d'Ethan (clé passe-partout, utile pour le support client).
-// Voir AdminAuth.cs pour le mot de passe agence seul (utilisé par /api/admin/client-sites, /stats).
+// Auth pour l'admin d'UN tenant précis (/admin/{clientSiteId}). Le mot de passe (propre au tenant OU
+// mot de passe agence, clé passe-partout pour le support) n'est vérifié qu'au login ; chaque requête
+// suivante envoie le token signé émis à ce moment-là (voir AdminToken.cs). Un token "tenant" est lié
+// au ClientSite.Id qui l'a émis — il ne peut pas servir pour un autre tenant. Voir AdminAuth.cs pour
+// le mot de passe agence seul (utilisé par /api/admin/client-sites, /stats).
 public static class TenantAdminAuth
 {
-    public const string HeaderName = "X-Admin-Password";
-
-    public static async Task<bool> IsAuthorizedAsync(HttpRequest request, IConfiguration config, AppDbContext db, Guid clientSiteId)
+    public static Task<bool> IsAuthorizedAsync(HttpRequest request, IConfiguration config, AppDbContext db, Guid clientSiteId)
     {
-        if (!request.Headers.TryGetValue(HeaderName, out var provided)) return false;
-        var password = provided.ToString();
+        var token = AdminToken.FromAuthorizationHeader(request);
+        if (!AdminToken.TryValidate(config, token, out var scope, out var siteId)) return Task.FromResult(false);
 
-        if (AdminPasswordHasher.Verify(password, config["Admin:PasswordHash"])) return true;
-
-        var tenantHash = await db.ClientSites
-            .Where(c => c.Id == clientSiteId)
-            .Select(c => c.PasswordHash)
-            .FirstOrDefaultAsync();
-
-        return AdminPasswordHasher.Verify(password, tenantHash);
+        return Task.FromResult(scope switch
+        {
+            "agency" => true,
+            "tenant" => siteId == clientSiteId,
+            _ => false,
+        });
     }
 }

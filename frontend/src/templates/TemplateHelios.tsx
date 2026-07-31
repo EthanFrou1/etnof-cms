@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useState } from "react";
 import { API_BASE_URL } from "../config";
 import { t } from "@modules/multilingue/frontend/translations";
 import { TEMPLATES } from "./registry";
@@ -26,6 +26,28 @@ const ink = "#1A1512";
 // Motif de rayons de soleil (signature visuelle propre à Helios, dieu du soleil), en fine bande
 // décorative sous le hero — parité avec la frise en méandre grec d'Hestia (GreekKeyDivider). Généré
 // en local (pas d'asset externe), tuilé horizontalement, recoloré selon la palette active.
+// Icônes menu mobile — inline plutôt qu'importées : les templates restent autonomes, pas de fichier
+// d'icônes partagé entre Hestia/Helios/l'admin (même convention que translations.ts, voir
+// docs/12-plan-modules-restants.md).
+function MenuIcon({ color }: { color: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.75" strokeLinecap="round" className="h-6 w-6">
+      <line x1="4" y1="7" x2="20" y2="7" />
+      <line x1="4" y1="12" x2="20" y2="12" />
+      <line x1="4" y1="17" x2="20" y2="17" />
+    </svg>
+  );
+}
+
+function CloseIcon({ color }: { color: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.75" strokeLinecap="round" className="h-6 w-6">
+      <line x1="5" y1="5" x2="19" y2="19" />
+      <line x1="19" y1="5" x2="5" y2="19" />
+    </svg>
+  );
+}
+
 function SunRayDivider({ color }: { color: string }) {
   const pattern = `data:image/svg+xml,${encodeURIComponent(
     `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="10" viewBox="0 0 16 10"><path d="M8 10 L2 0 M8 10 L8 0 M8 10 L14 0" fill="none" stroke="${color}" stroke-width="1.4"/></svg>`
@@ -40,6 +62,7 @@ function SunRayDivider({ color }: { color: string }) {
 }
 
 export default function TemplateHelios({ clientSiteId, modules, content, paletteId, locale, onChangeLocale }: TemplateProps) {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const mapsAddress = content?.address;
   const mapsApiKey = modules?.maps?.apiKey;
   const whatsappNumber = modules?.whatsapp?.phoneNumber;
@@ -55,10 +78,10 @@ export default function TemplateHelios({ clientSiteId, modules, content, palette
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: background }}>
-      <nav className="px-4 py-4 sm:px-8" style={{ backgroundColor: ink }}>
+      <nav className="relative px-4 py-4 sm:px-8" style={{ backgroundColor: ink }}>
         <div className="mx-auto flex max-w-5xl items-center justify-between">
           <span className="text-lg font-extrabold text-white">{siteName}</span>
-          <div className="flex items-center gap-6 text-sm font-medium text-white/80">
+          <div className="hidden items-center gap-6 text-sm font-medium text-white/80 md:flex">
             {modules?.catalogue?.enabled && (
               <a href="#catalogue" className="hover:text-white">
                 {t(locale, "nav.catalogue")}
@@ -97,7 +120,60 @@ export default function TemplateHelios({ clientSiteId, modules, content, palette
               </Suspense>
             )}
           </div>
+
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen((open) => !open)}
+            className="md:hidden"
+            aria-label={mobileMenuOpen ? "Fermer le menu" : "Ouvrir le menu"}
+          >
+            {mobileMenuOpen ? <CloseIcon color="#FFFFFF" /> : <MenuIcon color="#FFFFFF" />}
+          </button>
         </div>
+
+        {mobileMenuOpen && (
+          <div
+            className="mx-auto mt-4 flex max-w-5xl flex-col gap-1 border-t border-white/10 pt-4 text-sm font-medium text-white/80 md:hidden"
+          >
+            {modules?.catalogue?.enabled && (
+              <a href="#catalogue" className="rounded-button px-2 py-2 hover:text-white">
+                {t(locale, "nav.catalogue")}
+              </a>
+            )}
+            {modules?.blog?.enabled && (
+              <a href="#blog" className="rounded-button px-2 py-2 hover:text-white">
+                {t(locale, "nav.blog")}
+              </a>
+            )}
+            {modules?.rdv?.enabled && (
+              <a href="#rdv" className="rounded-button px-2 py-2 hover:text-white">
+                {t(locale, "nav.rdv")}
+              </a>
+            )}
+            {modules?.contact?.enabled && (
+              <a href="#contact" className="rounded-button px-2 py-2 hover:text-white">
+                {t(locale, "nav.contact")}
+              </a>
+            )}
+            {modules?.newsletter?.enabled && (
+              <a href="#newsletter" className="rounded-button px-2 py-2 hover:text-white">
+                {t(locale, "nav.newsletter")}
+              </a>
+            )}
+            {modules?.["avis-google"]?.enabled && (
+              <a href="#avis-google" className="rounded-button px-2 py-2 hover:text-white">
+                {t(locale, "nav.avisGoogle")}
+              </a>
+            )}
+            {modules?.multilingue?.enabled && (
+              <Suspense fallback={null}>
+                <div className="border-t border-white/10 px-2 pt-2">
+                  <LanguageSwitcher locale={locale} onChange={onChangeLocale} accent={accent} />
+                </div>
+              </Suspense>
+            )}
+          </div>
+        )}
       </nav>
 
       <header

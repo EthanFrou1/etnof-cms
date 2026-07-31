@@ -53,7 +53,7 @@ export default function PricingSection({ password }: { password: string }) {
         <section className="rounded-card bg-white p-6 shadow-card">
           <div className="flex flex-col gap-3">
             {modules.map((m) => (
-              <div key={m.name} className="flex items-center gap-3">
+              <div key={m.name} className="flex flex-wrap items-center gap-3">
                 <span className="w-40 shrink-0 text-sm font-medium text-navy">{m.displayName}</span>
                 <div className="relative">
                   <input

@@ -147,6 +147,71 @@ public static class BrevoEmailService
 
     private static string StripProtocol(string url) => url.Replace("https://", "").Replace("http://", "").TrimEnd('/');
 
+    // Adresse de support agence — même identité que le fallback expéditeur utilisé plus haut pour
+    // l'email de confirmation de paiement.
+    private const string SupportInbox = "etnofweb@gmail.com";
+
+    // Message envoyé par un client depuis la bulle d'aide de son admin (SupportBubble.tsx) — pas de
+    // pièce jointe, pas de mise en page facture, juste le nom du site + le message. Le `replyToEmail`
+    // (facultatif, saisi par le client) part en `replyTo` pour qu'Ethan puisse répondre directement
+    // depuis sa boîte mail sans avoir à recopier une adresse.
+    public static async Task<bool> SendSupportRequestAsync(
+        HttpClient http, string apiKey, string siteName, Guid clientSiteId, string message, string? replyToEmail)
+    {
+        if (string.IsNullOrWhiteSpace(apiKey)) return false;
+
+        var payload = new BrevoEmailRequest(
+            Sender: new BrevoContact("etnof-cms", SupportInbox),
+            To: new List<BrevoContact> { new("Support etnof-web", SupportInbox) },
+            Subject: $"[Support admin] {siteName}",
+            HtmlContent: BuildSupportRequestHtml(siteName, clientSiteId, message, replyToEmail),
+            ReplyTo: string.IsNullOrWhiteSpace(replyToEmail) ? null : new BrevoContact(siteName, replyToEmail)
+        );
+
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Post, EndpointUrl);
+            request.Headers.Add("api-key", apiKey);
+            request.Headers.Add("Accept", "application/json");
+            request.Content = JsonContent.Create(payload, options: JsonOptions);
+
+            using var response = await http.SendAsync(request);
+            return response.IsSuccessStatusCode;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+
+    private static string BuildSupportRequestHtml(string siteName, Guid clientSiteId, string message, string? replyToEmail)
+    {
+        const string navy = "#0F172A";
+        const string grayText = "#64748B";
+        const string bgPage = "#F8FAFC";
+        const string fontFamily = "-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Roboto,Helvetica,Arial,sans-serif";
+        var encodedMessage = WebUtility.HtmlEncode(message).Replace("\n", "<br>");
+
+        return $@"
+<body style=""margin:0;padding:32px 16px;background-color:{bgPage};font-family:{fontFamily};"">
+  <table role=""presentation"" width=""100%"" cellpadding=""0"" cellspacing=""0"">
+    <tr>
+      <td align=""center"">
+        <table role=""presentation"" width=""560"" cellpadding=""0"" cellspacing=""0"" style=""max-width:560px;width:100%;background-color:#FFFFFF;border-radius:20px;box-shadow:0 2px 12px rgba(15,23,42,0.05);"">
+          <tr>
+            <td style=""padding:40px;"">
+              <h1 style=""margin:0 0 4px;font-size:22px;font-weight:800;color:{navy};"">Demande d'aide — {WebUtility.HtmlEncode(siteName)}</h1>
+              <p style=""margin:0 0 24px;font-size:12px;color:{grayText};"">Site : {clientSiteId}{(string.IsNullOrWhiteSpace(replyToEmail) ? "" : $" · Répondre à : {WebUtility.HtmlEncode(replyToEmail)}")}</p>
+              <p style=""margin:0;font-size:15px;line-height:1.6;color:{navy};"">{encodedMessage}</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>";
+    }
+
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -160,5 +225,6 @@ public record BrevoEmailRequest(
     [property: JsonPropertyName("to")] List<BrevoContact> To,
     [property: JsonPropertyName("subject")] string Subject,
     [property: JsonPropertyName("htmlContent")] string HtmlContent,
-    [property: JsonPropertyName("attachment")] List<BrevoAttachment> Attachment
+    [property: JsonPropertyName("attachment"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] List<BrevoAttachment>? Attachment = null,
+    [property: JsonPropertyName("replyTo"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] BrevoContact? ReplyTo = null
 );

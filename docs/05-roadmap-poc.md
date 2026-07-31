@@ -569,6 +569,98 @@ Testé (curl) : seed automatique confirmé, CRUD complet sur `PackageOffer`. `do
 
 **Reste avant un usage réel** (non traité cette session) : déploiement public du site (les liens envoyés aux clients supposent une URL publique — `Cors:AllowedOrigin` doit être configuré en conséquence), bascule de la clé Stripe de test vers la clé live (`rk_live_...`, déjà créée mais pas encore reconfigurée) et création d'un vrai webhook Stripe (destination permanente dans le dashboard, à la place de `stripe listen` qui ne sert qu'aux tests locaux — penser à arrêter ce process une fois les tests terminés).
 
+## Token de session admin (1h), remplace le mot de passe en clair par requête — 2026-07-31
+
+Demandé par Ethan : empêcher qu'un client accédant à `/admin/{clientSiteId}` puisse se connecter à un autre compte client, et ajouter une expiration de session (~1h). Point 1 du bilan Phase 5 ("mot de passe... pas de session, pas de rate-limiting") en partie traité (session + expiration ; le rate-limiting sur le login reste à faire).
+
+- `backend/AdminToken.cs` (nouveau) : token opaque signé HMAC-SHA256 (`base64url(payload).base64url(signature)`, pas de dépendance JWT ajoutée), payload `{scope, siteId?, exp}`. `scope:"agency"` = mot de passe agence, valide sur tous les tenants (passe-partout support, comportement inchangé). `scope:"tenant"` = lié au `ClientSite.Id` qui l'a émis, rejeté sur tout autre tenant. Expiration 1h, secret `Admin:TokenSecret` (config) — si absent, secret aléatoire généré en mémoire au démarrage (sessions invalidées à chaque redémarrage backend, acceptable vu la durée de vie courte).
+- `AdminAuth.cs` / `TenantAdminAuth.cs` : ne comparent plus un mot de passe reçu en clair à chaque requête, valident le token `Authorization: Bearer <token>`. Les deux endpoints de login (`/api/admin/login`, `/api/t/{clientSiteId}/admin/login`) émettent désormais `{ token, expiresAt }` au lieu d'un simple `200 OK`.
+- Frontend : `useAdminSession.ts` stocke `{token, expiresAt}` (au lieu du mot de passe brut) en `sessionStorage`, expire côté client dès que `expiresAt` est dépassé (retour à l'écran de login sans attendre un 401) ; `adminFetch` envoie `Authorization: Bearer` au lieu de `X-Admin-Password`. Les ~30 composants qui consomment la session n'ont pas changé (variable opaque déjà threadée en prop).
+- Hors scope (signalé, pas fait à ce moment-là) : pas d'intercepteur global de 401 (un token expiré en cours d'appel n'est repris qu'au prochain rechargement) ; pas de rate-limiting sur le login (traité juste après, voir entrée suivante).
+
+Testé : `dotnet build` et `tsc --noEmit` propres. **Reste à vérifier par Ethan dans le navigateur** : login sur `/admin/{clientSiteId}`, confirmer dans les devtools que la réponse de login contient `token`/`expiresAt` et que les requêtes suivantes envoient `Authorization: Bearer ...` ; copier ce token et l'utiliser (curl/Postman) contre un autre `clientSiteId` → doit renvoyer 401 ; le mot de passe agence doit toujours fonctionner sur n'importe quel tenant.
+
+## Rate-limiting sur le login admin — 2026-07-31 (même jour)
+
+Suite immédiate du token de session : dernier point du bilan Phase 5 ("pas de rate-limiting") traité.
+
+- `Program.cs` : `AddRateLimiter`/`UseRateLimiter`, intégrés au framework ASP.NET Core depuis .NET 7 — aucune dépendance ajoutée (règle 5 de `CLAUDE.md`). Policy `"login"` : fenêtre fixe de 5 tentatives/minute, partitionnée par adresse IP (`HttpContext.Connection.RemoteIpAddress`), sans file d'attente (`QueueLimit: 0`) — une 6e tentative dans la minute reçoit immédiatement `429 Too Many Requests` plutôt que d'attendre.
+- Appliquée aux deux endpoints de login (`.RequireRateLimiting("login")`) : `POST /api/admin/login` (`AgencyDashboardEndpoints.cs`) et `POST /api/t/{clientSiteId}/admin/login` (`TenantAdminEndpoints.cs`). Aucun autre endpoint n'est concerné (les endpoints déjà authentifiés sont protégés par le token, pas besoin d'y ajouter un rate-limit).
+- Limite assumée : partition par IP seule (pas par tenant) — un attaquant distribué sur plusieurs IP contre un seul tenant n'est pas bloqué par ce mécanisme, seul un brute-force depuis une même machine l'est. Suffisant pour un starter-kit solo (règle 7, rester simple) ; à durcir (CAPTCHA, verrouillage de compte après N échecs) si un vrai incident de brute-force distribué est constaté un jour.
+
+Testé : `dotnet build` propre. **Reste à vérifier par Ethan** : 6 tentatives de login rapprochées avec un mauvais mot de passe → les 5 premières renvoient 401, la 6e renvoie 429 ; après 1 minute sans nouvelle tentative, le login redevient possible normalement.
+
+## Audit UI/UX + fix responsive mobile (sidebar admin, nav publique Hestia/Helios) — 2026-07-31 (même jour)
+
+Ethan a demandé un tour d'ensemble de l'UI/UX (admin client + site public) avant de refaire du responsive/design. Audit fait par capture d'écran via Chrome headless piloté en CDP brut (`--remote-debugging-port`, script Node maison dans le scratchpad — toujours pas de Playwright disponible sur cette machine, voir notes précédentes). Un token agence (émis via l'API de login, voir entrée token de session ci-dessus) a servi à s'authentifier dans `sessionStorage` sans connaître le mot de passe réel d'un tenant.
+
+**Constat le plus grave** : zéro règle responsive dans tout le projet (`grep md:hidden/lg:hidden/...` sur tout `frontend/src` → 0 résultat). Sur un viewport mobile (390px) :
+- La sidebar admin (`AdminLayout.tsx`, largeur fixe `w-64`) prenait toute la largeur et poussait le contenu hors écran, illisible.
+- La nav publique (Hestia et Helios, ligne `flex` sans retour à la ligne géré) débordait, le sélecteur de langue (FR/EN/ES) sortait complètement de l'écran.
+
+Autre bug trouvé au passage (mineur) : sur `/admin/{id}/modules`, les cards sans champ de config (RDV, Blog) affichaient un bloc blanc vide en bas — `grid` étire par défaut toutes les cellules d'une ligne à la hauteur de la plus haute (celle de Maps, qui a un champ "Clé API" en plus).
+
+Ethan a écarté un autre point remonté par l'audit (données de démo — vraie fiche Google Places "Boulanger Perpignan" avec avis 1 étoile laissée sur le tenant historique lors d'un test antérieur) : pas un problème, des données de démo servent à ça.
+
+**Fixes appliqués** (aucune dépendance ajoutée, uniquement des classes Tailwind + un peu de state React) :
+- `ModulesSection.tsx` : `items-start` sur le conteneur grid — chaque card garde sa hauteur naturelle.
+- `AdminLayout.tsx` : passe à `lg:` comme breakpoint (sidebar chargée, jusqu'à 14 liens). En dessous, la sidebar devient un drawer (`fixed`, hors flux) déclenché par un bouton hamburger dans une nouvelle barre mobile sticky, avec backdrop semi-transparent qui ferme au clic. Identique et toujours visible en permanence à partir de `lg`. Nouvelles icônes `IconMenu`/`IconClose` dans `components/admin/icons.tsx`.
+- `TemplateHestia.tsx` / `TemplateHelios.tsx` : passent à `md:` comme breakpoint (nav publique plus légère, 6 liens max). En dessous, la ligne de liens desktop se masque, un bouton hamburger apparaît à côté du nom du site et ouvre un panneau déroulant (liens empilés + sélecteur de langue) sous la nav — même logique conditionnelle par module dupliquée dans les deux fichiers (aucun composant de nav partagé entre templates, convention déjà établie dans ce projet). Icônes hamburger/close inline (pas de fichier d'icônes partagé côté templates, contrairement à l'admin).
+
+Testé : `npx tsc --noEmit` propre. Vérification visuelle (CDP, viewport 390×844 puis 1440×900, template du tenant historique basculé temporairement sur Helios via l'API puis restauré sur Hestia/Olivier après coup) : sidebar/nav masquées par défaut en mobile, bouton hamburger visible et fonctionnel (clic simulé via `Runtime.evaluate` + `.click()`), drawer/panneau affichent bien tous les liens (y compris le sélecteur de langue) ; aucune régression constatée en desktop (comportement identique à avant sur les deux breakpoints).
+
+**Hors scope de cette session** : reste du responsive mobile potentiellement à auditer plus en profondeur (pages internes de l'admin type tableaux Commandes/Blog, formulaires modales) — seuls la sidebar/nav et la page Modules ont été vérifiés explicitement.
+
+## Bulle de contact support dans l'admin client — 2026-07-31 (même jour)
+
+Demandé par Ethan : que ses clients puissent le contacter directement depuis l'admin s'ils sont bloqués, sans chercher son email ailleurs. Décidé avec Ethan (2 questions posées) : visible sur toutes les pages de l'admin **client** uniquement (pas la vue globale agence, pas le site public), et **envoi réel** via Brevo plutôt qu'un simple lien `mailto:` (déjà configuré et utilisé pour l'email de confirmation de paiement, voir plus haut — le client reste dans l'admin).
+
+- `backend/BrevoEmailService.cs` : nouvelle `SendSupportRequestAsync` (même pattern que `SendInvoicePaidEmailAsync` — appel REST direct, erreurs avalées, jamais d'exception remontée). `BrevoEmailRequest` gagne `ReplyTo` (le client peut laisser son email pour qu'Ethan réponde directement) et `Attachment` devient optionnel.
+- **Piège Brevo rencontré et corrigé** : l'API rejette `"attachment": []` avec `missing_parameter` — un tableau vide compte comme "manquant", pas comme "rien à joindre". Les deux champs (`Attachment`, `ReplyTo`) sont donc `JsonIgnore` quand `null` (au lieu d'envoyer une liste vide), pour que l'email de support (sans pièce jointe) ne casse pas le payload — repéré en testant l'appel Brevo en direct via `curl` avec la même clé API, l'email de facture n'était pas affecté (il fournit toujours un vrai tableau non vide).
+- Nouvel endpoint `POST /api/t/{clientSiteId}/admin/support` (`TenantAdminEndpoints.cs`, même garde `TenantAdminAuth` que les autres actions tenant) : 400 si message vide ou si aucune clé Brevo configurée (erreur explicite, même logique que le bouton DeepL), 500 si Brevo échoue, `{sent:true}` sinon.
+- Frontend : nouveau `frontend/src/components/admin/SupportBubble.tsx` (bouton flottant bas-droite + modal façon `ConfirmModal.tsx`, textarea message + email de retour facultatif) branché une seule fois dans `AdminLayout.tsx` (visible sur toutes les pages de l'admin client automatiquement, un seul point d'ajout). `AdminLayout` gagne une prop `password` (le token de session, déjà détenu par les 4 pages qui l'utilisent) pour authentifier l'appel. Nouvelle `IconHelp` dans `components/admin/icons.tsx`.
+
+Testé : `dotnet build`/`tsc --noEmit` propres. Email de test envoyé de bout en bout via l'API réelle (curl, avec la vraie clé Brevo d'Ethan) → reçu sur etnofweb@gmail.com avec le nom du site et le reply-to corrects. Vérifié visuellement (CDP) : bulle visible en bas à droite sur `/admin/{id}`, modal s'ouvre/se ferme correctement.
+
+**Reste à vérifier par Ethan** : envoyer un vrai message depuis le navigateur (pas juste via curl) et confirmer la réception + que répondre à l'email revient bien vers l'adresse indiquée par le client.
+
+Confirmé par Ethan (testé lui-même dans le navigateur) — suite immédiate : le champ email de la bulle se retape à chaque fois. Fix : `AdminLayout.tsx` réutilise le fetch de contenu déjà en place (celui qui alimentait `siteName`) pour récupérer aussi `SiteContent.Email` (page Établissement), transmis à `SupportBubble` via une nouvelle prop `defaultEmail` qui préremplit le champ sans écraser une saisie déjà en cours. Vérifié visuellement (CDP) sur "Boulangerie Dupont" (email `test@test.com` renseigné) : champ prérempli à l'ouverture de la modal.
+
+## Suite de l'audit UI/UX : admin agence + pages restantes — 2026-07-31 (même jour)
+
+Ethan a demandé de continuer l'audit responsive sur les pages pas encore vérifiées (tableaux/modales de l'admin client, admin agence jamais regardé). Même méthode que le premier audit (Chrome headless + CDP).
+
+**Trouvé — le plus important** : `/admin/dashboard` (vue globale agence) n'a **jamais** reçu le fix responsive de la sidebar, parce que c'est un layout entièrement séparé (`AgencyLayout.tsx`, pas `AdminLayout.tsx`) — même bug que celui corrigé plus haut pour l'admin client (sidebar pleine largeur qui pousse tout le contenu hors écran en mobile). Confirmé sur Tableau de bord, Sites clients, Devis, Factures, Formules.
+
+**Trouvé — régression introduite par la bulle d'aide (session précédente)** : sur les pages où le contenu remplit tout le viewport (RDV, Avis Google, Multilingue), la bulle "Aide" en position fixe chevauchait un élément interactif (toggle, case à cocher) tout en bas de page — aucune marge n'était réservée pour elle.
+
+**Trouvé — bug pré-existant** : sur la page Multilingue (mobile), l'en-tête de chaque panneau (titre/description + boutons "Traduire automatiquement"/"Enregistrer") ne passait pas en colonne — la description se retrouvait écrasée dans une colonne très étroite à côté des boutons.
+
+**Trouvé — mineur, pas corrigé** : les tableaux (Commandes, Clients, Messages) débordent horizontalement à l'intérieur de leur card (scroll contenu, fonctionnel) sans indication visuelle qu'il y a plus de colonnes à droite — laissé tel quel, pas bloquant.
+
+**Fixes appliqués** :
+- `AgencyLayout.tsx` : exactement le même traitement que `AdminLayout.tsx` (barre mobile + drawer `fixed` en dessous de `lg`, toujours visible en sticky au-dessus) — copié quasi à l'identique, les deux layouts partageaient déjà la même structure avant le fix.
+- `AdminLayout.tsx` : `<main>` passe de `py-8` à `pb-24 pt-8` — réserve assez de place en bas de chaque page pour que la bulle Aide ne chevauche plus jamais le dernier élément interactif.
+- `MultilingueSection.tsx` : les 3 en-têtes de panneau (Site, chaque offre, chaque article) passent de `flex items-center justify-between` à `flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between` — empilés en mobile, alignés en ligne à partir de `sm`.
+
+Testé : `tsc --noEmit` propre. Vérification visuelle (CDP, mobile 390×844 + desktop 1440×900) : sidebar agence masquée par défaut en mobile, drawer avec sous-menu Facturation fonctionnel, desktop identique à avant ; bulle Aide ne chevauche plus la case "Samedi" de RDV ; en-tête Multilingue lisible en mobile (boutons sur leur propre ligne).
+
+## Suite de l'audit : débordement horizontal (Tarifs des modules, fiche produit) — 2026-07-31 (même jour)
+
+Reprise de l'audit sur les pages agence pas encore vues (Tarifs, Entreprise, Clients de facturation, Paiement) et les fiches détail (client, produit). Nouveauté dans la méthode : au-delà de l'inspection visuelle, vérification systématique de `document.documentElement.scrollWidth` vs `clientWidth` en 390px (script Node/CDP) pour détecter un débordement horizontal même quand ce n'est pas évident sur une capture d'écran.
+
+**Trouvé** : deux pages débordaient réellement de la largeur de l'écran en mobile (toute la page défilait horizontalement, pas juste un tableau contenu dans sa card) :
+- `/admin/dashboard/tarifs` (agence) : chaque ligne (`PricingSection.tsx`) alignait libellé + input + bouton "Enregistrer" sur une seule ligne sans jamais permettre de retour à la ligne — largeur cumulée bien supérieure à 390px.
+- Fiche produit (`ProductDetailPage.tsx`) : la ligne Prix/Stock (`flex-1` sans `min-w-0`) ne pouvait pas rétrécir sous la largeur intrinsèque par défaut d'un `<input>`, même exigence que le bug déjà rencontré et corrigé sur l'onglet Horaires d'Établissement (voir plus haut dans ce fichier, 2026-07-27) — un flex item par défaut ne rétrécit jamais sous le contenu de son enfant sans `min-w-0` explicite.
+
+**Vérifié sans problème** (mesuré à 390 = 390, pas de débordement) : Entreprise, Clients de facturation, Paiement, fiche client, Établissement, Blog, Commandes (le débordement des tableaux — Commandes/Clients/Messages — reste contenu dans leur card via un scroll interne, jamais la page entière).
+
+**Fixes** :
+- `PricingSection.tsx` : `flex items-center gap-3` → `flex flex-wrap items-center gap-3` — chaque ligne peut passer sur 2 lignes (input+bouton sous le libellé) au lieu de forcer la largeur de la page.
+- `ProductDetailPage.tsx` : `min-w-0` ajouté aux deux labels `flex-1` (Prix, Stock) — même fix que Horaires.
+
+Testé : `tsc --noEmit` propre ; `scrollWidth`/`clientWidth` réconciliés (390 = 390) sur les deux pages après fix ; capture desktop (1440×900) confirmant l'absence de régression sur les deux.
+
 ---
 
 **Note pour toi (Ethan)** : donne ce fichier à Claude Code phase par phase (« on attaque la Phase 2, voici le contexte : [colle le contenu de 02-architecture-modules.md et 03-modele-donnees.md] »). Ne lui donne pas tout le projet d'un coup, ça évite qu'il brûle des étapes ou fasse des suppositions sur les phases suivantes.

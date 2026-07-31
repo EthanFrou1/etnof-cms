@@ -3,7 +3,7 @@ import AdminLoginForm from "../AdminLoginForm";
 type AdminLoginScreenProps = {
   title: string;
   loginPath: string;
-  onLoggedIn: (password: string) => void;
+  onLoggedIn: (token: string, expiresAt: number) => void;
 };
 
 export default function AdminLoginScreen({ title, loginPath, onLoggedIn }: AdminLoginScreenProps) {

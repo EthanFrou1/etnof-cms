@@ -209,7 +209,7 @@ function ProductDetailContent({
                 />
               </label>
               <div className="flex gap-3">
-                <label className="flex flex-1 flex-col gap-1 text-sm text-gray-text">
+                <label className="flex min-w-0 flex-1 flex-col gap-1 text-sm text-gray-text">
                   Prix (€)
                   <input
                     className={inputClass}
@@ -220,7 +220,7 @@ function ProductDetailContent({
                     onChange={(e) => setForm({ ...form, price: e.target.value })}
                   />
                 </label>
-                <label className="flex flex-1 flex-col gap-1 text-sm text-gray-text">
+                <label className="flex min-w-0 flex-1 flex-col gap-1 text-sm text-gray-text">
                   Stock
                   <input
                     className={inputClass}
@@ -301,7 +301,7 @@ export default function ProductDetailPage({ clientSiteId, productId }: ProductDe
   const blocked = modules !== null && !modules?.catalogue?.enabled;
 
   return (
-    <AdminLayout clientSiteId={clientSiteId} activeSection="products">
+    <AdminLayout clientSiteId={clientSiteId} activeSection="products" password={password}>
       {blocked ? (
         <div className="rounded-card bg-white p-8 shadow-card">
           <p className="text-gray-text">Le module Catalogue n'est pas activé pour ce site — cette page n'est pas disponible.</p>
