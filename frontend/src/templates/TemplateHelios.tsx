@@ -247,7 +247,7 @@ export default function TemplateHelios({ clientSiteId, modules, content, palette
           <div className="grid gap-8 sm:grid-cols-2">
             {modules?.catalogue?.enabled && (
               <div id="catalogue" className="sm:col-span-2">
-                <CatalogueSection apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} palette={modulePalette} stripeEnabled={Boolean(modules?.stripe?.enabled)} locale={locale} />
+                <CatalogueSection apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} palette={modulePalette} locale={locale} />
               </div>
             )}
             {modules?.blog?.enabled && (

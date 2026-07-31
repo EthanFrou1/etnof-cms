@@ -149,7 +149,10 @@ export default function MessagesSection({ clientSiteId, password }: MessagesSect
             </span>
           </div>
 
-          <div className="overflow-x-auto rounded-card bg-white shadow-card">
+          <p className="text-xs text-gray-text sm:hidden">← Fais glisser le tableau pour voir plus de colonnes →</p>
+
+          <div className="relative overflow-x-auto rounded-card bg-white shadow-card">
+            <div className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-white to-transparent sm:hidden" />
             <table className="w-full min-w-[640px] text-sm">
               <thead>
                 <tr className="border-b border-border-subtle text-xs font-semibold uppercase tracking-[0.05em] text-gray-text">

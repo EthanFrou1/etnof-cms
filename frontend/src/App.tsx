@@ -42,6 +42,7 @@ const AGENCY_SECTIONS: AgencySection[] = [
 ];
 
 const BlogPostPage = lazy(() => import("@modules/blog/frontend/BlogPostPage"));
+const CartPage = lazy(() => import("@modules/catalogue/frontend/CartPage"));
 
 function Redirect({ to }: { to: string }) {
   useEffect(() => {
@@ -104,6 +105,16 @@ function App() {
     return (
       <Suspense fallback={null}>
         <BlogPostPage slug={segments[3]} apiBaseUrl={API_BASE_URL} clientSiteId={segments[1]} />
+      </Suspense>
+    );
+  }
+
+  // /t/{clientSiteId}/panier — page panier du module Catalogue, identique pour tous les templates
+  // (voir docs/10-templates.md)
+  if (segments[0] === "t" && segments[1] && segments[2] === "panier") {
+    return (
+      <Suspense fallback={null}>
+        <CartPage clientSiteId={segments[1]} apiBaseUrl={API_BASE_URL} />
       </Suspense>
     );
   }

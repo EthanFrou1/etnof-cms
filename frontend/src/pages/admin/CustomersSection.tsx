@@ -161,8 +161,11 @@ export default function CustomersSection({ clientSiteId, password }: CustomersSe
           </p>
         </section>
       ) : (
-        <div className="overflow-x-auto rounded-card bg-white shadow-card">
-          <table className="w-full min-w-[720px] text-sm">
+        <>
+          <p className="text-xs text-gray-text sm:hidden">← Fais glisser le tableau pour voir plus de colonnes →</p>
+          <div className="relative overflow-x-auto rounded-card bg-white shadow-card">
+            <div className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-white to-transparent sm:hidden" />
+            <table className="w-full min-w-[720px] text-sm">
             <thead>
               <tr className="border-b border-border-subtle text-xs font-semibold uppercase tracking-[0.05em] text-gray-text">
                 <th className="px-4 py-3 text-left">Nom</th>
@@ -195,7 +198,8 @@ export default function CustomersSection({ clientSiteId, password }: CustomersSe
               ))}
             </tbody>
           </table>
-        </div>
+          </div>
+        </>
       )}
 
       {showModal && (
