@@ -10,9 +10,11 @@ import {
   IconDashboard,
   IconDocument,
   IconEstablishment,
+  IconClose,
   IconExternalLink,
   IconGlobe,
   IconMail,
+  IconMenu,
   IconMessages,
   IconModules,
   IconOffers,
@@ -20,6 +22,7 @@ import {
   IconProducts,
   IconStar,
 } from "./icons";
+import SupportBubble from "./SupportBubble";
 
 export type AdminSection =
   | "dashboard"
@@ -98,11 +101,14 @@ function sectionHref(clientSiteId: string, section: AdminSection) {
 type AdminLayoutProps = {
   clientSiteId: string;
   activeSection: AdminSection;
+  password: string;
   children: ReactNode;
 };
 
-export default function AdminLayout({ clientSiteId, activeSection, children }: AdminLayoutProps) {
+export default function AdminLayout({ clientSiteId, activeSection, password, children }: AdminLayoutProps) {
   const [siteName, setSiteName] = useState<string | null>(null);
+  const [contactEmail, setContactEmail] = useState("");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const modules = useModules(clientSiteId);
   const catalogueActive = Boolean(modules?.catalogue?.enabled);
   const rdvActive = Boolean(modules?.rdv?.enabled);
@@ -144,7 +150,10 @@ export default function AdminLayout({ clientSiteId, activeSection, children }: A
   useEffect(() => {
     fetch(`${API_BASE_URL}/api/t/${clientSiteId}/content`)
       .then((res) => res.json())
-      .then((data: { siteName: string }) => setSiteName(data.siteName))
+      .then((data: { siteName: string; email?: string }) => {
+        setSiteName(data.siteName);
+        setContactEmail(data.email ?? "");
+      })
       .catch(() => {});
   }, [clientSiteId]);
 
@@ -153,18 +162,51 @@ export default function AdminLayout({ clientSiteId, activeSection, children }: A
   ).filter((entry) => (entry.kind === "leaf" ? isSectionVisible(entry.id) : entry.children.length > 0));
 
   return (
-    <div className="flex min-h-screen">
-      <aside className="sticky top-0 flex h-screen w-64 shrink-0 flex-col overflow-y-auto bg-navy px-4 py-6">
-        <div className="px-2 pb-6">
-          <span className="text-lg font-extrabold text-white">
-            Admin<span className="text-green-accent">Pro</span>
-          </span>
-          <div className="mt-4 text-xs font-semibold uppercase tracking-[0.1em] text-white/40">
-            Établissement
+    <div className="flex min-h-screen flex-col lg:flex-row">
+      <div className={`${mobileMenuOpen ? "hidden" : "flex"} sticky top-0 z-30 items-center justify-between bg-navy px-4 py-3 lg:hidden`}>
+        <span className="text-lg font-extrabold text-white">
+          Admin<span className="text-green-accent">Pro</span>
+        </span>
+        <button
+          type="button"
+          onClick={() => setMobileMenuOpen(true)}
+          className="rounded-button p-2 text-white/80 hover:bg-white/10 hover:text-white"
+          aria-label="Ouvrir le menu"
+        >
+          <IconMenu className="h-6 w-6" />
+        </button>
+      </div>
+
+      {mobileMenuOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black/40 lg:hidden"
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      )}
+
+      <aside
+        className={`${mobileMenuOpen ? "flex" : "hidden"} fixed left-0 top-0 z-40 h-screen w-64 flex-col overflow-y-auto bg-navy px-4 py-6 lg:sticky lg:z-auto lg:flex lg:shrink-0`}
+      >
+        <div className="flex items-center justify-between px-2 pb-6 lg:block">
+          <div>
+            <span className="text-lg font-extrabold text-white">
+              Admin<span className="text-green-accent">Pro</span>
+            </span>
+            <div className="mt-4 text-xs font-semibold uppercase tracking-[0.1em] text-white/40">
+              Établissement
+            </div>
+            <div className="mt-1 truncate text-sm font-semibold text-white">
+              {siteName ?? "…"}
+            </div>
           </div>
-          <div className="mt-1 truncate text-sm font-semibold text-white">
-            {siteName ?? "…"}
-          </div>
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen(false)}
+            className="rounded-button p-2 text-white/80 hover:bg-white/10 hover:text-white lg:hidden"
+            aria-label="Fermer le menu"
+          >
+            <IconClose className="h-5 w-5" />
+          </button>
         </div>
 
         <nav className="flex flex-1 flex-col gap-1">
@@ -250,9 +292,11 @@ export default function AdminLayout({ clientSiteId, activeSection, children }: A
         </div>
       </aside>
 
-      <main className="flex-1 bg-bg-page-start px-8 py-8">
+      <main className="flex-1 bg-bg-page-start px-8 pb-24 pt-8">
         <div className="w-full">{children}</div>
       </main>
+
+      <SupportBubble clientSiteId={clientSiteId} password={password} defaultEmail={contactEmail} />
     </div>
   );
 }

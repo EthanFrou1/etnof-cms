@@ -11,7 +11,12 @@ public static class AgencyDashboardEndpoints
     public static void MapEndpoints(WebApplication app)
     {
         app.MapPost("/api/admin/login", (AdminLoginInput input, IConfiguration config) =>
-            AdminPasswordHasher.Verify(input.Password, config["Admin:PasswordHash"]) ? Results.Ok() : Results.Unauthorized());
+        {
+            if (!AdminPasswordHasher.Verify(input.Password, config["Admin:PasswordHash"])) return Results.Unauthorized();
+
+            var token = AdminToken.Issue(config, "agency");
+            return Results.Ok(new { token, expiresAt = AdminToken.ExpiresAtUnixSeconds(token) });
+        }).RequireRateLimiting("login");
 
         app.MapGet("/api/admin/client-sites", async (HttpRequest req, IConfiguration config, AppDbContext db) =>
         {

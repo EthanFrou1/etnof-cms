@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 // modules/multilingue/frontend/translations.ts.
 import { t, type Locale } from "@modules/multilingue/frontend/translations";
 import { CartProvider, storageKey, useCart } from "./CartContext";
-import CartDrawer from "./CartDrawer";
 
 type ProductImage = {
   id: string;
@@ -28,7 +27,6 @@ type CatalogueSectionProps = {
   apiBaseUrl: string;
   clientSiteId: string;
   palette: ModulePalette;
-  stripeEnabled: boolean;
   locale?: Locale;
 };
 
@@ -111,7 +109,6 @@ function ProductCard({
   locale?: Locale;
 }) {
   const { addItem } = useCart();
-  const [quantity, setQuantity] = useState(1);
   const inStock = product.stock > 0;
   const thumbnail = product.images[0];
 
@@ -142,65 +139,40 @@ function ProductCard({
         {product.description && (
           <p className="flex-1 text-sm leading-relaxed text-gray-text">{product.description}</p>
         )}
-        <span
-          className={`w-fit rounded-pill px-2.5 py-1 text-xs font-semibold ${inStock ? "" : "bg-black/5 text-red-500"}`}
-          style={inStock ? { backgroundColor: `${palette.accent}24`, color: palette.accent } : undefined}
+        {!inStock && (
+          <span className="w-fit rounded-pill bg-black/5 px-2.5 py-1 text-xs font-semibold text-red-500">
+            {t(locale, "catalogue.outOfStock")}
+          </span>
+        )}
+        <button
+          type="button"
+          disabled={!inStock}
+          onClick={() => addItem(product.id, product.name, product.price, product.stock, 1)}
+          className="rounded-button px-3 py-1.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40"
+          style={{ backgroundColor: palette.accent }}
         >
-          {inStock ? `${t(locale, "catalogue.inStock")} (${product.stock})` : t(locale, "catalogue.outOfStock")}
-        </span>
-        <div className="flex items-center gap-2">
-          <input
-            type="number"
-            min={1}
-            max={product.stock}
-            value={quantity}
-            disabled={!inStock}
-            onChange={(e) => setQuantity(Math.max(1, Math.min(product.stock, Number(e.target.value) || 1)))}
-            className="w-16 rounded-button border border-border-subtle px-2 py-1.5 text-sm disabled:opacity-40"
-          />
-          <button
-            type="button"
-            disabled={!inStock}
-            onClick={() => addItem(product.id, product.name, product.price, product.stock, quantity)}
-            className="flex-1 rounded-button px-3 py-1.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40"
-            style={{ backgroundColor: palette.accent }}
-          >
-            {t(locale, "catalogue.addToCart")}
-          </button>
-        </div>
+          {t(locale, "catalogue.addToCart")}
+        </button>
       </div>
     </div>
   );
 }
 
-function CartButton({ apiBaseUrl, clientSiteId, palette, stripeEnabled, locale }: CatalogueSectionProps) {
+function CartButton({ clientSiteId, palette, locale }: { clientSiteId: string; palette: ModulePalette; locale?: Locale }) {
   const { itemCount } = useCart();
-  const [open, setOpen] = useState(false);
 
   return (
-    <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="fixed bottom-6 right-6 z-40 flex items-center gap-2 rounded-pill px-5 py-3 text-sm font-semibold text-white shadow-soft"
-        style={{ backgroundColor: palette.ink }}
-      >
-        {t(locale, "catalogue.cart")} {itemCount > 0 && `(${itemCount})`}
-      </button>
-      <CartDrawer
-        apiBaseUrl={apiBaseUrl}
-        clientSiteId={clientSiteId}
-        palette={palette}
-        stripeEnabled={stripeEnabled}
-        open={open}
-        onClose={() => setOpen(false)}
-        locale={locale}
-      />
-    </>
+    <a
+      href={`/t/${clientSiteId}/panier`}
+      className="fixed bottom-6 right-6 z-40 flex items-center gap-2 rounded-pill px-5 py-3 text-sm font-semibold text-white shadow-soft"
+      style={{ backgroundColor: palette.ink }}
+    >
+      {t(locale, "catalogue.cart")} {itemCount > 0 && `(${itemCount})`}
+    </a>
   );
 }
 
-export default function CatalogueSection({ apiBaseUrl, clientSiteId, palette, stripeEnabled, locale }: CatalogueSectionProps) {
+export default function CatalogueSection({ apiBaseUrl, clientSiteId, palette, locale }: CatalogueSectionProps) {
   const [products, setProducts] = useState<Product[]>([]);
 
   useEffect(() => {
@@ -232,9 +204,7 @@ export default function CatalogueSection({ apiBaseUrl, clientSiteId, palette, st
         </div>
       </section>
       )}
-      {products.length > 0 && (
-        <CartButton apiBaseUrl={apiBaseUrl} clientSiteId={clientSiteId} palette={palette} stripeEnabled={stripeEnabled} locale={locale} />
-      )}
+      {products.length > 0 && <CartButton clientSiteId={clientSiteId} palette={palette} locale={locale} />}
     </CartProvider>
   );
 }

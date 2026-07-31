@@ -60,7 +60,7 @@ export default function AdminPage({ clientSiteId, section }: AdminPageProps) {
     : null;
 
   return (
-    <AdminLayout clientSiteId={clientSiteId} activeSection={section}>
+    <AdminLayout clientSiteId={clientSiteId} activeSection={section} password={password}>
       {blockedByModule ? (
         <div className="rounded-card bg-white p-8 shadow-card">
           <p className="text-gray-text">

@@ -9,7 +9,8 @@
     "Default": "Host=localhost;Port=5432;Database=etnof_cms;Username=etnof;Password=etnof_dev_password"
   },
   "Admin": {
-    "PasswordHash": "GENERE_VIA_dotnet_run_--_hash-password_<ton-mot-de-passe>"
+    "PasswordHash": "GENERE_VIA_dotnet_run_--_hash-password_<ton-mot-de-passe>",
+    "TokenSecret": "<chaîne aléatoire — sert à signer les tokens de session admin (1h), voir AdminToken.cs>"
   },
   "GooglePlaces": {
     "ApiKey": "<clé API Google Cloud avec Places API activée — sert à la recherche d'établissement sur la page Établissement de l'admin>"

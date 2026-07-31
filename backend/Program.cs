@@ -1,3 +1,4 @@
+using System.Threading.RateLimiting;
 using Backend;
 using Microsoft.EntityFrameworkCore;
 using Modules.AvisGoogle;
@@ -39,9 +40,26 @@ builder.Services.AddCors(options =>
         policy.WithOrigins(allowedOrigin).AllowAnyMethod().AllowAnyHeader());
 });
 
+// Anti brute-force sur les endpoints de login admin (5 tentatives/minute/IP, pas de file d'attente —
+// une 6e tentative dans la minute reçoit immédiatement 429). Intégré au framework depuis .NET 7, pas
+// de dépendance ajoutée. Voir AgencyDashboardEndpoints.cs / TenantAdminEndpoints.cs pour l'usage.
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy("login", httpContext => RateLimitPartition.GetFixedWindowLimiter(
+        partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        factory: _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 5,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0,
+        }));
+});
+
 var app = builder.Build();
 
 app.UseCors();
+app.UseRateLimiter();
 
 // Sert les photos produits uploadées (backend/wwwroot/uploads/{clientSiteId}/{productId}/...).
 app.UseStaticFiles();

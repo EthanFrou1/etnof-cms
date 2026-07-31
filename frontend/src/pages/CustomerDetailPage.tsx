@@ -214,7 +214,7 @@ export default function CustomerDetailPage({ clientSiteId, customerId }: Custome
   const blocked = modules !== null && !modules?.catalogue?.enabled;
 
   return (
-    <AdminLayout clientSiteId={clientSiteId} activeSection="customers">
+    <AdminLayout clientSiteId={clientSiteId} activeSection="customers" password={password}>
       {blocked ? (
         <div className="rounded-card bg-white p-8 shadow-card">
           <p className="text-gray-text">Le module Catalogue n'est pas activé pour ce site — cette page n'est pas disponible.</p>

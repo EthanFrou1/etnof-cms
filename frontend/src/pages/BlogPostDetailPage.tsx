@@ -182,7 +182,7 @@ export default function BlogPostDetailPage({ clientSiteId, postId }: BlogPostDet
   const blocked = modules !== null && !modules?.blog?.enabled;
 
   return (
-    <AdminLayout clientSiteId={clientSiteId} activeSection="blog">
+    <AdminLayout clientSiteId={clientSiteId} activeSection="blog" password={password}>
       {blocked ? (
         <div className="rounded-card bg-white p-8 shadow-card">
           <p className="text-gray-text">Le module Blog n'est pas activé pour ce site — cette page n'est pas disponible.</p>

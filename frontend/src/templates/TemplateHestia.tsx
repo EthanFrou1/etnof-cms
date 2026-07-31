@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from "react";
 import { API_BASE_URL } from "../config";
 import { useEstablishmentImages, type EstablishmentImage } from "../hooks/useEstablishmentImages";
 import { t, type Locale } from "@modules/multilingue/frontend/translations";
@@ -164,6 +164,28 @@ function PhotoSlider({ images }: { images: EstablishmentImage[] }) {
   );
 }
 
+// Icônes menu mobile — inline plutôt qu'importées : les templates restent autonomes, pas de fichier
+// d'icônes partagé entre Hestia/Helios/l'admin (même convention que translations.ts, voir
+// docs/12-plan-modules-restants.md).
+function MenuIcon({ color }: { color: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.75" strokeLinecap="round" className="h-6 w-6">
+      <line x1="4" y1="7" x2="20" y2="7" />
+      <line x1="4" y1="12" x2="20" y2="12" />
+      <line x1="4" y1="17" x2="20" y2="17" />
+    </svg>
+  );
+}
+
+function CloseIcon({ color }: { color: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.75" strokeLinecap="round" className="h-6 w-6">
+      <line x1="5" y1="5" x2="19" y2="19" />
+      <line x1="19" y1="5" x2="5" y2="19" />
+    </svg>
+  );
+}
+
 // Une "bande" pleine largeur avec son propre fond, conteneur centré à l'intérieur — permet aux
 // sections de fond alterné de vraiment déborder d'un bord à l'autre du site (voir docs/10-templates.md).
 function Band({ background, children }: { background: string; children: ReactNode }) {
@@ -177,6 +199,7 @@ function Band({ background, children }: { background: string; children: ReactNod
 export default function TemplateHestia({ clientSiteId, modules, content, paletteId, locale, onChangeLocale }: TemplateProps) {
   useHestiaFonts();
 
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const mapsAddress = content?.address;
   const mapsApiKey = modules?.maps?.apiKey;
   const whatsappNumber = modules?.whatsapp?.phoneNumber;
@@ -222,13 +245,13 @@ export default function TemplateHestia({ clientSiteId, modules, content, palette
     <div className="min-h-screen" style={{ backgroundColor: background, fontFamily: poppins }}>
       <div className="mx-auto max-w-5xl px-4 pt-6 sm:px-8">
         <nav
-          className="flex items-center justify-between rounded-pill px-6 py-3 shadow-soft"
+          className="relative flex items-center justify-between rounded-pill px-6 py-3 shadow-soft"
           style={{ backgroundColor: "#FFFFFF" }}
         >
           <span className="text-lg font-extrabold" style={{ color: ink }}>
             {siteName}
           </span>
-          <div className="flex items-center gap-5 text-sm font-medium" style={{ color: `${ink}99` }}>
+          <div className="hidden items-center gap-5 text-sm font-medium md:flex" style={{ color: `${ink}99` }}>
             {modules?.catalogue?.enabled && (
               <a href="#catalogue" style={{ color: "inherit" }} className="hover:opacity-70">
                 {t(locale, "nav.catalogue")}
@@ -267,6 +290,60 @@ export default function TemplateHestia({ clientSiteId, modules, content, palette
               </Suspense>
             )}
           </div>
+
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen((open) => !open)}
+            className="md:hidden"
+            aria-label={mobileMenuOpen ? "Fermer le menu" : "Ouvrir le menu"}
+          >
+            {mobileMenuOpen ? <CloseIcon color={ink} /> : <MenuIcon color={ink} />}
+          </button>
+
+          {mobileMenuOpen && (
+            <div
+              className="absolute left-0 right-0 top-[calc(100%+8px)] z-10 flex flex-col gap-1 rounded-card p-4 text-sm font-medium shadow-soft md:hidden"
+              style={{ backgroundColor: "#FFFFFF", color: `${ink}99` }}
+            >
+              {modules?.catalogue?.enabled && (
+                <a href="#catalogue" style={{ color: "inherit" }} className="rounded-button px-2 py-2 hover:opacity-70">
+                  {t(locale, "nav.catalogue")}
+                </a>
+              )}
+              {modules?.blog?.enabled && (
+                <a href="#blog" style={{ color: "inherit" }} className="rounded-button px-2 py-2 hover:opacity-70">
+                  {t(locale, "nav.blog")}
+                </a>
+              )}
+              {modules?.rdv?.enabled && (
+                <a href="#rdv" style={{ color: "inherit" }} className="rounded-button px-2 py-2 hover:opacity-70">
+                  {t(locale, "nav.rdv")}
+                </a>
+              )}
+              {modules?.contact?.enabled && (
+                <a href="#contact" style={{ color: "inherit" }} className="rounded-button px-2 py-2 hover:opacity-70">
+                  {t(locale, "nav.contact")}
+                </a>
+              )}
+              {modules?.newsletter?.enabled && (
+                <a href="#newsletter" style={{ color: "inherit" }} className="rounded-button px-2 py-2 hover:opacity-70">
+                  {t(locale, "nav.newsletter")}
+                </a>
+              )}
+              {modules?.["avis-google"]?.enabled && (
+                <a href="#avis-google" style={{ color: "inherit" }} className="rounded-button px-2 py-2 hover:opacity-70">
+                  {t(locale, "nav.avisGoogle")}
+                </a>
+              )}
+              {modules?.multilingue?.enabled && (
+                <Suspense fallback={null}>
+                  <div className="border-t px-2 pt-2" style={{ borderColor: `${ink}1A` }}>
+                    <LanguageSwitcher locale={locale} onChange={onChangeLocale} accent={accent} />
+                  </div>
+                </Suspense>
+              )}
+            </div>
+          )}
         </nav>
       </div>
 
@@ -369,7 +446,7 @@ export default function TemplateHestia({ clientSiteId, modules, content, palette
           <div className="flex flex-col gap-16">
             {modules?.catalogue?.enabled && (
               <div id="catalogue">
-                <CatalogueSection apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} palette={modulePalette} stripeEnabled={Boolean(modules?.stripe?.enabled)} locale={locale} />
+                <CatalogueSection apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} palette={modulePalette} locale={locale} />
               </div>
             )}
             {modules?.blog?.enabled && (

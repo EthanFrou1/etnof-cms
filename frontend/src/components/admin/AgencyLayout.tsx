@@ -3,11 +3,13 @@ import {
   IconAppearance,
   IconCard,
   IconChevronDown,
+  IconClose,
   IconCustomers,
   IconDashboard,
   IconDocument,
   IconEstablishment,
   IconInvoice,
+  IconMenu,
   IconOffers,
   IconProducts,
 } from "./icons";
@@ -61,6 +63,7 @@ type AgencyLayoutProps = {
 };
 
 export default function AgencyLayout({ activeSection, children }: AgencyLayoutProps) {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() => {
     const initial = new Set<string>();
     for (const entry of NAV_ITEMS) {
@@ -81,14 +84,47 @@ export default function AgencyLayout({ activeSection, children }: AgencyLayoutPr
   };
 
   return (
-    <div className="flex min-h-screen">
-      <aside className="sticky top-0 flex h-screen w-64 shrink-0 flex-col overflow-y-auto bg-navy px-4 py-6">
-        <div className="px-2 pb-6">
-          <span className="text-lg font-extrabold text-white">
-            Admin<span className="text-green-accent">Pro</span>
-          </span>
-          <div className="mt-4 text-xs font-semibold uppercase tracking-[0.1em] text-white/40">Espace</div>
-          <div className="mt-1 truncate text-sm font-semibold text-white">Agence</div>
+    <div className="flex min-h-screen flex-col lg:flex-row">
+      <div className={`${mobileMenuOpen ? "hidden" : "flex"} sticky top-0 z-30 items-center justify-between bg-navy px-4 py-3 lg:hidden`}>
+        <span className="text-lg font-extrabold text-white">
+          Admin<span className="text-green-accent">Pro</span>
+        </span>
+        <button
+          type="button"
+          onClick={() => setMobileMenuOpen(true)}
+          className="rounded-button p-2 text-white/80 hover:bg-white/10 hover:text-white"
+          aria-label="Ouvrir le menu"
+        >
+          <IconMenu className="h-6 w-6" />
+        </button>
+      </div>
+
+      {mobileMenuOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black/40 lg:hidden"
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      )}
+
+      <aside
+        className={`${mobileMenuOpen ? "flex" : "hidden"} fixed left-0 top-0 z-40 h-screen w-64 flex-col overflow-y-auto bg-navy px-4 py-6 lg:sticky lg:z-auto lg:flex lg:shrink-0`}
+      >
+        <div className="flex items-center justify-between px-2 pb-6 lg:block">
+          <div>
+            <span className="text-lg font-extrabold text-white">
+              Admin<span className="text-green-accent">Pro</span>
+            </span>
+            <div className="mt-4 text-xs font-semibold uppercase tracking-[0.1em] text-white/40">Espace</div>
+            <div className="mt-1 truncate text-sm font-semibold text-white">Agence</div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen(false)}
+            className="rounded-button p-2 text-white/80 hover:bg-white/10 hover:text-white lg:hidden"
+            aria-label="Fermer le menu"
+          >
+            <IconClose className="h-5 w-5" />
+          </button>
         </div>
 
         <nav className="flex flex-1 flex-col gap-1">

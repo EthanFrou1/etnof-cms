@@ -86,6 +86,8 @@ public static class StripeModule
                     ["clientSiteId"] = clientSiteId.ToString(),
                     ["customerName"] = input.CustomerName,
                     ["customerEmail"] = input.CustomerEmail,
+                    ["customerPhone"] = input.CustomerPhone ?? "",
+                    ["customerAddress"] = input.CustomerAddress ?? "",
                     ["cart"] = cartJson,
                 },
             };
@@ -154,6 +156,8 @@ public static class StripeModule
 
             var email = (metadata.GetValueOrDefault("customerEmail") ?? session.CustomerDetails?.Email ?? "").Trim();
             var name = metadata.GetValueOrDefault("customerName") ?? session.CustomerDetails?.Name ?? "";
+            var phone = metadata.GetValueOrDefault("customerPhone") ?? "";
+            var address = metadata.GetValueOrDefault("customerAddress") ?? "";
 
             await using var transaction = await db.Database.BeginTransactionAsync();
 
@@ -168,6 +172,8 @@ public static class StripeModule
                     ClientSiteId = clientSiteId,
                     Name = name,
                     Email = email,
+                    Phone = phone,
+                    Address = address,
                     CreatedAt = DateTime.UtcNow,
                 };
                 db.Customers.Add(customer);
@@ -244,5 +250,5 @@ public static class StripeModule
     }
 }
 
-public record CheckoutInput(string CustomerName, string CustomerEmail, List<CheckoutItemInput> Items, string ReturnBaseUrl);
+public record CheckoutInput(string CustomerName, string CustomerEmail, string? CustomerPhone, string? CustomerAddress, List<CheckoutItemInput> Items, string ReturnBaseUrl);
 public record CheckoutItemInput(Guid ProductId, int Quantity);
