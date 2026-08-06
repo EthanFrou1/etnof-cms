@@ -100,7 +100,7 @@ public static class QuoteEndpoints
             return Results.Ok(ToDetail(quote));
         });
 
-        app.MapGet("/api/admin/quotes/{id:guid}/pdf", async (Guid id, HttpRequest req, IConfiguration config, AppDbContext db) =>
+        app.MapGet("/api/admin/quotes/{id:guid}/pdf", async (Guid id, HttpRequest req, IConfiguration config, AppDbContext db, IWebHostEnvironment env) =>
         {
             if (!AdminAuth.IsAuthorized(req, config)) return Results.Unauthorized();
 
@@ -109,8 +109,9 @@ public static class QuoteEndpoints
             var client = await db.BillingClients.FindAsync(quote.BillingClientId);
             if (client is null) return Results.NotFound();
             var company = await CompanyProfileEndpoints.GetOrCreateAsync(db);
+            var logoPath = CompanyProfileEndpoints.ResolveLogoPath(company, env);
 
-            var bytes = new QuotePdfDocument(company, client, quote, ParseLines(quote.LineItemsJson)).GeneratePdf();
+            var bytes = new QuotePdfDocument(company, client, quote, ParseLines(quote.LineItemsJson), logoPath).GeneratePdf();
             return Results.File(bytes, "application/pdf", $"devis-{quote.Number}.pdf");
         });
 

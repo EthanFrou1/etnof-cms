@@ -76,6 +76,19 @@ public static class CompanyProfileEndpoints
         }).DisableAntiforgery();
     }
 
+    // Résout le chemin disque absolu du logo (null si aucun logo ou fichier manquant) — utilisé par
+    // les endpoints qui génèrent les PDF de devis/factures pour l'afficher dans l'en-tête.
+    public static string? ResolveLogoPath(CompanyProfile profile, IWebHostEnvironment env)
+    {
+        if (string.IsNullOrEmpty(profile.LogoPath)) return null;
+
+        var webRoot = string.IsNullOrEmpty(env.WebRootPath)
+            ? Path.Combine(env.ContentRootPath, "wwwroot")
+            : env.WebRootPath;
+        var fullPath = Path.Combine(webRoot, profile.LogoPath.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
+        return File.Exists(fullPath) ? fullPath : null;
+    }
+
     // Une seule ligne, créée à la première lecture/écriture (même logique que le seed SiteContent
     // par tenant, mais ici il n'y a qu'un seul "tenant" possible : l'agence elle-même).
     public static async Task<CompanyProfile> GetOrCreateAsync(AppDbContext db)

@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { API_BASE_URL } from "../../config";
 import { adminFetch } from "../../hooks/useAdminSession";
+import { StatusLegend } from "../../components/admin/StatusLegend";
 
 type OrderItem = {
   id: string;
@@ -41,6 +42,12 @@ const STATUS_FILTERS: { value: "all" | Order["status"]; label: string }[] = [
   { value: "pending", label: "À traiter" },
   { value: "fulfilled", label: "Traitée" },
   { value: "cancelled", label: "Annulée" },
+];
+
+const STATUS_LEGEND = [
+  { label: statusLabel.pending, badgeClass: statusBadgeClass.pending, description: "Commande reçue, en attente de préparation/expédition." },
+  { label: statusLabel.fulfilled, badgeClass: statusBadgeClass.fulfilled, description: "Commande traitée et finalisée." },
+  { label: statusLabel.cancelled, badgeClass: statusBadgeClass.cancelled, description: "Commande annulée, ne sera pas honorée." },
 ];
 
 type SortField = "createdAt" | "total" | "customerName";
@@ -163,6 +170,7 @@ export default function OrdersSection({ clientSiteId, password }: OrdersSectionP
                 </option>
               ))}
             </select>
+            <StatusLegend items={STATUS_LEGEND} />
             <span className="text-sm text-gray-text">
               {filteredSorted.length} commande{filteredSorted.length > 1 ? "s" : ""}
             </span>

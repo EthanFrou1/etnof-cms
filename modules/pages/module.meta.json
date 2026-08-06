@@ -1,0 +1,6 @@
+{
+  "name": "pages",
+  "displayName": "Pages personnalisées",
+  "description": "Pages libres (mentions légales, à propos...) réunies sous un menu déroulant configurable dans le header",
+  "dependencies": []
+}

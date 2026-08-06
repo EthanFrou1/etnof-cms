@@ -64,37 +64,52 @@ function AddCustomerModal({
         </div>
 
         <div className="flex flex-col gap-3">
-          <input
-            className={inputClass}
-            placeholder="Nom"
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-          />
-          <input
-            className={inputClass}
-            placeholder="Email"
-            type="email"
-            value={form.email}
-            onChange={(e) => setForm({ ...form, email: e.target.value })}
-          />
-          <input
-            className={inputClass}
-            placeholder="Téléphone"
-            value={form.phone}
-            onChange={(e) => setForm({ ...form, phone: e.target.value })}
-          />
-          <input
-            className={inputClass}
-            placeholder="Adresse"
-            value={form.address}
-            onChange={(e) => setForm({ ...form, address: e.target.value })}
-          />
-          <textarea
-            className={inputClass}
-            placeholder="Notes"
-            value={form.notes}
-            onChange={(e) => setForm({ ...form, notes: e.target.value })}
-          />
+          <label className="flex flex-col gap-1 text-sm font-medium text-gray-text">
+            Nom
+            <input
+              className={inputClass}
+              placeholder="Nom"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-sm font-medium text-gray-text">
+            Email
+            <input
+              className={inputClass}
+              placeholder="Email"
+              type="email"
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-sm font-medium text-gray-text">
+            Téléphone
+            <input
+              className={inputClass}
+              placeholder="Téléphone"
+              value={form.phone}
+              onChange={(e) => setForm({ ...form, phone: e.target.value })}
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-sm font-medium text-gray-text">
+            Adresse
+            <input
+              className={inputClass}
+              placeholder="Adresse"
+              value={form.address}
+              onChange={(e) => setForm({ ...form, address: e.target.value })}
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-sm font-medium text-gray-text">
+            Notes
+            <textarea
+              className={inputClass}
+              placeholder="Notes"
+              value={form.notes}
+              onChange={(e) => setForm({ ...form, notes: e.target.value })}
+            />
+          </label>
 
           {status === "error" && <p className="text-red-500">Le client n'a pas pu être créé.</p>}
 

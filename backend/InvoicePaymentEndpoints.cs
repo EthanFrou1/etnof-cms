@@ -35,6 +35,7 @@ public static class InvoicePaymentEndpoints
                 invoice.PaidAt,
                 ClientName = client?.Name ?? "",
                 CompanyTradeName = company.TradeName,
+                CompanyEmail = company.Email,
             });
         });
 
@@ -93,7 +94,7 @@ public static class InvoicePaymentEndpoints
 
         // Appelé par Stripe, jamais par le navigateur — seule source de vérité pour marquer une
         // facture payée (même principe que le webhook du module Stripe tenant).
-        app.MapPost("/api/public/invoices/stripe-webhook", async (HttpRequest request, AppDbContext db, IHttpClientFactory httpFactory, IConfiguration config) =>
+        app.MapPost("/api/public/invoices/stripe-webhook", async (HttpRequest request, AppDbContext db, IHttpClientFactory httpFactory, IConfiguration config, IWebHostEnvironment env) =>
         {
             var settings = await AgencyStripeEndpoints.GetOrCreateAsync(db);
             if (string.IsNullOrWhiteSpace(settings.WebhookSecret))
@@ -147,7 +148,8 @@ public static class InvoicePaymentEndpoints
                     if (billingClient is not null)
                     {
                         var lines = ParseLines(invoice.LineItemsJson);
-                        var pdfBytes = new InvoicePdfDocument(company, billingClient, invoice, lines).GeneratePdf();
+                        var logoPath = CompanyProfileEndpoints.ResolveLogoPath(company, env);
+                        var pdfBytes = new InvoicePdfDocument(company, billingClient, invoice, lines, logoPath).GeneratePdf();
                         var http = httpFactory.CreateClient();
                         var frontendBaseUrl = config["Cors:AllowedOrigin"] ?? "http://localhost:5173";
                         var sent = await BrevoEmailService.SendInvoicePaidEmailAsync(http, emailSettings.BrevoApiKey, company, billingClient, invoice, lines, pdfBytes, frontendBaseUrl);

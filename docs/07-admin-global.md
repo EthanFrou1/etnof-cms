@@ -33,6 +33,17 @@ Contrairement à l'approche initialement envisagée ci-dessous (outil séparé),
 - Historique des échanges / gestion de prospects (Prospect, Mockup, EmailEnvoyé...) — toujours hors scope, non implémenté.
 - Mécanisme de dépendance entre modules (ex. rendre "Catalogue" prérequis d'un futur module) — toujours juste documenté dans `module.meta.json`, jamais appliqué (décision explicite d'Ethan de ne pas le construire pour l'instant, voir `docs/05-roadmap-poc.md`).
 
+### Vue d'ensemble multi-sites enrichie (2026-08-06)
+
+`GET /api/admin/stats` et `OverviewSection.tsx` (page "Tableau de bord") étendus avec, en plus des stats sites déjà existantes : CA encaissé ce mois (somme des factures `paid` dont `PaidAt` tombe dans le mois en cours), factures en retard (nombre + montant total, `Status == "sent"` et `DueDate` dépassée), et une carte "Rendez-vous à venir (tous sites)" — les 5 prochaines réservations RDV confirmées, tous tenants confondus, même principe que la carte équivalente déjà affichée côté client (`DashboardSection.tsx`, `UpcomingAppointmentsCard`). Faisable directement en SQL/EF Core sans appel réseau supplémentaire : tous les tenants partagent la même base Postgres (un seul `AppDbContext`), pas besoin d'interroger chaque site individuellement.
+
+### Backlog noté le 2026-08-06 (brainstorm fonctionnalités manquantes)
+
+Deux idées retenues par Ethan mais explicitement mises de côté pour plus tard (priorité donnée à la vue d'ensemble multi-sites + relance des impayés, voir plus bas et `docs/13-facturation-devis.md`) :
+
+- **Sauvegardes automatiques** — aucun mécanisme de backup de la base Postgres aujourd'hui (multi-tenant, un seul schéma partagé). À faire : dump planifié + rétention, avant qu'un vrai client soit dessus si possible.
+- **Multi-utilisateurs / rôles** — un seul mot de passe par site (agence et par tenant), pas de rôle "collaborateur"/accès limité. Rejoint le point déjà noté plus haut ("Back-office/CMS à durcir avant vente").
+
 ### Navigation fusionnée en sidebar (2026-07-30)
 
 `AgencyDashboardPage.tsx` (vue globale, une seule page qui scrollait) et `AgencyBillingPage.tsx` (facturation, ses propres onglets internes) sont remplacées par une navigation unique, même pattern que l'admin par tenant (`AdminLayout.tsx`) :

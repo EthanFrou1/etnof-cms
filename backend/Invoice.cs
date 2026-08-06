@@ -35,6 +35,16 @@ public class Invoice
     // double envoi si Stripe rejoue l'événement webhook, et trace visible dans l'admin.
     public DateTime? ConfirmationEmailSentAt { get; set; }
 
+    // Posé après l'envoi réussi de l'email "nouvelle facture" à la finalisation (voir
+    // InvoiceEndpoints.Finalize) — pas d'enjeu d'idempotence ici (la finalisation ne peut se
+    // produire qu'une fois, verrouillée par IsFinalized), simple trace pour l'admin.
+    public DateTime? SentEmailAt { get; set; }
+
+    // Posé après l'envoi réussi de la relance automatique J+7 (voir OverdueInvoiceReminderService)
+    // — sert de garde d'idempotence (jamais relancé deux fois, un seul rappel voulu par Ethan) autant
+    // que de trace pour l'admin.
+    public DateTime? ReminderSentAt { get; set; }
+
     public DateTime CreatedAt { get; set; }
 }
 

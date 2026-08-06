@@ -13,12 +13,14 @@ import {
   IconClose,
   IconExternalLink,
   IconGlobe,
+  IconImage,
   IconMail,
   IconMenu,
   IconMessages,
   IconModules,
   IconOffers,
   IconOrders,
+  IconPages,
   IconProducts,
   IconStar,
 } from "./icons";
@@ -39,7 +41,9 @@ export type AdminSection =
   | "avis-google"
   | "stripe"
   | "blog"
-  | "multilingue";
+  | "multilingue"
+  | "galerie"
+  | "pages";
 
 // Produits/Commandes/Clients n'existent que via le module Catalogue (un client n'apparaît que
 // s'il a passé commande) — pas de module "customers" séparé, voir docs/04-catalogue-modules.md.
@@ -53,6 +57,8 @@ export const AVIS_GOOGLE_SECTIONS: AdminSection[] = ["avis-google"];
 export const STRIPE_SECTIONS: AdminSection[] = ["stripe"];
 export const BLOG_SECTIONS: AdminSection[] = ["blog"];
 export const MULTILINGUE_SECTIONS: AdminSection[] = ["multilingue"];
+export const GALERIE_SECTIONS: AdminSection[] = ["galerie"];
+export const PAGES_SECTIONS: AdminSection[] = ["pages"];
 
 type NavLeaf = { kind: "leaf"; id: AdminSection; label: string; icon: typeof IconDashboard };
 type NavGroup = { kind: "group"; id: string; label: string; icon: typeof IconDashboard; children: NavLeaf[] };
@@ -89,6 +95,8 @@ const NAV_ITEMS: NavEntry[] = [
       leaf("avis-google", "Avis Google", IconStar),
       leaf("stripe", "Paiement Stripe", IconCard),
       leaf("multilingue", "Multilingue", IconGlobe),
+      leaf("galerie", "Galerie", IconImage),
+      leaf("pages", "Pages personnalisées", IconPages),
     ],
   },
   leaf("messages", "Messages", IconMessages),
@@ -116,6 +124,8 @@ export default function AdminLayout({ clientSiteId, activeSection, password, chi
   const avisGoogleActive = Boolean(modules?.["avis-google"]?.enabled);
   const stripeActive = Boolean(modules?.stripe?.enabled);
   const blogActive = Boolean(modules?.blog?.enabled);
+  const galerieActive = Boolean(modules?.galerie?.enabled);
+  const pagesActive = Boolean(modules?.pages?.enabled);
 
   const isSectionVisible = (id: AdminSection) =>
     (!CATALOGUE_SECTIONS.includes(id) || catalogueActive) &&
@@ -123,7 +133,9 @@ export default function AdminLayout({ clientSiteId, activeSection, password, chi
     (!NEWSLETTER_SECTIONS.includes(id) || newsletterActive) &&
     (!AVIS_GOOGLE_SECTIONS.includes(id) || avisGoogleActive) &&
     (!STRIPE_SECTIONS.includes(id) || stripeActive) &&
-    (!BLOG_SECTIONS.includes(id) || blogActive);
+    (!BLOG_SECTIONS.includes(id) || blogActive) &&
+    (!GALERIE_SECTIONS.includes(id) || galerieActive) &&
+    (!PAGES_SECTIONS.includes(id) || pagesActive);
 
   // Un groupe contenant la section active s'ouvre automatiquement (calculé une seule fois au
   // montage : la navigation entre sections recharge la page — voir sectionHref — donc pas besoin

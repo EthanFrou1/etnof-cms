@@ -13,6 +13,8 @@ const CatalogueSection = lazy(() => import("@modules/catalogue/frontend/Catalogu
 const RdvSection = lazy(() => import("@modules/rdv/frontend/RdvSection"));
 const NewsletterSection = lazy(() => import("@modules/newsletter/frontend/NewsletterSection"));
 const AvisGoogleSection = lazy(() => import("@modules/avis-google/frontend/AvisGoogleSection"));
+const GallerySection = lazy(() => import("@modules/galerie/frontend/GallerySection"));
+const CustomPagesNav = lazy(() => import("@modules/pages/frontend/CustomPagesNav"));
 const WhatsAppButton = lazy(() => import("@modules/whatsapp/frontend/WhatsAppButton"));
 const LanguageSwitcher = lazy(() => import("@modules/multilingue/frontend/LanguageSwitcher"));
 
@@ -204,6 +206,7 @@ export default function TemplateHestia({ clientSiteId, modules, content, palette
   const mapsApiKey = modules?.maps?.apiKey;
   const whatsappNumber = modules?.whatsapp?.phoneNumber;
   const whatsappMessage = modules?.whatsapp?.message;
+  const pagesMenuLabel = modules?.pages?.menuLabel;
   const siteName = content?.siteName ?? "etnof-cms";
   const palette = HESTIA_PALETTES.find((p) => p.id === paletteId) ?? HESTIA_PALETTES[0];
   const { accent, background } = palette;
@@ -282,6 +285,11 @@ export default function TemplateHestia({ clientSiteId, modules, content, palette
                 {t(locale, "nav.avisGoogle")}
               </a>
             )}
+            {modules?.pages?.enabled && typeof pagesMenuLabel === "string" && (
+              <Suspense fallback={null}>
+                <CustomPagesNav apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} label={pagesMenuLabel} ink={ink} variant="desktop" />
+              </Suspense>
+            )}
             {modules?.multilingue?.enabled && (
               <Suspense fallback={null}>
                 <div className="border-l pl-4" style={{ borderColor: `${ink}1A` }}>
@@ -334,6 +342,11 @@ export default function TemplateHestia({ clientSiteId, modules, content, palette
                 <a href="#avis-google" style={{ color: "inherit" }} className="rounded-button px-2 py-2 hover:opacity-70">
                   {t(locale, "nav.avisGoogle")}
                 </a>
+              )}
+              {modules?.pages?.enabled && typeof pagesMenuLabel === "string" && (
+                <Suspense fallback={null}>
+                  <CustomPagesNav apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} label={pagesMenuLabel} ink={ink} variant="mobile" />
+                </Suspense>
               )}
               {modules?.multilingue?.enabled && (
                 <Suspense fallback={null}>
@@ -474,6 +487,11 @@ export default function TemplateHestia({ clientSiteId, modules, content, palette
                 <AvisGoogleSection apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} palette={modulePalette} locale={locale} />
               </div>
             )}
+            {modules?.galerie?.enabled && (
+              <div id="galerie">
+                <GallerySection apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} palette={modulePalette} locale={locale} />
+              </div>
+            )}
             {modules?.maps?.enabled && typeof mapsAddress === "string" && (
               <MapsSection
                 address={mapsAddress}
@@ -486,7 +504,7 @@ export default function TemplateHestia({ clientSiteId, modules, content, palette
         </Suspense>
       </Band>
 
-      <SiteFooter content={content} palette={modulePalette} dark />
+      <SiteFooter content={content} palette={modulePalette} modules={modules} dark />
 
       {/* Bouton flottant hors du flux de bandes (persistant, pas une section qu'on scrolle) — voir
           modules/whatsapp/frontend/WhatsAppButton.tsx : pas de lien de nav ni d'ancre associée. */}

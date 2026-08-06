@@ -110,36 +110,48 @@ function AddProductModal({ clientSiteId, password, onClose, onCreated }: AddProd
         </div>
 
         <div className="flex flex-col gap-3">
-          <input
-            className={inputClass}
-            placeholder="Nom"
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-          />
-          <textarea
-            className={inputClass}
-            placeholder="Description"
-            value={form.description}
-            onChange={(e) => setForm({ ...form, description: e.target.value })}
-          />
+          <label className="flex flex-col gap-1 text-sm font-medium text-gray-text">
+            Nom
+            <input
+              className={inputClass}
+              placeholder="Nom"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-sm font-medium text-gray-text">
+            Description
+            <textarea
+              className={inputClass}
+              placeholder="Description"
+              value={form.description}
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
+            />
+          </label>
           <div className="flex gap-3">
-            <input
-              className={inputClass}
-              placeholder="Prix (€)"
-              type="number"
-              min={0}
-              step="0.01"
-              value={form.price}
-              onChange={(e) => setForm({ ...form, price: e.target.value })}
-            />
-            <input
-              className={inputClass}
-              placeholder="Stock"
-              type="number"
-              min={0}
-              value={form.stock}
-              onChange={(e) => setForm({ ...form, stock: e.target.value })}
-            />
+            <label className="flex flex-1 flex-col gap-1 text-sm font-medium text-gray-text">
+              Prix (€)
+              <input
+                className={inputClass}
+                placeholder="Prix (€)"
+                type="number"
+                min={0}
+                step="0.01"
+                value={form.price}
+                onChange={(e) => setForm({ ...form, price: e.target.value })}
+              />
+            </label>
+            <label className="flex flex-1 flex-col gap-1 text-sm font-medium text-gray-text">
+              Stock
+              <input
+                className={inputClass}
+                placeholder="Stock"
+                type="number"
+                min={0}
+                value={form.stock}
+                onChange={(e) => setForm({ ...form, stock: e.target.value })}
+              />
+            </label>
           </div>
 
           <div className="flex flex-wrap gap-3">

@@ -282,6 +282,12 @@ namespace Backend.Migrations
                     b.Property<Guid?>("QuoteId")
                         .HasColumnType("uuid");
 
+                    b.Property<DateTime?>("ReminderSentAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("SentEmailAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("text");
@@ -786,6 +792,27 @@ namespace Backend.Migrations
                     b.ToTable("ContactMessages");
                 });
 
+            modelBuilder.Entity("Modules.Galerie.GalleryImage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ClientSiteId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Path")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("GalleryImages");
+                });
+
             modelBuilder.Entity("Modules.Multilingue.ContentTranslation", b =>
                 {
                     b.Property<Guid>("Id")
@@ -838,6 +865,41 @@ namespace Backend.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("NewsletterSubscribers");
+                });
+
+            modelBuilder.Entity("Modules.Pages.CustomPage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ClientSiteId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("PublishedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("CustomPages");
                 });
 
             modelBuilder.Entity("Modules.Rdv.Booking", b =>

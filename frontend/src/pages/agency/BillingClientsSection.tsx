@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { API_BASE_URL } from "../../config";
 import { adminFetch } from "../../hooks/useAdminSession";
-import { inputClass, type BillingClient, type ClientSiteOption } from "./shared";
+import { AddressAutocomplete, inputClass, type BillingClient, type ClientSiteOption } from "./shared";
 
 const emptyBillingClientForm = {
   clientSiteId: "" as string,
@@ -75,13 +75,16 @@ function BillingClientFormModal({
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-          <input
-            className={inputClass}
-            placeholder="Nom / raison sociale"
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-            required
-          />
+          <label className="flex flex-col gap-1 text-sm font-medium text-gray-text">
+            Nom / raison sociale
+            <input
+              className={inputClass}
+              placeholder="Nom / raison sociale"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              required
+            />
+          </label>
           <label className="flex items-center gap-2 text-sm text-navy">
             <input
               type="checkbox"
@@ -91,49 +94,67 @@ function BillingClientFormModal({
             />
             Client professionnel (pas un particulier)
           </label>
-          <input
-            className={inputClass}
-            placeholder="SIRET (si pro)"
-            value={form.siret}
-            onChange={(e) => setForm({ ...form, siret: e.target.value })}
-          />
-          <input
-            className={inputClass}
-            placeholder="Adresse"
-            value={form.address}
-            onChange={(e) => setForm({ ...form, address: e.target.value })}
-          />
-          <input
-            className={inputClass}
-            type="email"
-            placeholder="Email"
-            value={form.email}
-            onChange={(e) => setForm({ ...form, email: e.target.value })}
-          />
-          <input
-            className={inputClass}
-            placeholder="Téléphone"
-            value={form.phone}
-            onChange={(e) => setForm({ ...form, phone: e.target.value })}
-          />
-          <select
-            className={inputClass}
-            value={form.clientSiteId}
-            onChange={(e) => setForm({ ...form, clientSiteId: e.target.value })}
-          >
-            <option value="">— Pas de site lié (prospect / hors plateforme) —</option>
-            {clientSites.map((site) => (
-              <option key={site.id} value={site.id}>
-                {site.name}
-              </option>
-            ))}
-          </select>
-          <textarea
-            className={inputClass}
-            placeholder="Notes"
-            value={form.notes}
-            onChange={(e) => setForm({ ...form, notes: e.target.value })}
-          />
+          <label className="flex flex-col gap-1 text-sm font-medium text-gray-text">
+            SIRET
+            <input
+              className={inputClass}
+              placeholder="Si professionnel"
+              value={form.siret}
+              onChange={(e) => setForm({ ...form, siret: e.target.value })}
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-sm font-medium text-gray-text">
+            Adresse
+            <AddressAutocomplete
+              password={password}
+              value={form.address}
+              onChange={(address) => setForm({ ...form, address })}
+              placeholder="Adresse"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-sm font-medium text-gray-text">
+            Email
+            <input
+              className={inputClass}
+              type="email"
+              placeholder="Email"
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-sm font-medium text-gray-text">
+            Téléphone
+            <input
+              className={inputClass}
+              placeholder="Téléphone"
+              value={form.phone}
+              onChange={(e) => setForm({ ...form, phone: e.target.value })}
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-sm font-medium text-gray-text">
+            Site client lié
+            <select
+              className={inputClass}
+              value={form.clientSiteId}
+              onChange={(e) => setForm({ ...form, clientSiteId: e.target.value })}
+            >
+              <option value="">— Pas de site lié (prospect / hors plateforme) —</option>
+              {clientSites.map((site) => (
+                <option key={site.id} value={site.id}>
+                  {site.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1 text-sm font-medium text-gray-text">
+            Notes
+            <textarea
+              className={inputClass}
+              placeholder="Notes"
+              value={form.notes}
+              onChange={(e) => setForm({ ...form, notes: e.target.value })}
+            />
+          </label>
 
           <div className="flex gap-2">
             <button

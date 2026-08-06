@@ -74,6 +74,36 @@ export function IconPhone({ className = base }: IconProps) {
   );
 }
 
+export function IconLock({ className = base }: IconProps) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
+      <rect x="5" y="11" width="14" height="9" rx="2" />
+      <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+    </svg>
+  );
+}
+
+export function IconPages({ className = base }: IconProps) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
+      <path d="M8 3h9a2 2 0 0 1 2 2v13" />
+      <rect x="5" y="6" width="11" height="15" rx="2" />
+      <line x1="8" y1="11" x2="13" y2="11" />
+      <line x1="8" y1="15" x2="13" y2="15" />
+    </svg>
+  );
+}
+
+export function IconImage({ className = base }: IconProps) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <circle cx="8.5" cy="9.5" r="1.5" fill="currentColor" stroke="none" />
+      <path d="M21 16l-5.5-5.5a1.5 1.5 0 0 0-2.1 0L4 19" />
+    </svg>
+  );
+}
+
 export function IconEstablishment({ className = base }: IconProps) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">

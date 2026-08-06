@@ -6,7 +6,7 @@ Aligné sur la grille tarifaire etnof-web actuelle. Statut : à date de rédacti
 |---|---|---|
 | Contact | Formulaire de contact (inclus formule Essentiel) | Implémenté (Phase 2) |
 | Maps | Carte Google Maps (offert) | Implémenté (Phase 2) — clé Google Maps API à fournir par le client |
-| Blog | Blog (+250€) | Implémenté (Phase 4, affichage public uniquement) — admin (créer/éditer/publier/supprimer un article) ajouté le 2026-07-29, `/admin/{clientSiteId}/blog` |
+| Blog | Blog (+250€) | Implémenté (Phase 4, affichage public uniquement) — admin (créer/éditer/publier/supprimer un article) ajouté le 2026-07-29, `/admin/{clientSiteId}/blog`. Éditeur riche (TipTap) ajouté le 2026-08-06, voir `docs/12-plan-modules-restants.md` |
 | Catalogue produits | Absent de la grille tarifaire actuelle — à prioriser par Ethan | Implémenté (2026-07-26). Produits (photos, prix, description, stock) + panier + commande. Pas de paiement en ligne réel (voir note ci-dessous) |
 | Horaires | Absent de la grille tarifaire actuelle — gratuit pour l'instant (décision d'Ethan) | Implémenté (2026-07-27). Onglet Horaires dans la page Établissement (récupération auto depuis Google Places, pause méridienne) — gate l'onglet admin, pas les données (stockées dans `SiteContent` comme le reste d'Établissement). Affichage sur le site public pas encore câblé |
 | Back-office / CMS léger | Back-office/CMS (+450€) | Largement couvert par l'admin `/admin` du POC (Phase 3) — reste à durcir avant vente (voir bilan Phase 5) |
@@ -19,7 +19,11 @@ Aligné sur la grille tarifaire etnof-web actuelle. Statut : à date de rédacti
 | WhatsApp | Bouton WhatsApp (+90€) | Implémenté (2026-07-28). Bouton flottant (vert WhatsApp officiel, reconnaissable) ouvrant `wa.me` avec un message pré-rempli configurable. Aucun backend, purement frontend (même principe que Maps) |
 | Chat IA | Chat IA (+390€) | Mis de côté pour l'instant (décision d'Ethan, 2026-07-29) — pas abandonné, juste dépriorisé après Stripe |
 | FAQ IA | FAQ IA (+290€) | Mis de côté pour l'instant (décision d'Ethan, 2026-07-29) — pas abandonné, juste dépriorisé après Stripe |
-| SEO avancé | SEO avancé (+390€) | Post-POC (transverse, pas un vrai "module" isolé) |
+| SEO avancé | SEO avancé (+390€) | Post-POC (transverse, pas un vrai "module" isolé). Une base gratuite (titre + meta description + Open Graph, posés en JS) est déjà livrée hors module, voir `docs/12-plan-modules-restants.md` |
+| Réseaux sociaux | Absent de la grille tarifaire actuelle — à prioriser par Ethan | Implémenté (2026-08-06). Icônes Facebook/Instagram dans le pied de page (couleurs de marque officielles, même rationale que WhatsApp), masquées individuellement si l'URL correspondante est vide |
+| Galerie | Absent de la grille tarifaire actuelle — à prioriser par Ethan | Implémenté (2026-08-06). Galerie de photos illimitée (contrairement aux 3 photos d'Établissement), grille cliquable avec agrandissement plein écran. Module complet (backend + admin + section publique), voir `docs/02-architecture-modules.md` |
+| Statistiques (Google Analytics) | Absent de la grille tarifaire actuelle — à prioriser par Ethan | Implémenté (2026-08-06). Le client colle son ID de mesure GA4 ; le script Google Analytics ne se charge qu'après consentement explicite via un bandeau RGPD (choix mémorisé en localStorage). Voir `docs/12-plan-modules-restants.md` pour le détail et les limites de la V1 |
+| Pages personnalisées | Page supplémentaire (+80€) | Implémenté (2026-08-06), tranché en vrai module plutôt qu'en livrable manuel. Pages libres (mentions légales, CGV, à propos...) réunies sous un menu déroulant configurable dans le header, ordre choisi par le client (boutons monter/descendre). Même éditeur riche que le Blog. Voir `docs/12-plan-modules-restants.md` |
 
 ## Note (mise à jour après le bilan Phase 5)
 
