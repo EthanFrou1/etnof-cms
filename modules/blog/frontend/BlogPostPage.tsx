@@ -47,6 +47,27 @@ export default function BlogPostPage({ slug, apiBaseUrl, clientSiteId }: BlogPos
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug, apiBaseUrl, clientSiteId]);
 
+  // Titre d'onglet + meta description propres à l'article — logique dupliquée depuis
+  // frontend/src/hooks/useDocumentMeta.ts plutôt qu'importée à travers la frontière module/frontend
+  // (un module reste isolé, voir docs/02-architecture-modules.md, même principe que readStoredLocale
+  // ci-dessus).
+  useEffect(() => {
+    if (!post) return;
+    document.title = post.title;
+    // Balises HTML retirées avant troncature — post.content peut désormais contenir du HTML
+    // (éditeur riche TipTap), une meta description ne doit jamais inclure de balises brutes.
+    const description = post.content.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 160);
+    for (const [attr, key] of [["property", "og:title"], ["name", "description"], ["property", "og:description"]] as const) {
+      let tag = document.head.querySelector<HTMLMetaElement>(`meta[${attr}="${key}"]`);
+      if (!tag) {
+        tag = document.createElement("meta");
+        tag.setAttribute(attr, key);
+        document.head.appendChild(tag);
+      }
+      tag.setAttribute("content", key === "og:title" ? post.title : description);
+    }
+  }, [post]);
+
   return (
     <div className="min-h-screen px-4 py-6 sm:px-8">
       <div className="mx-auto flex max-w-2xl flex-col gap-8">
@@ -64,7 +85,17 @@ export default function BlogPostPage({ slug, apiBaseUrl, clientSiteId }: BlogPos
         {post && (
           <article className="rounded-card bg-white p-10 shadow-card">
             <h1 className="mb-6 text-4xl font-black leading-tight text-navy">{post.title}</h1>
-            <div className="whitespace-pre-wrap leading-relaxed text-gray-text">{post.content}</div>
+            {/* Articles écrits avant l'éditeur riche (TipTap) restent du texte brut sans balise —
+                repli sur l'ancien rendu whitespace-pre-wrap pour ne pas perdre leurs retours à la
+                ligne ; le HTML produit par l'éditeur est rendu tel quel sinon. */}
+            {/<[a-z][\s\S]*>/i.test(post.content) ? (
+              <div
+                className="leading-relaxed text-gray-text [&_a]:text-brand-mid [&_a]:underline [&_blockquote]:border-l-2 [&_blockquote]:border-border-subtle [&_blockquote]:pl-3 [&_blockquote]:italic [&_h2]:mb-2 [&_h2]:mt-6 [&_h2]:text-2xl [&_h2]:font-bold [&_h2]:text-navy [&_h3]:mb-2 [&_h3]:mt-5 [&_h3]:text-xl [&_h3]:font-bold [&_h3]:text-navy [&_ol]:mb-4 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:mb-4 [&_ul]:mb-4 [&_ul]:list-disc [&_ul]:pl-5"
+                dangerouslySetInnerHTML={{ __html: post.content }}
+              />
+            ) : (
+              <div className="whitespace-pre-wrap leading-relaxed text-gray-text">{post.content}</div>
+            )}
           </article>
         )}
       </div>

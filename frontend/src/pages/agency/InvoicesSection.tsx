@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { API_BASE_URL } from "../../config";
+import { StatusLegend } from "../../components/admin/StatusLegend";
 import { adminFetch } from "../../hooks/useAdminSession";
 import {
   inputClass,
@@ -54,6 +55,26 @@ const INVOICE_STATUS_STYLES: Record<string, string> = {
   overdue: "bg-red-100 text-red-600",
   cancelled: "bg-border-subtle/40 text-gray-text line-through",
 };
+
+const INVOICE_STATUS_LEGEND = [
+  { label: INVOICE_STATUS_LABELS.draft, badgeClass: INVOICE_STATUS_STYLES.draft, description: "Pas encore de numéro — modifiable ou supprimable librement." },
+  { label: INVOICE_STATUS_LABELS.sent, badgeClass: INVOICE_STATUS_STYLES.sent, description: "Finalisée (numéro définitif attribué), en attente de paiement." },
+  { label: INVOICE_STATUS_LABELS.paid, badgeClass: INVOICE_STATUS_STYLES.paid, description: "Réglée, en ligne (Stripe) ou marquée payée manuellement." },
+  { label: INVOICE_STATUS_LABELS.overdue, badgeClass: INVOICE_STATUS_STYLES.overdue, description: "Envoyée et échéance dépassée sans paiement. Un rappel automatique part au client 7 jours après l'échéance." },
+  { label: INVOICE_STATUS_LABELS.cancelled, badgeClass: INVOICE_STATUS_STYLES.cancelled, description: "Ne sera jamais payée — le numéro reste réservé (séquence légale sans trou)." },
+];
+
+// "overdue" n'existe pas côté base (voir Invoice.cs) — dérivé côté client (isOverdue) à partir
+// d'une facture "sent" dont l'échéance est dépassée, mais traité comme un statut à part entière
+// pour l'affichage et le filtre, au même titre que les statuts réels.
+const INVOICE_STATUS_FILTERS: { value: "all" | keyof typeof INVOICE_STATUS_LABELS; label: string }[] = [
+  { value: "all", label: "Tous les statuts" },
+  { value: "draft", label: "Brouillon" },
+  { value: "sent", label: "Envoyée" },
+  { value: "paid", label: "Payée" },
+  { value: "overdue", label: "En retard" },
+  { value: "cancelled", label: "Annulée" },
+];
 
 const emptyInvoiceForm = { billingClientId: "", quoteId: null as string | null, invoiceType: "unique", lines: [{ ...emptyQuoteLine }], notes: "" };
 
@@ -123,35 +144,46 @@ function InvoiceFormModal({
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-          <select
-            className={inputClass}
-            value={form.billingClientId}
-            onChange={(e) => setForm({ ...form, billingClientId: e.target.value })}
-            required
-          >
-            <option value="" disabled>
-              — Choisir un client —
-            </option>
-            {clients.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
+          <label className="flex flex-col gap-1 text-sm font-medium text-gray-text">
+            Client
+            <select
+              className={inputClass}
+              value={form.billingClientId}
+              onChange={(e) => setForm({ ...form, billingClientId: e.target.value })}
+              required
+            >
+              <option value="" disabled>
+                — Choisir un client —
               </option>
-            ))}
-          </select>
+              {clients.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </label>
 
-          <select
-            className={inputClass}
-            value={form.invoiceType}
-            onChange={(e) => setForm({ ...form, invoiceType: e.target.value })}
-          >
-            {INVOICE_TYPE_OPTIONS.map((o) => (
-              <option key={o.id} value={o.id}>
-                {o.label}
-              </option>
-            ))}
-          </select>
+          <label className="flex flex-col gap-1 text-sm font-medium text-gray-text">
+            Type de facture
+            <select
+              className={inputClass}
+              value={form.invoiceType}
+              onChange={(e) => setForm({ ...form, invoiceType: e.target.value })}
+            >
+              {INVOICE_TYPE_OPTIONS.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </label>
 
           <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.05em] text-gray-text">
+              <span className="flex-1">Désignation</span>
+              <span className="w-16">Qté</span>
+              <span className="w-24">Prix unitaire</span>
+            </div>
             {form.lines.map((line, i) => (
               <div key={i} className="flex items-center gap-2">
                 <input
@@ -198,12 +230,15 @@ function InvoiceFormModal({
 
           <div className="text-right text-sm font-semibold text-navy">Total HT : {formatPrice(total)}</div>
 
-          <textarea
-            className={inputClass}
-            placeholder="Notes"
-            value={form.notes}
-            onChange={(e) => setForm({ ...form, notes: e.target.value })}
-          />
+          <label className="flex flex-col gap-1 text-sm font-medium text-gray-text">
+            Notes
+            <textarea
+              className={inputClass}
+              placeholder="Notes"
+              value={form.notes}
+              onChange={(e) => setForm({ ...form, notes: e.target.value })}
+            />
+          </label>
 
           <div className="flex gap-2">
             <button
@@ -232,6 +267,7 @@ export default function InvoicesSection({ password }: { password: string }) {
   const [clients, setClients] = useState<BillingClient[]>([]);
   const [modal, setModal] = useState<"create" | InvoiceDetail | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<(typeof INVOICE_STATUS_FILTERS)[number]["value"]>("all");
 
   const load = () =>
     adminFetch(API_BASE_URL, "/api/admin/invoices", password)
@@ -288,6 +324,14 @@ export default function InvoicesSection({ password }: { password: string }) {
 
   const isOverdue = (invoice: InvoiceListItem) => invoice.status === "sent" && new Date(invoice.dueDate) < new Date();
 
+  const rows = useMemo(
+    () =>
+      (invoices ?? [])
+        .map((invoice) => ({ invoice, effectiveStatus: isOverdue(invoice) ? "overdue" : invoice.status }))
+        .filter((r) => statusFilter === "all" || r.effectiveStatus === statusFilter),
+    [invoices, statusFilter]
+  );
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -307,102 +351,147 @@ export default function InvoicesSection({ password }: { password: string }) {
         </button>
       </div>
 
-      <section className="rounded-card bg-white p-6 shadow-card">
-        {!invoices ? (
-          <p className="text-gray-text">Chargement…</p>
-        ) : invoices.length === 0 ? (
+      {!invoices ? (
+        <p className="text-gray-text">Chargement…</p>
+      ) : invoices.length === 0 ? (
+        <section className="rounded-card bg-white p-6 shadow-card">
           <p className="text-sm text-gray-text">Aucune facture pour l'instant.</p>
-        ) : (
-          <ul className="flex flex-col gap-3">
-            {invoices.map((invoice) => {
-              const effectiveStatus = isOverdue(invoice) ? "overdue" : invoice.status;
-              return (
-                <li key={invoice.id} className="flex flex-col gap-1 rounded-button bg-bg-page-start/60 p-4">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-semibold text-navy">
-                      {invoice.number ?? "Brouillon"} — {invoice.clientName}
-                    </span>
-                    <span
-                      className={`shrink-0 rounded-pill px-2.5 py-1 text-xs font-semibold ${
-                        INVOICE_STATUS_STYLES[effectiveStatus] ?? "bg-border-subtle/40 text-gray-text"
-                      }`}
-                    >
-                      {INVOICE_STATUS_LABELS[effectiveStatus] ?? effectiveStatus}
-                    </span>
-                  </div>
-                  <div className="text-sm text-gray-text">
-                    {INVOICE_TYPE_LABELS[invoice.invoiceType] ?? invoice.invoiceType} · {formatPrice(invoice.totalHt)} ·
-                    échéance {new Date(invoice.dueDate).toLocaleDateString("fr-FR")}
-                  </div>
-                  {invoice.isFinalized && (
-                    <a
-                      href={`${window.location.origin}/facture/${invoice.id}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-sm text-brand-mid hover:underline"
-                    >
-                      Lien public ↗
-                    </a>
-                  )}
-                  <div className="mt-1 flex flex-wrap gap-3 text-sm">
-                    {!invoice.isFinalized && (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => openEdit(invoice.id)}
-                          className="font-medium text-brand-mid hover:text-brand-start"
+        </section>
+      ) : (
+        <>
+          <div className="flex flex-wrap items-center gap-3">
+            <select className={inputClass} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}>
+              {INVOICE_STATUS_FILTERS.map((f) => (
+                <option key={f.value} value={f.value}>
+                  {f.label}
+                </option>
+              ))}
+            </select>
+            <StatusLegend items={INVOICE_STATUS_LEGEND} />
+            <span className="text-sm text-gray-text">
+              {rows.length} facture{rows.length > 1 ? "s" : ""}
+            </span>
+          </div>
+
+          <p className="text-xs text-gray-text sm:hidden">← Fais glisser le tableau pour voir plus de colonnes →</p>
+
+          <div className="relative overflow-x-auto rounded-card bg-white shadow-card">
+            <div className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-white to-transparent sm:hidden" />
+            <table className="w-full min-w-[820px] text-sm">
+              <thead>
+                <tr className="border-b border-border-subtle text-xs font-semibold uppercase tracking-[0.05em] text-gray-text">
+                  <th className="px-4 py-3 text-left">Numéro</th>
+                  <th className="px-4 py-3 text-left">Client</th>
+                  <th className="px-4 py-3 text-left">Type</th>
+                  <th className="px-4 py-3 text-left">Montant</th>
+                  <th className="px-4 py-3 text-left">Échéance</th>
+                  <th className="px-4 py-3 text-left">Statut</th>
+                  <th className="px-4 py-3 text-left">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="px-4 py-6 text-center text-gray-text">
+                      Aucune facture pour ce statut.
+                    </td>
+                  </tr>
+                ) : (
+                  rows.map(({ invoice, effectiveStatus }) => (
+                    <tr key={invoice.id} className="border-b border-border-subtle last:border-0 hover:bg-bg-page-start">
+                      <td className="whitespace-nowrap px-4 py-3 font-medium text-navy">{invoice.number ?? "Brouillon"}</td>
+                      <td className="px-4 py-3 text-navy">{invoice.clientName}</td>
+                      <td className="whitespace-nowrap px-4 py-3 text-gray-text">
+                        {INVOICE_TYPE_LABELS[invoice.invoiceType] ?? invoice.invoiceType}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3 font-semibold text-navy">{formatPrice(invoice.totalHt)}</td>
+                      <td className="whitespace-nowrap px-4 py-3 text-gray-text">
+                        {new Date(invoice.dueDate).toLocaleDateString("fr-FR")}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={`rounded-pill px-2.5 py-1 text-xs font-semibold ${
+                            INVOICE_STATUS_STYLES[effectiveStatus] ?? "bg-border-subtle/40 text-gray-text"
+                          }`}
                         >
-                          Modifier
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleFinalize(invoice.id)}
-                          className="font-medium text-brand-mid hover:text-brand-start"
-                        >
-                          Finaliser
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(invoice.id)}
-                          className="font-medium text-red-500 hover:text-red-600"
-                        >
-                          Supprimer
-                        </button>
-                      </>
-                    )}
-                    {invoice.isFinalized && invoice.status !== "paid" && invoice.status !== "cancelled" && (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => handleMarkPaid(invoice.id)}
-                          className="font-medium text-green-accent hover:opacity-80"
-                        >
-                          Marquer payée
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleCancel(invoice.id)}
-                          className="font-medium text-red-500 hover:text-red-600"
-                        >
-                          Annuler
-                        </button>
-                      </>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => handleDownloadPdf(invoice)}
-                      disabled={downloadingId === invoice.id}
-                      className="font-medium text-gray-text hover:text-navy disabled:opacity-40"
-                    >
-                      {downloadingId === invoice.id ? "Téléchargement…" : "Télécharger PDF"}
-                    </button>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </section>
+                          {INVOICE_STATUS_LABELS[effectiveStatus] ?? effectiveStatus}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-col gap-1.5">
+                          <div className="flex flex-wrap gap-3">
+                            {!invoice.isFinalized && (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => openEdit(invoice.id)}
+                                  className="font-medium text-brand-mid hover:text-brand-start"
+                                >
+                                  Modifier
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleFinalize(invoice.id)}
+                                  className="font-medium text-brand-mid hover:text-brand-start"
+                                >
+                                  Finaliser
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDelete(invoice.id)}
+                                  className="font-medium text-red-500 hover:text-red-600"
+                                >
+                                  Supprimer
+                                </button>
+                              </>
+                            )}
+                            {invoice.isFinalized && invoice.status !== "paid" && invoice.status !== "cancelled" && (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => handleMarkPaid(invoice.id)}
+                                  className="font-medium text-green-accent hover:opacity-80"
+                                >
+                                  Marquer payée
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleCancel(invoice.id)}
+                                  className="font-medium text-red-500 hover:text-red-600"
+                                >
+                                  Annuler
+                                </button>
+                              </>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => handleDownloadPdf(invoice)}
+                              disabled={downloadingId === invoice.id}
+                              className="font-medium text-gray-text hover:text-navy disabled:opacity-40"
+                            >
+                              {downloadingId === invoice.id ? "Téléchargement…" : "Télécharger PDF"}
+                            </button>
+                          </div>
+                          {invoice.isFinalized && (
+                            <a
+                              href={`${window.location.origin}/facture/${invoice.id}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-brand-mid hover:underline"
+                            >
+                              Lien public ↗
+                            </a>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
 
       {modal && (
         <InvoiceFormModal

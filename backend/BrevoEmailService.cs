@@ -22,11 +22,14 @@ public static class BrevoEmailService
         var senderName = string.IsNullOrWhiteSpace(company.TradeName) ? company.LegalName : company.TradeName;
         var publicUrl = $"{frontendBaseUrl.TrimEnd('/')}/facture/{invoice.Id}";
 
+        var intro = $@"Bonjour {WebUtility.HtmlEncode(client.Name)},<br>
+                Nous confirmons la réception de votre paiement. Vous trouverez la facture en pièce jointe de cet email.";
+
         var payload = new BrevoEmailRequest(
             Sender: new BrevoContact(senderName, senderEmail),
             To: new List<BrevoContact> { new(client.Name, client.Email) },
             Subject: $"Confirmation de paiement — Facture {invoice.Number}",
-            HtmlContent: BuildInvoicePaidHtml(company, senderName, client, invoice, lines, publicUrl),
+            HtmlContent: BuildInvoiceEmailHtml(company, senderName, invoice, lines, publicUrl, "Paiement confirmé", intro, "Voir ma facture"),
             Attachment: new List<BrevoAttachment> { new(Convert.ToBase64String(pdfBytes), $"facture-{invoice.Number}.pdf") }
         );
 
@@ -48,11 +51,109 @@ public static class BrevoEmailService
         }
     }
 
+    private static readonly Dictionary<string, string> InvoiceTypeLabels = new()
+    {
+        ["acompte"] = "Facture d'acompte",
+        ["solde"] = "Facture de solde",
+        ["unique"] = "Facture",
+    };
+
+    // Envoyée à la finalisation de la facture (voir InvoiceEndpoints.Finalize) — même gabarit que la
+    // confirmation de paiement (charte graphique identique), CTA vers le paiement en ligne plutôt
+    // qu'une simple consultation.
+    public static async Task<bool> SendInvoiceSentEmailAsync(
+        HttpClient http, string apiKey, CompanyProfile company, BillingClient client, Invoice invoice,
+        List<InvoiceLineDto> lines, byte[] pdfBytes, string frontendBaseUrl)
+    {
+        if (string.IsNullOrWhiteSpace(apiKey) || string.IsNullOrWhiteSpace(client.Email)) return false;
+
+        var senderEmail = string.IsNullOrWhiteSpace(company.Email) ? "etnofweb@gmail.com" : company.Email;
+        var senderName = string.IsNullOrWhiteSpace(company.TradeName) ? company.LegalName : company.TradeName;
+        var publicUrl = $"{frontendBaseUrl.TrimEnd('/')}/facture/{invoice.Id}";
+        var typeLabel = InvoiceTypeLabels.GetValueOrDefault(invoice.InvoiceType, "Facture");
+
+        var intro = $@"Bonjour {WebUtility.HtmlEncode(client.Name)},<br>
+                Vous trouverez ci-joint votre {typeLabel.ToLowerInvariant()}, à régler avant le {invoice.DueDate:dd/MM/yyyy}.
+                Vous pouvez la payer en ligne en toute sécurité depuis le bouton ci-dessous.";
+
+        var payload = new BrevoEmailRequest(
+            Sender: new BrevoContact(senderName, senderEmail),
+            To: new List<BrevoContact> { new(client.Name, client.Email) },
+            Subject: $"{typeLabel} {invoice.Number} — {senderName}",
+            HtmlContent: BuildInvoiceEmailHtml(company, senderName, invoice, lines, publicUrl, typeLabel, intro, "Payer ma facture en ligne", showSecureBadge: true),
+            Attachment: new List<BrevoAttachment> { new(Convert.ToBase64String(pdfBytes), $"facture-{invoice.Number}.pdf") }
+        );
+
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Post, EndpointUrl);
+            request.Headers.Add("api-key", apiKey);
+            request.Headers.Add("Accept", "application/json");
+            request.Content = JsonContent.Create(payload, options: JsonOptions);
+
+            using var response = await http.SendAsync(request);
+            return response.IsSuccessStatusCode;
+        }
+        catch (Exception)
+        {
+            // Ne remonte jamais — l'appelant (finalisation de facture) ne doit jamais échouer à
+            // cause d'un problème d'envoi d'email : la facture est déjà finalisée, c'est ce qui compte.
+            return false;
+        }
+    }
+
+    // Relance automatique J+7 après échéance dépassée (voir OverdueInvoiceReminderService.cs) — un
+    // seul rappel, décision explicite d'Ethan (pas de séquence de relances multiples). Reprend la
+    // mention légale de pénalités de retard déjà configurée (CompanyProfile.LatePaymentMention) pour
+    // donner du poids au rappel sans avoir à la retaper.
+    public static async Task<bool> SendInvoiceReminderEmailAsync(
+        HttpClient http, string apiKey, CompanyProfile company, BillingClient client, Invoice invoice,
+        List<InvoiceLineDto> lines, byte[] pdfBytes, string frontendBaseUrl)
+    {
+        if (string.IsNullOrWhiteSpace(apiKey) || string.IsNullOrWhiteSpace(client.Email)) return false;
+
+        var senderEmail = string.IsNullOrWhiteSpace(company.Email) ? "etnofweb@gmail.com" : company.Email;
+        var senderName = string.IsNullOrWhiteSpace(company.TradeName) ? company.LegalName : company.TradeName;
+        var publicUrl = $"{frontendBaseUrl.TrimEnd('/')}/facture/{invoice.Id}";
+
+        var intro = $@"Bonjour {WebUtility.HtmlEncode(client.Name)},<br>
+                Sauf erreur de notre part, la facture {WebUtility.HtmlEncode(invoice.Number ?? "")} n'est toujours pas réglée alors que
+                son échéance ({invoice.DueDate:dd/MM/yyyy}) est dépassée. Vous pouvez la régler en ligne dès maintenant depuis le bouton
+                ci-dessous.{(string.IsNullOrWhiteSpace(company.LatePaymentMention) ? "" : $@"<br><br><span style=""font-size:12px;"">{WebUtility.HtmlEncode(company.LatePaymentMention)}</span>")}";
+
+        var payload = new BrevoEmailRequest(
+            Sender: new BrevoContact(senderName, senderEmail),
+            To: new List<BrevoContact> { new(client.Name, client.Email) },
+            Subject: $"Rappel — Facture {invoice.Number} toujours impayée",
+            HtmlContent: BuildInvoiceEmailHtml(company, senderName, invoice, lines, publicUrl, "Facture toujours impayée", intro, "Payer ma facture en ligne", showSecureBadge: true),
+            Attachment: new List<BrevoAttachment> { new(Convert.ToBase64String(pdfBytes), $"facture-{invoice.Number}.pdf") }
+        );
+
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Post, EndpointUrl);
+            request.Headers.Add("api-key", apiKey);
+            request.Headers.Add("Accept", "application/json");
+            request.Content = JsonContent.Create(payload, options: JsonOptions);
+
+            using var response = await http.SendAsync(request);
+            return response.IsSuccessStatusCode;
+        }
+        catch (Exception)
+        {
+            // Ne remonte jamais — voir même remarque sur les autres envois d'email de ce fichier.
+            return false;
+        }
+    }
+
     // Gabarit HTML aux couleurs etnof-web (docs/09-charte-graphique.md) — mise en page par table +
     // styles inline (pas de balise <style>), seule approche fiable sur l'ensemble des clients mail.
     // Pas de dégradé CSS pour le bouton (peu/pas supporté par Outlook) : couleur pleine en repli.
-    private static string BuildInvoicePaidHtml(
-        CompanyProfile company, string senderName, BillingClient client, Invoice invoice, List<InvoiceLineDto> lines, string publicUrl)
+    // Header (badge + carte) et footer identiques entre tous les emails de facture — seuls le titre,
+    // le texte d'intro et le libellé du bouton varient (voir SendInvoicePaidEmailAsync/SendInvoiceSentEmailAsync).
+    private static string BuildInvoiceEmailHtml(
+        CompanyProfile company, string senderName, Invoice invoice, List<InvoiceLineDto> lines, string publicUrl,
+        string title, string introHtml, string ctaLabel, bool showSecureBadge = false)
     {
         const string navy = "#0F172A";
         const string greenAccent = "#22C55E";
@@ -87,10 +188,9 @@ public static class BrevoEmailService
               <div style=""text-transform:uppercase;letter-spacing:0.1em;font-size:13px;font-weight:600;color:{greenAccent};margin-bottom:8px;"">
                 {WebUtility.HtmlEncode(senderName)}
               </div>
-              <h1 style=""margin:0 0 16px;font-size:24px;font-weight:800;color:{navy};"">Paiement confirmé</h1>
+              <h1 style=""margin:0 0 16px;font-size:24px;font-weight:800;color:{navy};"">{WebUtility.HtmlEncode(title)}</h1>
               <p style=""margin:0 0 24px;font-size:15px;line-height:1.6;color:{grayText};"">
-                Bonjour {WebUtility.HtmlEncode(client.Name)},<br>
-                Nous confirmons la réception de votre paiement. Vous trouverez la facture en pièce jointe de cet email.
+                {introHtml}
               </p>
 
               <table role=""presentation"" width=""100%"" cellpadding=""0"" cellspacing=""0"" style=""margin-bottom:24px;"">
@@ -119,11 +219,13 @@ public static class BrevoEmailService
                 <tr>
                   <td style=""background-color:{brandMid};border-radius:12px;"">
                     <a href=""{publicUrl}"" style=""display:inline-block;padding:14px 28px;font-size:14px;font-weight:700;color:#FFFFFF;text-decoration:none;"">
-                      Voir ma facture
+                      {WebUtility.HtmlEncode(ctaLabel)}
                     </a>
                   </td>
                 </tr>
               </table>
+              {(showSecureBadge ? $@"
+              <p style=""margin:10px 0 0;font-size:12px;color:{grayText};"">🔒 Paiement sécurisé par Stripe</p>" : "")}
 
               <p style=""margin:32px 0 0;font-size:13px;line-height:1.6;color:{grayText};border-top:1px solid {border};padding-top:20px;"">
                 Merci !<br>L'équipe {WebUtility.HtmlEncode(senderName)}

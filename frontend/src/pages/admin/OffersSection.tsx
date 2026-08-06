@@ -168,24 +168,33 @@ export default function OffersSection({ clientSiteId, password }: OffersSectionP
                   </select>
                 </label>
               )}
-              <input
-                className={inputClass}
-                placeholder="Titre"
-                value={offer.title}
-                onChange={(e) => updateOffer(offer.id, { title: e.target.value })}
-              />
-              <input
-                className={inputClass}
-                placeholder="Prix"
-                value={offer.price}
-                onChange={(e) => updateOffer(offer.id, { price: e.target.value })}
-              />
-              <input
-                className={inputClass}
-                placeholder="Description"
-                value={offer.description}
-                onChange={(e) => updateOffer(offer.id, { description: e.target.value })}
-              />
+              <label className="flex flex-col gap-1 text-xs font-medium text-gray-text">
+                Titre
+                <input
+                  className={inputClass}
+                  placeholder="Titre"
+                  value={offer.title}
+                  onChange={(e) => updateOffer(offer.id, { title: e.target.value })}
+                />
+              </label>
+              <label className="flex flex-col gap-1 text-xs font-medium text-gray-text">
+                Prix
+                <input
+                  className={inputClass}
+                  placeholder="Prix"
+                  value={offer.price}
+                  onChange={(e) => updateOffer(offer.id, { price: e.target.value })}
+                />
+              </label>
+              <label className="flex flex-col gap-1 text-xs font-medium text-gray-text">
+                Description
+                <input
+                  className={inputClass}
+                  placeholder="Description"
+                  value={offer.description}
+                  onChange={(e) => updateOffer(offer.id, { description: e.target.value })}
+                />
+              </label>
               <button
                 type="button"
                 onClick={() => removeOffer(offer.id)}

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { API_BASE_URL } from "../../config";
 import { adminFetch } from "../../hooks/useAdminSession";
 import { inputClass, type ModuleMeta } from "./shared";
+import ModuleThumbnail from "../../components/admin/ModuleThumbnail";
 
 // Ne garde que les chiffres — le prix est toujours affiché en euros (ModulesSection.tsx applique
 // la même règle côté admin client), pas la peine de laisser Ethan taper "€"/"EUR" lui-même.
@@ -50,14 +51,17 @@ export default function PricingSection({ password }: { password: string }) {
       {!modules ? (
         <p className="text-sm text-gray-text">Chargement…</p>
       ) : (
-        <section className="rounded-card bg-white p-6 shadow-card">
-          <div className="flex flex-col gap-3">
-            {modules.map((m) => (
-              <div key={m.name} className="flex flex-wrap items-center gap-3">
-                <span className="w-40 shrink-0 text-sm font-medium text-navy">{m.displayName}</span>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {modules.map((m) => (
+            <div key={m.name} className="flex flex-col gap-3 rounded-card bg-white p-4 shadow-card">
+              <div className="flex items-center gap-3">
+                <ModuleThumbnail name={m.name} displayName={m.displayName} />
+                <span className="text-sm font-semibold text-navy">{m.displayName}</span>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
                 <div className="relative">
                   <input
-                    className={`${inputClass} pr-7`}
+                    className={`${inputClass} w-24 pr-7`}
                     placeholder="ex : 250"
                     inputMode="numeric"
                     value={drafts[m.name] ?? ""}
@@ -77,9 +81,9 @@ export default function PricingSection({ password }: { password: string }) {
                 </button>
                 {savedName === m.name && <span className="shrink-0 text-sm text-green-accent">Enregistré</span>}
               </div>
-            ))}
-          </div>
-        </section>
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );

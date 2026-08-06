@@ -3,8 +3,10 @@ using Modules.AvisGoogle;
 using Modules.Blog;
 using Modules.Catalogue;
 using Modules.Contact;
+using Modules.Galerie;
 using Modules.Multilingue;
 using Modules.Newsletter;
+using Modules.Pages;
 using Modules.Rdv;
 using Modules.Stripe;
 
@@ -40,4 +42,6 @@ public class AppDbContext : DbContext
     public DbSet<AgencyEmailSettings> AgencyEmailSettings => Set<AgencyEmailSettings>();
     public DbSet<PackageOffer> PackageOffers => Set<PackageOffer>();
     public DbSet<ContentTranslation> ContentTranslations => Set<ContentTranslation>();
+    public DbSet<GalleryImage> GalleryImages => Set<GalleryImage>();
+    public DbSet<CustomPage> CustomPages => Set<CustomPage>();
 }

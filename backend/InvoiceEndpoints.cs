@@ -91,7 +91,8 @@ public static class InvoiceEndpoints
             return Results.Ok();
         });
 
-        app.MapPost("/api/admin/invoices/{id:guid}/finalize", async (Guid id, HttpRequest req, IConfiguration config, AppDbContext db) =>
+        app.MapPost("/api/admin/invoices/{id:guid}/finalize", async (
+            Guid id, HttpRequest req, IConfiguration config, AppDbContext db, IHttpClientFactory httpFactory, IWebHostEnvironment env) =>
         {
             if (!AdminAuth.IsAuthorized(req, config)) return Results.Unauthorized();
 
@@ -104,10 +105,43 @@ public static class InvoiceEndpoints
             invoice.IsFinalized = true;
             invoice.Status = "sent";
             await db.SaveChangesAsync();
+
+            // Best-effort : la finalisation reste acquise même si l'email échoue (Brevo non
+            // configuré, panne réseau...) — même principe que la confirmation de paiement, voir
+            // InvoicePaymentEndpoints.cs.
+            try
+            {
+                var emailSettings = await AgencyEmailEndpoints.GetOrCreateAsync(db);
+                if (!string.IsNullOrWhiteSpace(emailSettings.BrevoApiKey))
+                {
+                    var billingClient = await db.BillingClients.FindAsync(invoice.BillingClientId);
+                    if (billingClient is not null)
+                    {
+                        var company = await CompanyProfileEndpoints.GetOrCreateAsync(db);
+                        var logoPath = CompanyProfileEndpoints.ResolveLogoPath(company, env);
+                        var lines = ParseLines(invoice.LineItemsJson);
+                        var pdfBytes = new InvoicePdfDocument(company, billingClient, invoice, lines, logoPath).GeneratePdf();
+                        var http = httpFactory.CreateClient();
+                        var frontendBaseUrl = config["Cors:AllowedOrigin"] ?? "http://localhost:5173";
+                        var sent = await BrevoEmailService.SendInvoiceSentEmailAsync(http, emailSettings.BrevoApiKey, company, billingClient, invoice, lines, pdfBytes, frontendBaseUrl);
+                        if (sent)
+                        {
+                            invoice.SentEmailAt = DateTime.UtcNow;
+                            await db.SaveChangesAsync();
+                        }
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                // Ignoré volontairement — voir commentaire ci-dessus.
+            }
+
             return Results.Ok(ToDetail(invoice));
         });
 
-        app.MapPost("/api/admin/invoices/{id:guid}/mark-paid", async (Guid id, HttpRequest req, IConfiguration config, AppDbContext db) =>
+        app.MapPost("/api/admin/invoices/{id:guid}/mark-paid", async (
+            Guid id, HttpRequest req, IConfiguration config, AppDbContext db, IHttpClientFactory httpFactory, IWebHostEnvironment env) =>
         {
             if (!AdminAuth.IsAuthorized(req, config)) return Results.Unauthorized();
 
@@ -118,6 +152,38 @@ public static class InvoiceEndpoints
             invoice.Status = "paid";
             invoice.PaidAt = DateTime.UtcNow;
             await db.SaveChangesAsync();
+
+            // Même email de confirmation que pour un paiement Stripe (voir InvoicePaymentEndpoints.cs)
+            // — un marquage manuel (virement, chèque, espèces) mérite la même confirmation au client.
+            // Best-effort : ne bloque jamais le marquage, déjà enregistré ci-dessus.
+            try
+            {
+                var emailSettings = await AgencyEmailEndpoints.GetOrCreateAsync(db);
+                if (!string.IsNullOrWhiteSpace(emailSettings.BrevoApiKey))
+                {
+                    var billingClient = await db.BillingClients.FindAsync(invoice.BillingClientId);
+                    if (billingClient is not null)
+                    {
+                        var company = await CompanyProfileEndpoints.GetOrCreateAsync(db);
+                        var logoPath = CompanyProfileEndpoints.ResolveLogoPath(company, env);
+                        var lines = ParseLines(invoice.LineItemsJson);
+                        var pdfBytes = new InvoicePdfDocument(company, billingClient, invoice, lines, logoPath).GeneratePdf();
+                        var http = httpFactory.CreateClient();
+                        var frontendBaseUrl = config["Cors:AllowedOrigin"] ?? "http://localhost:5173";
+                        var sent = await BrevoEmailService.SendInvoicePaidEmailAsync(http, emailSettings.BrevoApiKey, company, billingClient, invoice, lines, pdfBytes, frontendBaseUrl);
+                        if (sent)
+                        {
+                            invoice.ConfirmationEmailSentAt = DateTime.UtcNow;
+                            await db.SaveChangesAsync();
+                        }
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                // Ignoré volontairement — voir commentaire ci-dessus.
+            }
+
             return Results.Ok(ToDetail(invoice));
         });
 
@@ -134,7 +200,7 @@ public static class InvoiceEndpoints
             return Results.Ok(ToDetail(invoice));
         });
 
-        app.MapGet("/api/admin/invoices/{id:guid}/pdf", async (Guid id, HttpRequest req, IConfiguration config, AppDbContext db) =>
+        app.MapGet("/api/admin/invoices/{id:guid}/pdf", async (Guid id, HttpRequest req, IConfiguration config, AppDbContext db, IWebHostEnvironment env) =>
         {
             if (!AdminAuth.IsAuthorized(req, config)) return Results.Unauthorized();
 
@@ -143,8 +209,9 @@ public static class InvoiceEndpoints
             var client = await db.BillingClients.FindAsync(invoice.BillingClientId);
             if (client is null) return Results.NotFound();
             var company = await CompanyProfileEndpoints.GetOrCreateAsync(db);
+            var logoPath = CompanyProfileEndpoints.ResolveLogoPath(company, env);
 
-            var bytes = new InvoicePdfDocument(company, client, invoice, ParseLines(invoice.LineItemsJson)).GeneratePdf();
+            var bytes = new InvoicePdfDocument(company, client, invoice, ParseLines(invoice.LineItemsJson), logoPath).GeneratePdf();
             var fileName = invoice.Number is not null ? $"facture-{invoice.Number}.pdf" : $"facture-brouillon-{invoice.Id}.pdf";
             return Results.File(bytes, "application/pdf", fileName);
         });
@@ -205,7 +272,9 @@ public static class InvoiceEndpoints
 
     private static decimal ComputeTotal(List<InvoiceLineDto> lines) => lines.Sum(l => l.Quantity * l.UnitPrice);
 
-    private static List<InvoiceLineDto> ParseLines(string json)
+    // internal plutôt que private : réutilisé par OverdueInvoiceReminderService.cs pour reconstruire
+    // le PDF joint à la relance automatique, sans dupliquer la logique de parsing/tolérance JSON.
+    internal static List<InvoiceLineDto> ParseLines(string json)
     {
         if (string.IsNullOrWhiteSpace(json)) return new List<InvoiceLineDto>();
         try
@@ -230,6 +299,11 @@ public static class InvoiceEndpoints
         invoice.IsFinalized,
         invoice.BillingClientId,
         ClientName = clientNames.GetValueOrDefault(invoice.BillingClientId, "Client supprimé"),
+        invoice.PaidAt,
+        // "stripe" si réglée via le webhook Stripe (StripeSessionId posé), sinon "manual" — voir
+        // InvoiceEndpoints.MarkPaid et InvoicePaymentEndpoints.cs. Utilisé par l'onglet Paiements
+        // (PaymentSection.tsx) pour l'affichage, pas de nouvelle table dédiée (voir docs/13).
+        PaymentMethod = invoice.StripeSessionId is not null ? "stripe" : "manual",
     };
 
     private static object ToDetail(Invoice invoice) => new

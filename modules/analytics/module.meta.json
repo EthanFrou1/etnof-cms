@@ -1,0 +1,6 @@
+{
+  "name": "analytics",
+  "displayName": "Statistiques (Google Analytics)",
+  "description": "Mesure d'audience via Google Analytics 4, avec bandeau de consentement cookies RGPD",
+  "dependencies": []
+}

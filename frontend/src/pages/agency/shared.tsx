@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { API_BASE_URL } from "../../config";
 import { adminFetch } from "../../hooks/useAdminSession";
 
@@ -109,5 +109,112 @@ export function TariffPicker({ password, onPick }: { password: string; onPick: (
         </optgroup>
       )}
     </select>
+  );
+}
+
+type AddressSuggestion = { placeId: string; name: string; address: string };
+
+const ADDRESS_SEARCH_DEBOUNCE_MS = 400;
+
+// Champ Adresse avec autocomplete Google Places (même API/endroit backend que la recherche
+// d'établissement côté tenant, voir EstablishmentSection.tsx — ici recherche directement sur le
+// texte de l'adresse plutôt que sur un nom d'enseigne, pas de fiche/horaires/photos à préremplir).
+export function AddressAutocomplete({
+  password,
+  value,
+  onChange,
+  placeholder,
+}: {
+  password: string;
+  value: string;
+  onChange: (address: string) => void;
+  placeholder?: string;
+}) {
+  const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([]);
+  const [inputFocused, setInputFocused] = useState(false);
+  const [status, setStatus] = useState<"idle" | "searching" | "error">("idle");
+  const [error, setError] = useState<string | null>(null);
+
+  // Ne relance une recherche que sur une frappe utilisateur — pas quand `value` change parce
+  // qu'une suggestion vient d'être sélectionnée (même garde que userEditedName dans EstablishmentSection.tsx).
+  const userEdited = useRef(false);
+  const latestQueryRef = useRef("");
+
+  useEffect(() => {
+    if (!userEdited.current) return;
+
+    const query = value.trim();
+    if (query.length < 3) {
+      setSuggestions([]);
+      setStatus("idle");
+      return;
+    }
+
+    const timeout = setTimeout(async () => {
+      latestQueryRef.current = query;
+      setStatus("searching");
+      setError(null);
+
+      const res = await adminFetch(API_BASE_URL, `/api/admin/google-places/search?query=${encodeURIComponent(query)}`, password);
+      const data = await res.json();
+
+      if (latestQueryRef.current !== query) return;
+
+      if (!res.ok) {
+        setStatus("error");
+        setError(data.error ?? "Recherche indisponible.");
+        setSuggestions([]);
+        return;
+      }
+
+      setStatus("idle");
+      setSuggestions(data as AddressSuggestion[]);
+    }, ADDRESS_SEARCH_DEBOUNCE_MS);
+
+    return () => clearTimeout(timeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
+
+  return (
+    <div className="relative">
+      <input
+        className={`w-full ${inputClass}`}
+        value={value}
+        onChange={(e) => {
+          userEdited.current = true;
+          onChange(e.target.value);
+        }}
+        onFocus={() => setInputFocused(true)}
+        onBlur={() => setTimeout(() => setInputFocused(false), 150)}
+        placeholder={placeholder}
+        autoComplete="off"
+      />
+      {status === "searching" && (
+        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-text/60">
+          Recherche…
+        </span>
+      )}
+      {inputFocused && suggestions.length > 0 && (
+        <ul className="absolute left-0 right-0 top-full z-10 mt-1 flex flex-col gap-0.5 rounded-button border border-border-subtle bg-white p-1.5 shadow-soft">
+          {suggestions.map((s) => (
+            <li key={s.placeId}>
+              <button
+                type="button"
+                onClick={() => {
+                  userEdited.current = false;
+                  onChange(s.address);
+                  setSuggestions([]);
+                }}
+                className="w-full rounded-button px-2 py-1.5 text-left text-sm hover:bg-bg-page-start"
+              >
+                <span className="block font-medium text-navy">{s.name}</span>
+                <span className="block text-xs text-gray-text">{s.address}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {status === "error" && error && <p className="mt-1 text-xs text-red-500">{error}</p>}
+    </div>
   );
 }

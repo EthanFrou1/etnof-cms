@@ -7,6 +7,7 @@ import InvoicePublicPage from "./pages/InvoicePublicPage";
 import CustomerDetailPage from "./pages/CustomerDetailPage";
 import ProductDetailPage from "./pages/ProductDetailPage";
 import BlogPostDetailPage from "./pages/BlogPostDetailPage";
+import PageDetailPage from "./pages/PageDetailPage";
 import type { AdminSection } from "./components/admin/AdminLayout";
 import type { AgencySection } from "./components/admin/AgencyLayout";
 import { API_BASE_URL } from "./config";
@@ -27,6 +28,8 @@ const ADMIN_SECTIONS: AdminSection[] = [
   "blog",
   "messages",
   "multilingue",
+  "galerie",
+  "pages",
 ];
 
 const AGENCY_SECTIONS: AgencySection[] = [
@@ -43,6 +46,7 @@ const AGENCY_SECTIONS: AgencySection[] = [
 
 const BlogPostPage = lazy(() => import("@modules/blog/frontend/BlogPostPage"));
 const CartPage = lazy(() => import("@modules/catalogue/frontend/CartPage"));
+const CustomPageView = lazy(() => import("@modules/pages/frontend/CustomPageView"));
 
 function Redirect({ to }: { to: string }) {
   useEffect(() => {
@@ -93,6 +97,11 @@ function App() {
     return <BlogPostDetailPage clientSiteId={segments[1]} postId={segments[3]} />;
   }
 
+  // /admin/{clientSiteId}/pages/{pageId} — fiche d'UNE page personnalisée, même principe que blog
+  if (segments[0] === "admin" && segments[1] && segments[2] === "pages" && segments[3]) {
+    return <PageDetailPage clientSiteId={segments[1]} pageId={segments[3]} />;
+  }
+
   // /admin/{clientSiteId}/{section} — admin d'UN tenant (section par défaut : dashboard)
   if (segments[0] === "admin" && segments[1]) {
     const requested = segments[2] as AdminSection | undefined;
@@ -105,6 +114,15 @@ function App() {
     return (
       <Suspense fallback={null}>
         <BlogPostPage slug={segments[3]} apiBaseUrl={API_BASE_URL} clientSiteId={segments[1]} />
+      </Suspense>
+    );
+  }
+
+  // /t/{clientSiteId}/pages/{slug} — détail d'une page personnalisée d'un tenant
+  if (segments[0] === "t" && segments[1] && segments[2] === "pages" && segments[3]) {
+    return (
+      <Suspense fallback={null}>
+        <CustomPageView slug={segments[3]} apiBaseUrl={API_BASE_URL} clientSiteId={segments[1]} />
       </Suspense>
     );
   }

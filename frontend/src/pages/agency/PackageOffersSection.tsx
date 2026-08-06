@@ -67,27 +67,36 @@ function PackageOfferFormModal({
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-          <input
-            className={inputClass}
-            placeholder="Nom (ex : Essentiel)"
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-            required
-          />
-          <input
-            className={inputClass}
-            placeholder="Prix (ex : 690€)"
-            value={form.price}
-            onChange={(e) => setForm({ ...form, price: e.target.value })}
-            required
-          />
-          <textarea
-            className={inputClass}
-            placeholder="Description (ex : Pour les indépendants, artisans et petites entreprises...)"
-            rows={2}
-            value={form.description}
-            onChange={(e) => setForm({ ...form, description: e.target.value })}
-          />
+          <label className="flex flex-col gap-1 text-sm font-medium text-gray-text">
+            Nom
+            <input
+              className={inputClass}
+              placeholder="ex : Essentiel"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              required
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-sm font-medium text-gray-text">
+            Prix
+            <input
+              className={inputClass}
+              placeholder="ex : 690€"
+              value={form.price}
+              onChange={(e) => setForm({ ...form, price: e.target.value })}
+              required
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-sm font-medium text-gray-text">
+            Description
+            <textarea
+              className={inputClass}
+              placeholder="ex : Pour les indépendants, artisans et petites entreprises..."
+              rows={2}
+              value={form.description}
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
+            />
+          </label>
 
           <div className="flex flex-col gap-2">
             <span className="text-sm font-medium text-gray-text">Fonctionnalités (une par ligne)</span>

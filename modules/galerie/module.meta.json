@@ -1,0 +1,6 @@
+{
+  "name": "galerie",
+  "displayName": "Galerie",
+  "description": "Galerie de photos illimitée sur le site public, au-delà des 3 photos d'Établissement",
+  "dependencies": []
+}

@@ -136,21 +136,27 @@ export default function QuoteAcceptancePage({ quoteId }: { quoteId: string }) {
           <section className="rounded-card bg-white p-6 shadow-card">
             <h2 className="mb-4 text-lg font-bold text-navy">Accepter ce devis</h2>
             <form onSubmit={handleAccept} className="flex flex-col gap-3">
-              <input
-                className={inputClass}
-                placeholder="Nom"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-              />
-              <input
-                className={inputClass}
-                type="email"
-                placeholder="Email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
+              <label className="flex flex-col gap-1 text-sm font-medium text-gray-text">
+                Nom
+                <input
+                  className={inputClass}
+                  placeholder="Nom"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
+                />
+              </label>
+              <label className="flex flex-col gap-1 text-sm font-medium text-gray-text">
+                Email
+                <input
+                  className={inputClass}
+                  type="email"
+                  placeholder="Email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+              </label>
               <label className="flex items-center gap-2 text-sm text-navy">
                 <input
                   type="checkbox"

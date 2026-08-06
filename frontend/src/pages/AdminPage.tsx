@@ -9,6 +9,8 @@ import AdminLayout, {
   STRIPE_SECTIONS,
   BLOG_SECTIONS,
   MULTILINGUE_SECTIONS,
+  GALERIE_SECTIONS,
+  PAGES_SECTIONS,
   type AdminSection,
 } from "../components/admin/AdminLayout";
 import DashboardSection from "./admin/DashboardSection";
@@ -26,6 +28,8 @@ import AvisGoogleSection from "./admin/AvisGoogleSection";
 import StripeSection from "./admin/StripeSection";
 import BlogSection from "./admin/BlogSection";
 import MultilingueSection from "./admin/MultilingueSection";
+import GallerySection from "./admin/GallerySection";
+import PagesSection from "./admin/PagesSection";
 
 type AdminPageProps = {
   clientSiteId: string;
@@ -57,6 +61,8 @@ export default function AdminPage({ clientSiteId, section }: AdminPageProps) {
     : STRIPE_SECTIONS.includes(section) && !modules?.stripe?.enabled ? "Paiement Stripe"
     : BLOG_SECTIONS.includes(section) && !modules?.blog?.enabled ? "Blog"
     : MULTILINGUE_SECTIONS.includes(section) && !modules?.multilingue?.enabled ? "Multilingue"
+    : GALERIE_SECTIONS.includes(section) && !modules?.galerie?.enabled ? "Galerie"
+    : PAGES_SECTIONS.includes(section) && !modules?.pages?.enabled ? "Pages personnalisées"
     : null;
 
   return (
@@ -83,6 +89,8 @@ export default function AdminPage({ clientSiteId, section }: AdminPageProps) {
           {section === "stripe" && <StripeSection clientSiteId={clientSiteId} password={password} />}
           {section === "blog" && <BlogSection clientSiteId={clientSiteId} password={password} />}
           {section === "multilingue" && <MultilingueSection clientSiteId={clientSiteId} password={password} />}
+          {section === "galerie" && <GallerySection clientSiteId={clientSiteId} password={password} />}
+          {section === "pages" && <PagesSection clientSiteId={clientSiteId} password={password} />}
           {section === "messages" && <MessagesSection clientSiteId={clientSiteId} password={password} />}
         </>
       )}

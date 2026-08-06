@@ -13,44 +13,19 @@ public static class GooglePlacesEndpoints
     public static void MapEndpoints(WebApplication app)
     {
         app.MapGet("/api/t/{clientSiteId:guid}/admin/google-places/search", async (
-            Guid clientSiteId, string query, HttpRequest req, IConfiguration config, AppDbContext db, IHttpClientFactory httpFactory) =>
+            Guid clientSiteId, string query, IConfiguration config, HttpRequest req, AppDbContext db, IHttpClientFactory httpFactory) =>
         {
             if (!await TenantAdminAuth.IsAuthorizedAsync(req, config, db, clientSiteId)) return Results.Unauthorized();
+            return await SearchAsync(query, config, httpFactory);
+        });
 
-            var apiKey = config["GooglePlaces:ApiKey"];
-            if (string.IsNullOrWhiteSpace(apiKey))
-            {
-                return Results.Json(new { error = "Recherche Google indisponible (clé non configurée)." }, statusCode: 503);
-            }
-
-            if (string.IsNullOrWhiteSpace(query))
-            {
-                return Results.Ok(Array.Empty<object>());
-            }
-
-            var client = httpFactory.CreateClient();
-            var url = $"https://maps.googleapis.com/maps/api/place/textsearch/json?query={Uri.EscapeDataString(query)}&language=fr&key={apiKey}";
-            using var response = await client.GetAsync(url);
-            using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
-            var root = doc.RootElement;
-
-            if (root.GetProperty("status").GetString() != "OK")
-            {
-                var message = root.TryGetProperty("error_message", out var m) ? m.GetString() : root.GetProperty("status").GetString();
-                return Results.Json(new { error = $"Recherche Google : {message}" }, statusCode: 502);
-            }
-
-            // .ToList() : force l'évaluation immédiate — sinon la requête LINQ (paresseuse) ne
-            // s'exécute qu'au moment de la sérialisation JSON, après que `doc` (using) soit déjà
-            // disposed, et JsonElement.GetProperty plante avec ObjectDisposedException.
-            var results = root.GetProperty("results").EnumerateArray().Take(5).Select(r => new
-            {
-                PlaceId = r.GetProperty("place_id").GetString(),
-                Name = r.TryGetProperty("name", out var n) ? n.GetString() : "",
-                Address = r.TryGetProperty("formatted_address", out var a) ? a.GetString() : "",
-            }).ToList();
-
-            return Results.Ok(results);
+        // Même recherche, côté agence (config entreprise, clients de facturation) — pas de
+        // clientSiteId, auth AdminAuth (scope "agency") au lieu de TenantAdminAuth.
+        app.MapGet("/api/admin/google-places/search", async (
+            string query, HttpRequest req, IConfiguration config, IHttpClientFactory httpFactory) =>
+        {
+            if (!AdminAuth.IsAuthorized(req, config)) return Results.Unauthorized();
+            return await SearchAsync(query, config, httpFactory);
         });
 
         app.MapGet("/api/t/{clientSiteId:guid}/admin/google-places/details", async (
@@ -173,6 +148,46 @@ public static class GooglePlacesEndpoints
             await db.SaveChangesAsync();
             return Results.Ok(imported);
         });
+    }
+
+    // Factorisé entre la route tenant et la route agence (mêmes deux endpoints appelants, seule
+    // l'auth diffère) — recherche libre Google Places, jusqu'à 5 résultats (nom + adresse formatée).
+    private static async Task<IResult> SearchAsync(string query, IConfiguration config, IHttpClientFactory httpFactory)
+    {
+        var apiKey = config["GooglePlaces:ApiKey"];
+        if (string.IsNullOrWhiteSpace(apiKey))
+        {
+            return Results.Json(new { error = "Recherche Google indisponible (clé non configurée)." }, statusCode: 503);
+        }
+
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            return Results.Ok(Array.Empty<object>());
+        }
+
+        var client = httpFactory.CreateClient();
+        var url = $"https://maps.googleapis.com/maps/api/place/textsearch/json?query={Uri.EscapeDataString(query)}&language=fr&key={apiKey}";
+        using var response = await client.GetAsync(url);
+        using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var root = doc.RootElement;
+
+        if (root.GetProperty("status").GetString() != "OK")
+        {
+            var message = root.TryGetProperty("error_message", out var m) ? m.GetString() : root.GetProperty("status").GetString();
+            return Results.Json(new { error = $"Recherche Google : {message}" }, statusCode: 502);
+        }
+
+        // .ToList() : force l'évaluation immédiate — sinon la requête LINQ (paresseuse) ne s'exécute
+        // qu'au moment de la sérialisation JSON, après que `doc` (using) soit déjà disposed, et
+        // JsonElement.GetProperty plante avec ObjectDisposedException.
+        var results = root.GetProperty("results").EnumerateArray().Take(5).Select(r => new
+        {
+            PlaceId = r.GetProperty("place_id").GetString(),
+            Name = r.TryGetProperty("name", out var n) ? n.GetString() : "",
+            Address = r.TryGetProperty("formatted_address", out var a) ? a.GetString() : "",
+        }).ToList();
+
+        return Results.Ok(results);
     }
 
     // "periods" donne, par occurrence, un jour+heure d'ouverture et de fermeture — un établissement

@@ -5,6 +5,7 @@ import { useModules } from "../hooks/useModules";
 import AdminLoginScreen from "../components/admin/AdminLoginScreen";
 import AdminLayout from "../components/admin/AdminLayout";
 import ConfirmModal from "../components/admin/ConfirmModal";
+import RichTextEditor from "../components/admin/RichTextEditor";
 
 type BlogPost = {
   id: string;
@@ -124,12 +125,7 @@ function BlogPostDetailContent({
           </label>
           <label className="flex flex-col gap-1 text-sm text-gray-text">
             Contenu
-            <textarea
-              className={inputClass}
-              rows={14}
-              value={form.content}
-              onChange={(e) => setForm({ ...form, content: e.target.value })}
-            />
+            <RichTextEditor value={form.content} onChange={(content) => setForm({ ...form, content })} />
           </label>
           <label className="flex items-center gap-2 text-sm font-medium text-gray-text">
             <input

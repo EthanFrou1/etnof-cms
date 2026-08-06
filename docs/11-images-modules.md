@@ -32,9 +32,13 @@ Subject: [SUJET DU MODULE]
 | `whatsapp.png` | a stylized rounded speech bubble containing a simple phone handset icon, floating above a minimal smartphone outline, representing an instant chat/contact button |
 | `stripe.png` | a stylized bank card tilted at a slight angle with a small rounded checkmark badge floating above one corner, representing secure online card payment |
 | `multilingue.png` | a stylized globe with simplified continents, paired with two small overlapping speech bubbles containing a few short horizontal lines, representing translation and multiple languages |
+| `reseaux-sociaux.png` | a stylized cluster of simple rounded icon shapes (a heart, a small speech bubble, a share/network arrow) floating together above a minimal smartphone outline, representing social media presence |
+| `galerie.png` | a stylized stack of a few overlapping rounded photo frames, one slightly tilted, representing a photo gallery |
+| `analytics.png` | a stylized simple bar chart with three ascending rounded bars, paired with a small magnifying glass, representing audience/visit statistics |
+| `pages.png` | a stylized stack of a few overlapping rounded document sheets with a small dropdown-arrow chevron floating above, representing a menu of custom pages |
 
 ## Notes
 
 - Le dégradé de fond de chaque image doit rester proche du dégradé de marque etnof-web (`#1E3A8A → #2563EB → #84CC16`, voir `docs/09-charte-graphique.md`) pour que les 4 cards forment un ensemble cohérent même générées séparément.
 - Pas de texte/lettres dans l'image : le nom du module est déjà affiché en overlay par-dessus (voir `ModulesSection.tsx`).
-- Module futur ajouté : réutiliser le même gabarit avec un nouveau sujet, l'ajouter à `MODULE_IMAGES` dans `frontend/src/pages/admin/ModulesSection.tsx`.
+- Module futur ajouté : réutiliser le même gabarit avec un nouveau sujet, l'ajouter à `MODULE_IMAGES` dans `frontend/src/moduleIcons.ts` (source unique depuis le 2026-08-06, réutilisée par `ModulesSection.tsx` et les pages agence `PricingSection.tsx`/`SitesSection.tsx`).

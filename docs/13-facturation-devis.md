@@ -28,6 +28,54 @@ Ethan a ensuite demandé qu'un email de confirmation parte automatiquement au cl
 
 Dernière demande d'Ethan de la session : pouvoir piocher rapidement une ligne de devis/facture depuis ses tarifs déjà connus (modules à la carte + formules de base), plutôt que de tout retaper à la main. Nouvelle entité `PackageOffer` pour les 3 formules (auto-seedée, éditable), sélecteur `TariffPicker` combinant formules + modules déjà tarifés (`ModulePrice`) dans les deux panneaux Devis et Factures. Aucune dépendance externe. Détail dans `docs/07-admin-global.md`, section "Lignes de devis/facture depuis les tarifs".
 
+## Revue des mentions légales + autocomplete d'adresse (2026-08-06)
+
+Ethan a téléchargé un PDF de facture et de devis générés en réel pour vérifier la conformité juridique. Deux écarts trouvés et un correctif appliqué dans la même session :
+
+- **Mention "EI" absente** : le champ "Forme juridique" de la config entreprise contenait "Auto-entrepreneur" (régime fiscal), pas la mention "EI" (Entreprise Individuelle) exigée sur les documents commerciaux depuis la réforme de mai 2022 — voir la recherche déjà faite plus bas. Champ texte libre, corrigé par Ethan directement ("EI (auto-entrepreneur)"), aucun changement de code nécessaire.
+- **Logo jamais rendu sur le PDF** : `CompanyProfile.LogoPath` existe et s'upload depuis l'admin, mais ni `InvoicePdfDocument.cs` ni `QuotePdfDocument.cs` ne l'affichaient dans l'en-tête. Corrigé le même jour, à la demande d'Ethan : `CompanyProfileEndpoints.ResolveLogoPath(profile, env)` résout le chemin disque absolu du logo (null si aucun logo ou fichier manquant), passé aux deux documents PDF qui l'affichent en haut de l'en-tête (raster via `.Image()`, SVG via `.Svg(File.ReadAllText(...))` — les deux formats étant acceptés à l'upload). Les trois points de génération de PDF (facture admin, devis admin, email de confirmation de paiement) injectent `IWebHostEnvironment` pour ça.
+- **Adresse peu fiable** : l'adresse entreprise (et celle des clients de facturation) était un champ texte libre, sujette aux fautes de frappe. Ajout d'un autocomplete Google Places sur ces deux champs, sur le même principe que la recherche déjà utilisée sur `/admin` → Établissement (nom de l'établissement) : nouvel endpoint agence `GET /api/admin/google-places/search` (même logique de recherche que la route tenant, factorisée dans `GooglePlacesEndpoints.SearchAsync`, mais protégé par `AdminAuth` au lieu de `TenantAdminAuth` puisqu'il n'y a pas de `clientSiteId`), nouveau composant partagé `AddressAutocomplete` (`frontend/src/pages/agency/shared.tsx`) branché sur `CompanySection.tsx` (adresse entreprise) et `BillingClientsSection.tsx` (adresse client). Aucune nouvelle dépendance : réutilise la clé `GooglePlaces:ApiKey` déjà configurée pour le module Établissement.
+
+## Envoi automatique de la facture à la finalisation (2026-08-06)
+
+Ethan a demandé de fermer la boucle : jusqu'ici, seule la confirmation de paiement partait automatiquement par email ; la facture elle-même devait toujours être partagée à la main via le lien public (`Lien public ↗` dans `InvoicesSection.tsx`). Ajouté à la même session que la revue des mentions légales et le logo :
+
+- `InvoiceEndpoints.Finalize` envoie désormais un email au client dès que la facture passe en brouillon → finalisée (si une clé Brevo est configurée et que le client a un email), avec le PDF (logo inclus) en pièce jointe et un bouton "Payer ma facture en ligne" vers `/facture/{id}`. Best-effort comme la confirmation de paiement : un échec d'envoi (Brevo non configuré, panne réseau) ne bloque jamais la finalisation, qui reste la source de vérité juridique.
+- Nouveau champ `Invoice.SentEmailAt` (migration `AddInvoiceSentEmailAt`) — simple trace de l'envoi, pas d'enjeu d'idempotence puisque la finalisation ne peut se produire qu'une fois (verrouillée par `IsFinalized`).
+- **Demande explicite d'Ethan** : garder la même charte graphique que l'email de confirmation de paiement déjà en place. `BrevoEmailService.cs` a été refactoré pour ça — `BuildInvoiceEmailHtml` porte désormais le gabarit commun (badge agence, carte blanche, encart facture, bouton CTA, pied de page avec liens), paramétré par titre/texte d'intro/libellé de bouton ; `SendInvoicePaidEmailAsync` et le nouveau `SendInvoiceSentEmailAsync` ne font plus que fournir ces trois textes. Header et footer strictement identiques entre les deux emails.
+
+## Confiance + contact sur la page de paiement (2026-08-06, même session)
+
+Après avoir testé le flux de bout en bout (lien public, email reçu), Ethan a demandé deux ajouts pour rassurer le client au moment de payer :
+
+- **Mention "Paiement sécurisé par Stripe"** — sous le bouton de paiement, à la fois sur la page publique `/facture/{id}` (`InvoicePublicPage.tsx`, icône cadenas `IconLock` ajoutée dans `icons.tsx`) et dans l'email "nouvelle facture" (`BuildInvoiceEmailHtml`, nouveau paramètre `showSecureBadge`, actif uniquement sur l'email d'envoi — pas sur la confirmation de paiement, qui n'a plus de paiement à faire).
+- **Lien de contact** — "Une question sur cette facture ? Contactez-nous", `mailto:` vers l'email de l'agence (`CompanyProfile.Email`, désormais exposé par `GET /api/public/invoices/{id}` sous `companyEmail`), en bas de la page publique. Pas de formulaire/bulle de support côté agence (ça existe déjà côté tenant, `SupportBubble.tsx`, mais c'est un mécanisme différent, propre à un site client) — un simple `mailto` suffit ici, cohérent avec la demande ("faire un mail à l'adresse mail de la boîte").
+
+**Point clarifié avec Ethan** : le statut passe déjà automatiquement à "payée" pour un paiement en ligne (webhook Stripe, `InvoicePaymentEndpoints.cs`) — le bouton "Marquer payée" dans l'admin est un **override manuel**, pour les paiements hors Stripe (virement, chèque, espèces). Écart identifié au passage : ce marquage manuel ne déclenche pas l'email de confirmation (seul le webhook Stripe le fait) — pas corrigé pour l'instant, à voir si Ethan le souhaite.
+
+## Tableaux avec filtres de statut + onglet Paiements (2026-08-06, même session)
+
+Trois demandes de suivi après les tests d'Ethan :
+
+- **Factures et devis en tableau** — `InvoicesSection.tsx`/`QuotesSection.tsx` passent du listing en cartes à un vrai tableau (colonnes triées, filtre de statut en dropdown), sur le même patron que `OrdersSection.tsx` (indicateur de scroll horizontal inclus). Pour les factures, le filtre "En retard" porte sur le statut *effectif* calculé côté client (`isOverdue`), pas uniquement le statut brut en base.
+- **Email de confirmation aussi sur le marquage manuel** — `POST /api/admin/invoices/{id}/mark-paid` envoie désormais le même email que le webhook Stripe (même fonction `BrevoEmailService.SendInvoicePaidEmailAsync`), pour les paiements reçus hors Stripe (virement, chèque, espèces).
+- **Onglet "Paiements" sur `/admin/dashboard/paiement`** — page repensée en deux onglets (Paiements / Configuration). Question posée à Ethan avant de coder : fallait-il une vraie table `Payment` dédiée ? Réponse : non, pas maintenant — la relation facture/paiement est strictement 1-pour-1 aujourd'hui (pas de paiement partiel, pas de remboursement géré), donc une table séparée dupliquerait `Invoice.PaidAt`/`TotalHt`/`StripeSessionId` sans rien capturer de nouveau. Le déclencheur explicite pour introduire cette table plus tard : paiements partiels/échelonnés sur une même facture, ou remboursements. L'acompte/solde couvre déjà le besoin réel de paiement en plusieurs fois (deux factures distinctes). Remboursements explicitement mis de côté par Ethan pour l'instant.
+  - Implémenté en réutilisant `GET /api/admin/invoices` (nouveau champ `PaymentMethod` dérivé de `StripeSessionId` — "stripe" ou "manual" — et `PaidAt` désormais exposés), filtré/trié côté client dans `PaymentsPanel` (`PaymentSection.tsx`). Aucun nouvel endpoint.
+
+## Légende des statuts (2026-08-06, même session)
+
+Après avoir vu le badge "Manuel" sans grand contexte dans l'onglet Paiements, Ethan a demandé une légende expliquant chaque statut, sur tous les tableaux filtrables par statut où ce serait utile. Composant partagé `components/admin/StatusLegend.tsx` : un bouton "?" à côté du filtre de statut, ouvrant une modale (badge + explication d'une ligne par statut) — modale plutôt qu'un affichage inline pour ne pas surcharger l'écran, en particulier sur mobile où le filtre et le tableau sont déjà serrés.
+
+Branché sur les trois tableaux où les statuts ne sont pas évidents par eux-mêmes : Factures (5 statuts), Devis (5 statuts), Commandes (`OrdersSection.tsx`, 3 statuts). Volontairement pas branché sur Blog (Publié/Brouillon) ni RDV (Confirmé/Annulé) — binaires et déjà auto-explicites, une légende y serait du bruit plutôt qu'une aide.
+
+## Relance automatique des impayés (2026-08-06, même session)
+
+Suite au brainstorm de fonctionnalités manquantes (voir `docs/07-admin-global.md`) : un seul rappel, à J+7 après l'échéance dépassée (décision explicite d'Ethan — pas de séquence de relances multiples type dunning). Nouveau `OverdueInvoiceReminderService.cs`, un `BackgroundService` .NET natif (vérifie toutes les 6h) plutôt qu'un scheduler externe type Hangfire — zéro dépendance supplémentaire, suffisant tant qu'il n'y a qu'une seule instance backend.
+
+- Cible : factures `Status == "sent"`, `DueDate` dépassée d'au moins 7 jours, `ReminderSentAt` encore null (nouveau champ, migration `AddInvoiceReminderSentAt`) — garde d'idempotence pour ne jamais envoyer deux fois.
+- Email : `BrevoEmailService.SendInvoiceReminderEmailAsync`, même gabarit visuel que les autres emails de facture (`BuildInvoiceEmailHtml`), reprend la mention légale `CompanyProfile.LatePaymentMention` déjà configurée pour donner du poids au rappel sans la retaper. PDF (avec logo) en pièce jointe, comme les autres.
+- N'envoie rien si aucune clé Brevo n'est configurée (même garde que les autres emails automatiques).
+
 ## Contexte etnof-web (relevé sur https://website-etnof-web.vercel.app/, 2026-07-30)
 
 - Statut juridique : **auto-entreprise** (micro-entreprise), gérant Ethan Frou (avec Noa Frou).

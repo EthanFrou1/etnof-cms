@@ -1,5 +1,6 @@
 using System.Text.Json.Nodes;
 using Microsoft.EntityFrameworkCore;
+using Modules.Rdv;
 
 namespace Backend;
 
@@ -153,12 +154,44 @@ public static class AgencyDashboardEndpoints
                 .GroupBy(m => m)
                 .ToDictionary(g => g.Key, g => g.Count());
 
+            // Vue d'ensemble facturation/RDV tous sites confondus, ajoutée le 2026-08-06 — mêmes
+            // tables que Facturation/RDV, juste sans filtre par tenant puisque tout partage la même
+            // base (voir docs/07-admin-global.md, "Backlog... brainstorm fonctionnalités manquantes").
+            var now = DateTime.UtcNow;
+            var monthStart = new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+
+            var revenueThisMonth = await db.Invoices
+                .Where(i => i.Status == "paid" && i.PaidAt != null && i.PaidAt >= monthStart)
+                .SumAsync(i => (decimal?)i.TotalHt) ?? 0;
+
+            var overdueInvoices = db.Invoices.Where(i => i.Status == "sent" && i.DueDate < now);
+            var overdueInvoicesCount = await overdueInvoices.CountAsync();
+            var overdueInvoicesTotal = await overdueInvoices.SumAsync(i => (decimal?)i.TotalHt) ?? 0;
+
+            var siteNames = sites.ToDictionary(s => s.Id, s => s.Name);
+            var upcomingBookings = await db.Bookings
+                .Where(b => b.Status == "confirmed" && b.StartsAt >= now)
+                .OrderBy(b => b.StartsAt)
+                .Take(5)
+                .ToListAsync();
+
             return Results.Ok(new
             {
                 totalSites = sites.Count,
                 byStatus,
                 byType,
                 byModule,
+                revenueThisMonth,
+                overdueInvoicesCount,
+                overdueInvoicesTotal,
+                upcomingBookings = upcomingBookings.Select(b => new
+                {
+                    b.Id,
+                    b.ClientSiteId,
+                    SiteName = siteNames.GetValueOrDefault(b.ClientSiteId, "Site supprimé"),
+                    b.StartsAt,
+                    b.CustomerName,
+                }),
             });
         });
     }

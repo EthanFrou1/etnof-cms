@@ -5,6 +5,7 @@ import { TEMPLATES } from "../../templates/registry";
 import type { TemplateId } from "../../hooks/useTemplate";
 import { inputClass, type ModuleMeta } from "./shared";
 import { IconExternalLink } from "../../components/admin/icons";
+import ModuleThumbnail from "../../components/admin/ModuleThumbnail";
 
 const STATUSES = ["En cours", "Livré", "En maintenance"];
 
@@ -116,79 +117,113 @@ function SiteFormModal({
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-          <input
-            className={inputClass}
-            placeholder="Nom du client"
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-            required
-          />
-          <input
-            className={inputClass}
-            placeholder="Type de site (ex : Boulangerie)"
-            value={form.siteType}
-            onChange={(e) => setForm({ ...form, siteType: e.target.value })}
-          />
-          <textarea
-            className={inputClass}
-            placeholder="Description"
-            value={form.description}
-            onChange={(e) => setForm({ ...form, description: e.target.value })}
-          />
-          <input
-            className={inputClass}
-            placeholder="URL du site déployé"
-            value={form.url}
-            onChange={(e) => setForm({ ...form, url: e.target.value })}
-          />
-          <select
-            className={inputClass}
-            value={form.status}
-            onChange={(e) => setForm({ ...form, status: e.target.value })}
-          >
-            {STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
+          <label className="flex flex-col gap-1 text-sm font-medium text-gray-text">
+            Nom du client
+            <input
+              className={inputClass}
+              placeholder="Nom du client"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              required
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-sm font-medium text-gray-text">
+            Type de site
+            <input
+              className={inputClass}
+              placeholder="ex : Boulangerie"
+              value={form.siteType}
+              onChange={(e) => setForm({ ...form, siteType: e.target.value })}
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-sm font-medium text-gray-text">
+            Description
+            <textarea
+              className={inputClass}
+              placeholder="Description"
+              value={form.description}
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-sm font-medium text-gray-text">
+            URL du site déployé
+            <input
+              className={inputClass}
+              placeholder="https://…"
+              value={form.url}
+              onChange={(e) => setForm({ ...form, url: e.target.value })}
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-sm font-medium text-gray-text">
+            Statut
+            <select
+              className={inputClass}
+              value={form.status}
+              onChange={(e) => setForm({ ...form, status: e.target.value })}
+            >
+              {STATUSES.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          </label>
 
-          <input
-            type="password"
-            className={inputClass}
-            placeholder={editing ? "Nouveau mot de passe (laisser vide pour ne pas changer)" : "Mot de passe du client"}
-            value={form.password}
-            onChange={(e) => setForm({ ...form, password: e.target.value })}
-            required={!editing}
-          />
+          <label className="flex flex-col gap-1 text-sm font-medium text-gray-text">
+            Mot de passe
+            <input
+              type="password"
+              className={inputClass}
+              placeholder={editing ? "Laisser vide pour ne pas changer" : "Mot de passe du client"}
+              value={form.password}
+              onChange={(e) => setForm({ ...form, password: e.target.value })}
+              required={!editing}
+            />
+          </label>
 
-          <select
-            className={inputClass}
-            value={form.templateId}
-            onChange={(e) => setForm({ ...form, templateId: e.target.value as TemplateId })}
-          >
-            {TEMPLATES.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.label}
-              </option>
-            ))}
-          </select>
+          <label className="flex flex-col gap-1 text-sm font-medium text-gray-text">
+            Template
+            <select
+              className={inputClass}
+              value={form.templateId}
+              onChange={(e) => setForm({ ...form, templateId: e.target.value as TemplateId })}
+            >
+              {TEMPLATES.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
+          </label>
 
-          <fieldset className="flex flex-col gap-1">
+          <fieldset className="flex flex-col gap-2">
             <legend className="mb-1 text-sm font-medium text-gray-text">
               Modules autorisés (le client peut ensuite les masquer, pas les activer lui-même)
             </legend>
-            {availableModules.map((m) => (
-              <label key={m.name} className="flex items-center gap-2 text-sm text-navy">
-                <input
-                  type="checkbox"
-                  checked={form.modules.includes(m.name)}
-                  onChange={() => toggleModule(m.name)}
-                  className="h-4 w-4 accent-brand-mid"
-                />
-                {m.displayName}
-              </label>
-            ))}
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {availableModules.map((m) => {
+                const checked = form.modules.includes(m.name);
+                return (
+                  <label
+                    key={m.name}
+                    className={`flex cursor-pointer items-center gap-2 rounded-button border p-2 text-sm transition-colors ${
+                      checked
+                        ? "border-brand-mid bg-brand-mid/5 text-navy"
+                        : "border-border-subtle text-gray-text hover:bg-bg-page-start"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggleModule(m.name)}
+                      className="sr-only"
+                    />
+                    <ModuleThumbnail name={m.name} displayName={m.displayName} className="h-9 w-9" />
+                    <span className="font-medium">{m.displayName}</span>
+                  </label>
+                );
+              })}
+            </div>
           </fieldset>
 
           <div className="flex gap-2">

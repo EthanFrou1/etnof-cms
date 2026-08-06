@@ -14,13 +14,15 @@ public class QuotePdfDocument : IDocument
     private readonly BillingClient _client;
     private readonly Quote _quote;
     private readonly List<QuoteLineDto> _lines;
+    private readonly string? _logoPath;
 
-    public QuotePdfDocument(CompanyProfile company, BillingClient client, Quote quote, List<QuoteLineDto> lines)
+    public QuotePdfDocument(CompanyProfile company, BillingClient client, Quote quote, List<QuoteLineDto> lines, string? logoPath = null)
     {
         _company = company;
         _client = client;
         _quote = quote;
         _lines = lines;
+        _logoPath = logoPath;
     }
 
     public DocumentMetadata GetMetadata() => DocumentMetadata.Default;
@@ -50,6 +52,19 @@ public class QuotePdfDocument : IDocument
         {
             row.RelativeItem().Column(col =>
             {
+                if (_logoPath is not null)
+                {
+                    // QuestPDF exige une contrainte de taille explicite sur Image/Svg (un simple
+                    // MaxHeight ne suffit pas, l'un des deux axes doit être fixé sans laisser l'autre
+                    // libre) — Height+FitHeight pour un raster, Width seul pour un Svg (qui dérive sa
+                    // hauteur de son ratio intrinsèque), sinon QuestPDF lève une DocumentLayoutException.
+                    if (Path.GetExtension(_logoPath).Equals(".svg", StringComparison.OrdinalIgnoreCase))
+                        col.Item().Width(140).AlignLeft().Svg(File.ReadAllText(_logoPath));
+                    else
+                        col.Item().Height(70).AlignLeft().Image(_logoPath).FitHeight();
+                    col.Item().PaddingBottom(8);
+                }
+
                 col.Item().Text(_company.TradeName.Length > 0 ? _company.TradeName : _company.LegalName).FontSize(16).Bold();
                 col.Item().Text(_company.LegalName);
                 col.Item().Text(_company.LegalForm);

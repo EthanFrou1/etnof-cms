@@ -77,6 +77,14 @@ const fr: Dict = {
   "avisGoogle.title": "Ce qu'en disent nos clients",
   "avisGoogle.reviewsCount": "avis",
 
+  "gallery.label": "Galerie",
+  "gallery.title": "En images",
+  "gallery.close": "Fermer",
+
+  "cookies.message": "Ce site utilise des cookies de mesure d'audience (Google Analytics) pour comprendre sa fréquentation. Vous pouvez accepter ou refuser.",
+  "cookies.accept": "Accepter",
+  "cookies.refuse": "Refuser",
+
   "blog.backToSite": "← Retour au site",
   "blog.notFound": "Article introuvable.",
 
@@ -168,6 +176,14 @@ const en: Dict = {
   "avisGoogle.title": "What our customers say",
   "avisGoogle.reviewsCount": "reviews",
 
+  "gallery.label": "Gallery",
+  "gallery.title": "In pictures",
+  "gallery.close": "Close",
+
+  "cookies.message": "This site uses audience measurement cookies (Google Analytics) to understand its traffic. You can accept or decline.",
+  "cookies.accept": "Accept",
+  "cookies.refuse": "Decline",
+
   "blog.backToSite": "← Back to site",
   "blog.notFound": "Article not found.",
 
@@ -258,6 +274,14 @@ const es: Dict = {
   "avisGoogle.label": "Reseñas de Google",
   "avisGoogle.title": "Lo que dicen nuestros clientes",
   "avisGoogle.reviewsCount": "reseñas",
+
+  "gallery.label": "Galería",
+  "gallery.title": "En imágenes",
+  "gallery.close": "Cerrar",
+
+  "cookies.message": "Este sitio utiliza cookies de medición de audiencia (Google Analytics) para entender su tráfico. Puedes aceptar o rechazar.",
+  "cookies.accept": "Aceptar",
+  "cookies.refuse": "Rechazar",
 
   "blog.backToSite": "← Volver al sitio",
   "blog.notFound": "Artículo no encontrado.",

@@ -2,27 +2,11 @@ import { useEffect, useState } from "react";
 import { API_BASE_URL, AGENCY_CONTACT_EMAIL } from "../../config";
 import type { ModuleConfig, ModulesConfig } from "../../hooks/useModules";
 import { adminFetch } from "../../hooks/useAdminSession";
+import { MODULE_IMAGES } from "../../moduleIcons";
 
 type ModulesSectionProps = {
   clientSiteId: string;
   password: string;
-};
-
-// Une image par module, générée par IA et déposée par Ethan dans frontend/public/module-icons/
-// (voir docs/11-images-modules.md). Tant qu'un fichier n'existe pas, la card retombe sur un
-// dégradé de marque avec l'initiale du module — jamais d'image cassée.
-const MODULE_IMAGES: Record<string, string> = {
-  contact: "/module-icons/contact.png",
-  maps: "/module-icons/maps.png",
-  blog: "/module-icons/blog.png",
-  catalogue: "/module-icons/catalogue.png",
-  horaires: "/module-icons/horaires.png",
-  rdv: "/module-icons/rdv.png",
-  newsletter: "/module-icons/newsletter.png",
-  "avis-google": "/module-icons/avis-google.png",
-  whatsapp: "/module-icons/whatsapp.png",
-  stripe: "/module-icons/stripe.png",
-  multilingue: "/module-icons/multilingue.png",
 };
 
 // Prix stocké en texte libre par Ethan (voir PricingSection.tsx, espace agence) — parfois
@@ -47,6 +31,14 @@ const MODULE_FIELDS: Record<string, ModuleField[]> = {
     { key: "phoneNumber", label: "Numéro WhatsApp", placeholder: "+33 6 12 34 56 78" },
     { key: "message", label: "Message pré-rempli", placeholder: "Bonjour, je vous contacte depuis votre site." },
   ],
+  "reseaux-sociaux": [
+    { key: "facebookUrl", label: "Lien Facebook", placeholder: "https://facebook.com/..." },
+    { key: "instagramUrl", label: "Lien Instagram", placeholder: "https://instagram.com/..." },
+  ],
+  analytics: [
+    { key: "measurementId", label: "ID de mesure Google Analytics (GA4)", placeholder: "G-XXXXXXXXXX" },
+  ],
+  pages: [{ key: "menuLabel", label: "Intitulé du menu dans le header", placeholder: "Informations" }],
 };
 
 function activationMailto(clientSiteId: string, displayName: string, price: string) {

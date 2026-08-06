@@ -5,8 +5,10 @@ using Modules.AvisGoogle;
 using Modules.Blog;
 using Modules.Catalogue;
 using Modules.Contact;
+using Modules.Galerie;
 using Modules.Multilingue;
 using Modules.Newsletter;
+using Modules.Pages;
 using Modules.Rdv;
 using Modules.Stripe;
 
@@ -32,6 +34,8 @@ builder.Services.AddHttpClient();
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("Default")));
+
+builder.Services.AddHostedService<OverdueInvoiceReminderService>();
 
 var allowedOrigin = builder.Configuration["Cors:AllowedOrigin"] ?? "http://localhost:5173";
 builder.Services.AddCors(options =>
@@ -98,6 +102,10 @@ NewsletterModule.MapEndpoints(app);
 NewsletterAdminEndpoints.MapEndpoints(app);
 AvisGoogleModule.MapEndpoints(app);
 AvisGoogleAdminEndpoints.MapEndpoints(app);
+GalleryModule.MapEndpoints(app);
+GalleryAdminEndpoints.MapEndpoints(app);
+PagesModule.MapEndpoints(app);
+PagesAdminEndpoints.MapEndpoints(app);
 StripeModule.MapEndpoints(app);
 StripeAdminEndpoints.MapEndpoints(app);
 MultilingueAdminEndpoints.MapEndpoints(app);

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { API_BASE_URL } from "../config";
+import { IconLock, IconMail } from "../components/admin/icons";
 
 // Page publique, sans authentification — le client paie sa facture en ligne (compte Stripe de
 // l'agence, voir backend/InvoicePaymentEndpoints.cs). Route : /facture/{id}.
@@ -16,6 +17,7 @@ type PublicInvoice = {
   paidAt: string | null;
   clientName: string;
   companyTradeName: string;
+  companyEmail: string;
 };
 
 const INVOICE_TYPE_LABELS: Record<string, string> = {
@@ -172,9 +174,26 @@ export default function InvoicePublicPage({ invoiceId }: { invoiceId: string }) 
                 >
                   {paying ? "Redirection…" : `Payer ${formatPrice(invoice.totalHt)} en ligne`}
                 </button>
+                <p className="mt-3 flex items-center justify-center gap-1.5 text-xs text-gray-text">
+                  <IconLock className="h-3.5 w-3.5" />
+                  Paiement sécurisé par Stripe
+                </p>
               </>
             )}
           </section>
+        )}
+
+        {invoice.companyEmail && (
+          <p className="flex items-center justify-center gap-1.5 text-sm text-gray-text">
+            <IconMail className="h-4 w-4" />
+            Une question sur cette facture ?{" "}
+            <a
+              href={`mailto:${invoice.companyEmail}?subject=${encodeURIComponent(`Question — Facture ${invoice.number}`)}`}
+              className="font-medium text-brand-mid hover:underline"
+            >
+              Contactez-nous
+            </a>
+          </p>
         )}
       </div>
     </div>

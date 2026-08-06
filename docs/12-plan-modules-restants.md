@@ -175,7 +175,47 @@ Basé sur la note de priorité déjà actée dans `docs/04-catalogue-modules.md`
 Ces trois options ne suivront **pas** le pattern "dossier `/modules/xxx`" de `docs/02-architecture-modules.md` — elles touchent plusieurs modules à la fois plutôt que d'en ajouter un nouveau.
 
 - **Back-office / CMS (450€)** : déjà largement couvert par l'admin construit en Phase 3/5. Reste à durcir avant vente (vrai hash de mot de passe, gestion multi-utilisateurs) plutôt qu'à construire — voir le bilan de Phase 5 dans `docs/05-roadmap-poc.md`.
-- **SEO avancé (390€)** : optimisations transverses (métadonnées, sitemap, structured data...) qui s'appliquent à tout le site, pas une fonctionnalité qu'on active/désactive.
+- **SEO avancé (390€)** : optimisations transverses (sitemap, structured data/JSON-LD, rendu serveur des balises `<head>` pour les aperçus de lien réseaux sociaux...) qui s'appliquent à tout le site, pas une fonctionnalité qu'on active/désactive. Voir "SEO de base" ci-dessous pour ce qui est déjà offert gratuitement, afin de ne pas vendre en "avancé" ce qui est déjà inclus.
+
+### SEO de base (gratuit, implémenté le 2026-08-06)
+
+Titre d'onglet + `<meta name="description">` + balises Open Graph (`og:title`/`og:description`) posés dynamiquement en JS à l'arrivée sur le site public d'un tenant (page d'accueil : nom/description du site ; article de blog : titre/extrait du contenu). Nouveau hook `frontend/src/hooks/useDocumentMeta.ts`, appelé depuis `PublicSite.tsx` ; `modules/blog/frontend/BlogPostPage.tsx` reproduit la même logique en local plutôt que d'importer le hook (un module reste isolé, voir `docs/02-architecture-modules.md`).
+
+**Limite connue, assumée pour rester simple** : le site est une SPA 100% cliente (pas de SSR/prerendering, pas de react-router — voir `App.tsx`, navigation par rechargement complet de page). Googlebot exécute le JS et indexe donc correctement ces balises, **mais** les robots qui ne l'exécutent pas (aperçus de lien WhatsApp/Facebook/Instagram/LinkedIn) ne les verront jamais — un `curl` de la page ne renvoie que le HTML statique de `index.html`. Lever cette limite demanderait un vrai rendu côté serveur des balises `<head>` (SSR complet ou "prerendering" ciblé sur les bots de partage) : plus gros chantier, à ranger dans "SEO avancé" plutôt que dans cette base gratuite.
+
+**Volontairement pas fait pour l'instant** : sitemap.xml et robots.txt. Un sitemap n'a de sens qu'à la racine du vrai domaine du site (`https://boulangerie-dupont.fr/sitemap.xml`), or le routage par domaine personnalisé n'existe pas encore (voir `docs/08-hebergement-domaines.md` : tenants seulement accessibles via `/t/{clientSiteId}` sur le domaine de la plateforme aujourd'hui) — construire un sitemap maintenant serait du travail non exploitable tant que ce point d'infra n'est pas résolu. À reprendre une fois le routage par domaine en place.
+
+### Pages personnalisées, implémenté le 2026-08-06
+
+Suite du brainstorm de fonctionnalités manquantes (`docs/07-admin-global.md`) — le plus gros morceau de la liste, avec une vraie décision d'architecture (comment le visiteur trouve les pages). Question posée à Ethan avant de coder : liens automatiques dans le pied de page, ou pas de lien auto (le client se débrouille) ? Réponse, plus précise que les deux options proposées : **un onglet dans le header, intitulé choisi par le client, listant ses pages dans un ordre qu'il choisit lui-même**.
+
+**Portée construite** : module complet (backend + admin + section publique), premier vrai module de ce projet à suivre le pattern `docs/02-architecture-modules.md` de bout en bout depuis Galerie.
+
+- **Entité `CustomPage`** (`modules/pages/backend/CustomPage.cs`) — même forme que `BlogPost` (Title/Slug/Content/PublishedAt), plus `SortOrder`. Contenu en HTML, même éditeur riche TipTap que le blog (`RichTextEditor.tsx` réutilisé tel quel).
+- **Admin** (`PagesSection.tsx` + `PageDetailPage.tsx`, `/admin/{clientSiteId}/pages[/{id}]`) — liste courte avec boutons monter/descendre (premier réordonnancement du projet ; `POST /admin/pages/{id}/move`, échange le `SortOrder` avec le voisin plutôt qu'un vrai algorithme de tri par lot — pas de glisser-déposer pour éviter une dépendance externe de plus après TipTap).
+- **Intitulé du menu** : pas de nouvelle table — un champ `menuLabel` de plus dans `ModulesConfigJson` (même mécanisme générique que `maps.apiKey`), configuré depuis l'onglet "Modules" comme n'importe quel autre champ de module.
+- **Menu déroulant public** (`modules/pages/frontend/CustomPagesNav.tsx`) — nouveau composant, premier vrai dropdown du site public (jusqu'ici la nav n'avait que des liens à plat + le sélecteur de langue, qui est un groupe de boutons, pas un popover). Ferme au clic extérieur en desktop ; en mobile, s'affiche à plat dans le panneau déjà déroulé (pas de popover imbriqué dans un panneau plein écran). Branché dans `TemplateHestia.tsx` et `TemplateHelios.tsx` (desktop + mobile, 4 points d'intégration au total), couleur héritée du nav de chaque template (`color: inherit`) pour rester cohérent avec les deux styles de navbar (pilule blanche Hestia / bandeau plein `ink` Helios).
+- **Page publique** (`modules/pages/frontend/CustomPageView.tsx`, route `/t/{clientSiteId}/pages/{slug}` ajoutée dans `App.tsx`) — même structure que `BlogPostPage.tsx` (rendu HTML, meta description/OG générées).
+
+**Pas de support multilingue pour l'instant** — comme les autres modules non couverts par `ContentTranslation` (RDV, Newsletter...), voir la note dans `PagesModule.cs`. Étendre Multilingue à ce module serait un chantier à part.
+
+### Éditeur riche pour le blog (TipTap), implémenté le 2026-08-06
+
+Le contenu d'un article était un simple `<textarea>` (texte brut). Dépendance externe validée avec Ethan avant d'installer (règle 5 de `CLAUDE.md`) : `@tiptap/react` + `@tiptap/starter-kit` + `@tiptap/pm` (~30-40 Ko gzippé, licence MIT). Portée volontairement limitée (rester simple) : gras, italique, titres H2/H3, listes à puces/numérotées, citation, lien — **pas d'images inline** (pas de gestion d'upload dans l'éditeur pour l'instant).
+
+- `frontend/src/components/admin/RichTextEditor.tsx` — nouveau composant partagé, barre d'outils + `EditorContent`, branché dans `BlogPostDetailPage.tsx` (remplace le `<textarea>`).
+- Le contenu est maintenant stocké/renvoyé en HTML (`editor.getHTML()`) plutôt qu'en texte brut — **aucune migration de schéma** côté backend (`BlogPost.Content` reste une simple colonne `string`).
+- Côté public (`modules/blog/frontend/BlogPostPage.tsx`), rendu conditionnel : si le contenu contient une balise HTML (regex `/<[a-z][\s\S]*>/i`), rendu via `dangerouslySetInnerHTML` (contenu de confiance : seul l'admin authentifié du tenant peut l'écrire, même modèle de confiance que le reste de l'admin) ; sinon repli sur l'ancien rendu `whitespace-pre-wrap` pour ne pas casser les articles écrits avant ce changement. La génération de la meta description (voir "SEO de base" ci-dessus) retire aussi les balises HTML avant troncature.
+
+### Statistiques (Google Analytics), implémenté le 2026-08-06
+
+Demandé par Ethan comme suite du brainstorm de fonctionnalités manquantes (`docs/07-admin-global.md`) — question posée avant de coder : compteur maison (zéro dépendance, zéro cookie) ou intégration Google Analytics (plus riche, mais dépendance externe + bandeau de consentement RGPD nécessaire) ? Réponse : Google Analytics.
+
+Nouveau module config-only `modules/analytics/` (même famille que WhatsApp/Réseaux sociaux — un seul champ `measurementId` dans `ModulesConfigJson`, aucun backend). `CookieConsentBanner.tsx` gère à la fois le bandeau et le chargement du script GA4 (`gtag.js`) : **le script ne se charge jamais avant un clic explicite sur "Accepter"** — c'est le point RGPD central. Choix mémorisé en `localStorage` par tenant, jamais reproposé une fois tranché. Refus = navigation normale du site, aucun cookie Google posé.
+
+**Portée V1 assumée (rester simple)** : le bandeau n'est monté que sur la page d'accueil (`PublicSite.tsx`), pas sur les pages détail blog (`BlogPostPage.tsx`) ni le panier (`CartPage.tsx`), qui vivent en dehors de ce composant. Conséquence : ces pages ne déclenchent pas de mesure GA même après consentement. Comme l'essentiel du contenu d'un site (offres, établissement, blog en liste, RDV, newsletter...) vit déjà sur la page d'accueil elle-même, ça couvre la majorité du trafic réel — mais un futur passage pourrait étendre le montage du bandeau à ces routes si le besoin se confirme.
+
+**Dépendance externe** : compte Google Analytics à créer par le client (gratuit), aucune clé API/SDK côté backend — juste un ID de mesure collé dans son admin.
 
 ### Multilingue (250€) — implémenté (2026-07-30)
 
@@ -205,4 +245,4 @@ Ces options ne sont pas des fonctionnalités du site — ce sont des livrables q
 - **Charte graphique (390€)** — livrable graphique (palette, typo, déclinaisons).
 - **Rédaction des textes (sur devis)** — livrable texte.
 
-**Page supplémentaire (80€)** est à trancher : soit c'est un livrable manuel comme ci-dessus (Ethan ajoute une page statique de plus au moment de la livraison, pas de code réutilisable), soit c'est le signe qu'un vrai module "Pages personnalisées" (le client crée/édite ses propres pages depuis son admin) aurait de la valeur. À décider avant de le classer définitivement — pas de développement tant que ce choix n'est pas fait.
+**Page supplémentaire (80€)** — tranché le 2026-08-06 : construit comme un vrai module "Pages personnalisées" plutôt qu'un livrable manuel, voir la section dédiée plus bas.

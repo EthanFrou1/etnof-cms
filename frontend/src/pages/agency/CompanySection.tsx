@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { API_BASE_URL } from "../../config";
 import { adminFetch } from "../../hooks/useAdminSession";
-import { inputClass } from "./shared";
+import { AddressAutocomplete, inputClass } from "./shared";
 
 type CompanyProfile = {
   id: string;
@@ -189,11 +189,14 @@ export default function CompanySection({ password }: { password: string }) {
 
           <label className="text-sm font-medium text-gray-text">
             Adresse
-            <input
-              className={`mt-1 w-full ${inputClass}`}
-              value={form.address}
-              onChange={(e) => handleChange("address", e.target.value)}
-            />
+            <div className="mt-1">
+              <AddressAutocomplete
+                password={password}
+                value={form.address}
+                onChange={(address) => handleChange("address", address)}
+                placeholder="12 rue de la Paix, 75002 Paris"
+              />
+            </div>
           </label>
 
           <div className="grid gap-3 sm:grid-cols-2">

@@ -161,6 +161,26 @@ Aucune table de créneaux persistée : les créneaux disponibles sont calculés 
 | Status | string | `confirmed` / `cancelled` — pas de `fulfilled` (un rendez-vous a lieu ou non, pas d'étape de traitement) |
 | CreatedAt | datetime | |
 
+### GalleryImage (module Galerie, ajouté le 2026-08-06)
+| Champ | Type | Note |
+|---|---|---|
+| Id | Guid | |
+| ClientSiteId | Guid | |
+| Path | string | `/uploads/{clientSiteId}/gallery/{fichier}` — même pattern d'upload qu'EstablishmentImage/ProductImage, mais pas de plafond de photos |
+| SortOrder | int | Ordre d'ajout, pas de réordonnancement manuel en V1 |
+
+### CustomPage (module Pages personnalisées, ajouté le 2026-08-06)
+| Champ | Type | Note |
+|---|---|---|
+| Id | Guid | |
+| ClientSiteId | Guid | |
+| Title | string | |
+| Slug | string | Unique par tenant, généré depuis le titre, même logique que `BlogPost.Slug` (`PagesAdminEndpoints.UniqueSlugAsync`) |
+| Content | string | HTML — même éditeur riche (TipTap) que `BlogPost.Content` |
+| SortOrder | int | Ordre dans le menu déroulant du header, modifiable via boutons monter/descendre (`POST .../move`) |
+| PublishedAt | datetime? | null = brouillon, comme `BlogPost` |
+| CreatedAt | datetime | |
+
 ### NewsletterSubscriber (module Newsletter, ajouté le 2026-07-28)
 | Champ | Type | Note |
 |---|---|---|

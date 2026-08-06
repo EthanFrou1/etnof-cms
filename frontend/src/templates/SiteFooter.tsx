@@ -1,4 +1,8 @@
+import { lazy, Suspense } from "react";
 import type { SiteContent } from "../hooks/useContent";
+import type { ModulesConfig } from "../hooks/useModules";
+
+const SocialLinks = lazy(() => import("@modules/reseaux-sociaux/frontend/SocialLinks"));
 
 type SiteFooterProps = {
   content: SiteContent | null;
@@ -8,17 +12,22 @@ type SiteFooterProps = {
   // appelant ne doit plus l'envelopper dans un conteneur `max-w`). Par défaut (Helios, pas encore
   // repris) : comportement inchangé, simple bloc de texte inséré dans le conteneur du gabarit.
   dark?: boolean;
+  // Facultatif : seul le module Réseaux sociaux en a besoin ici (icônes Facebook/Instagram dans le
+  // pied de page) — undefined tant qu'un gabarit ne le passe pas, jamais bloquant pour le reste.
+  modules?: ModulesConfig | null;
 };
 
 // Les horaires ne sont plus affichés ici : ils ont leur propre section dédiée sur la page (gardée
 // par le module "horaires", voir TemplateHestia.tsx) — le footer ne garde que les faits qui n'ont
 // pas de section propre (nom, adresse, téléphone, email). Plus de lien vers l'admin (retiré à la
 // demande d'Ethan) : le site public ne renvoie plus vers `/admin`.
-export default function SiteFooter({ content, palette, dark = false }: SiteFooterProps) {
+export default function SiteFooter({ content, palette, dark = false, modules }: SiteFooterProps) {
   const name = content?.establishmentName || content?.siteName;
   const hasContactInfo = Boolean(content?.address || content?.phone || content?.email);
+  const socialConfig = modules?.["reseaux-sociaux"];
+  const showSocialLinks = Boolean(socialConfig?.enabled);
 
-  if (!name && !hasContactInfo) return null;
+  if (!name && !hasContactInfo && !showSocialLinks) return null;
 
   if (dark) {
     return (
@@ -32,6 +41,16 @@ export default function SiteFooter({ content, palette, dark = false }: SiteFoote
           {content?.address && <span style={{ color: `${palette.background}B3` }}>{content.address}</span>}
           {content?.phone && <span style={{ color: `${palette.background}B3` }}>{content.phone}</span>}
           {content?.email && <span style={{ color: `${palette.background}B3` }}>{content.email}</span>}
+          {showSocialLinks && (
+            <Suspense fallback={null}>
+              <div className="mt-3">
+                <SocialLinks
+                  facebookUrl={typeof socialConfig?.facebookUrl === "string" ? socialConfig.facebookUrl : ""}
+                  instagramUrl={typeof socialConfig?.instagramUrl === "string" ? socialConfig.instagramUrl : ""}
+                />
+              </div>
+            </Suspense>
+          )}
         </div>
       </footer>
     );
@@ -50,6 +69,16 @@ export default function SiteFooter({ content, palette, dark = false }: SiteFoote
       {content?.address && <span>{content.address}</span>}
       {content?.phone && <span>{content.phone}</span>}
       {content?.email && <span>{content.email}</span>}
+      {showSocialLinks && (
+        <Suspense fallback={null}>
+          <div className="mt-2">
+            <SocialLinks
+              facebookUrl={typeof socialConfig?.facebookUrl === "string" ? socialConfig.facebookUrl : ""}
+              instagramUrl={typeof socialConfig?.instagramUrl === "string" ? socialConfig.instagramUrl : ""}
+            />
+          </div>
+        </Suspense>
+      )}
     </footer>
   );
 }
