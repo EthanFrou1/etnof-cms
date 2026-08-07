@@ -21,10 +21,32 @@ public static class ContentEndpoints
 
             if (MultilingueModule.IsSupportedLocale(locale) && await registry.IsEnabledAsync(clientSiteId, MultilingueModule.Name))
             {
-                return Results.Ok(await ToTranslatedResponseAsync(content, locale!, clientSiteId, db));
+                return Results.Ok(await ToTranslatedResponseAsync(ToResponse(content), locale!, clientSiteId, db));
             }
 
             return Results.Ok(ToResponse(content));
+        });
+
+        // Public : même contenu que /content mais figé à la dernière publication volontaire (voir
+        // PublishEndpoints.cs, bouton "Rafraîchir le site"). Retombe sur le live tant qu'aucune
+        // publication n'a encore eu lieu pour ce tenant, pour ne rien casser sur les sites existants.
+        app.MapGet("/api/t/{clientSiteId:guid}/content/published", async (Guid clientSiteId, string? locale, AppDbContext db, ModuleRegistry registry) =>
+        {
+            var content = await db.SiteContents
+                .Include(c => c.Offers)
+                .FirstOrDefaultAsync(c => c.ClientSiteId == clientSiteId);
+            if (content is null) return Results.NotFound();
+
+            var baseResponse = content.PublishedContentJson is null
+                ? ToResponse(content)
+                : JsonSerializer.Deserialize<SiteContentResponse>(content.PublishedContentJson)!;
+
+            if (MultilingueModule.IsSupportedLocale(locale) && await registry.IsEnabledAsync(clientSiteId, MultilingueModule.Name))
+            {
+                return Results.Ok(await ToTranslatedResponseAsync(baseResponse, locale!, clientSiteId, db));
+            }
+
+            return Results.Ok(baseResponse);
         });
 
         app.MapPut("/api/t/{clientSiteId:guid}/admin/content", async (Guid clientSiteId, SiteContentInput input, HttpRequest req, IConfiguration config, AppDbContext db) =>
@@ -48,6 +70,7 @@ public static class ContentEndpoints
             content.ManagerEmail = input.ManagerEmail;
             content.GooglePlaceId = input.GooglePlaceId;
             content.GooglePlaceName = input.GooglePlaceName;
+            content.CgvContent = input.CgvContent;
             content.OpeningHoursJson = JsonSerializer.Serialize(input.OpeningHours);
 
             db.Offers.RemoveRange(content.Offers);
@@ -75,9 +98,11 @@ public static class ContentEndpoints
     }
 
     // Reforme la réponse API : OpeningHours en liste déjà parsée plutôt que la colonne JSON brute
-    // OpeningHoursJson (même principe que ModulesConfigJson côté TenantAdminEndpoints).
-    private static object ToResponse(SiteContent content) => new
-    {
+    // OpeningHoursJson (même principe que ModulesConfigJson côté TenantAdminEndpoints). Retourne un
+    // record nommé (plutôt qu'un objet anonyme) car ce même résultat doit pouvoir être sérialisé dans
+    // SiteContent.PublishedContentJson puis redésérialisé tel quel (voir /content/published,
+    // PublishEndpoints.cs) — un type anonyme ne peut pas être redésérialisé.
+    internal static SiteContentResponse ToResponse(SiteContent content) => new(
         content.Id,
         content.ClientSiteId,
         content.SiteName,
@@ -93,49 +118,37 @@ public static class ContentEndpoints
         content.ManagerEmail,
         content.GooglePlaceId,
         content.GooglePlaceName,
-        OpeningHours = ParseOpeningHours(content.OpeningHoursJson),
-    };
+        content.CgvContent,
+        ParseOpeningHours(content.OpeningHoursJson)
+    );
 
-    // Même forme que ToResponse, mais SiteName/Description/Offers.Title/Offers.Description passent
+    // Même forme que baseResponse, mais SiteName/Description/Offers.Title/Offers.Description passent
     // par MultilingueModule.Merge (retombe sur le français si la traduction pour ce champ est vide).
     // Adresse/téléphone/établissement restent toujours en français (pas des textes marketing).
-    private static async Task<object> ToTranslatedResponseAsync(SiteContent content, string locale, Guid clientSiteId, AppDbContext db)
+    private static async Task<SiteContentResponse> ToTranslatedResponseAsync(SiteContentResponse baseResponse, string locale, Guid clientSiteId, AppDbContext db)
     {
         var siteFields = await MultilingueModule.GetFieldsAsync(db, clientSiteId, "site", null, locale);
         var offerFields = await MultilingueModule.GetFieldsForManyAsync(db, clientSiteId, "offer", locale);
 
-        var translatedOffers = content.Offers.Select(o =>
+        var translatedOffers = baseResponse.Offers.Select(o =>
         {
             var fields = offerFields.GetValueOrDefault(o.Id) ?? new Dictionary<string, string>();
-            return new
+            return new Offer
             {
-                o.Id,
-                o.SiteContentId,
+                Id = o.Id,
+                SiteContentId = o.SiteContentId,
                 Title = MultilingueModule.Merge(o.Title, fields, "title"),
-                o.Price,
+                Price = o.Price,
                 Description = MultilingueModule.Merge(o.Description, fields, "description"),
-                o.ProductId,
+                ProductId = o.ProductId,
             };
-        });
+        }).ToList();
 
-        return new
+        return baseResponse with
         {
-            content.Id,
-            content.ClientSiteId,
-            SiteName = MultilingueModule.Merge(content.SiteName, siteFields, "siteName"),
-            Description = MultilingueModule.Merge(content.Description, siteFields, "description"),
+            SiteName = MultilingueModule.Merge(baseResponse.SiteName, siteFields, "siteName"),
+            Description = MultilingueModule.Merge(baseResponse.Description, siteFields, "description"),
             Offers = translatedOffers,
-            content.EstablishmentName,
-            content.EstablishmentType,
-            content.Address,
-            content.Phone,
-            content.Email,
-            content.ManagerName,
-            content.ManagerPhone,
-            content.ManagerEmail,
-            content.GooglePlaceId,
-            content.GooglePlaceName,
-            OpeningHours = ParseOpeningHours(content.OpeningHoursJson),
         };
     }
 
@@ -163,6 +176,29 @@ public static class ContentEndpoints
 // GooglePlacesEndpoints.details, qui remplit ces mêmes champs depuis "opening_hours.periods".
 public record DayHoursDto(bool Closed, string MorningOpen, string MorningClose, string AfternoonOpen, string AfternoonClose);
 
+// Forme de la réponse publique de SiteContent — voir ContentEndpoints.ToResponse. Utilisé aussi bien
+// pour la réponse "live" (/content) que pour le snapshot sérialisé dans SiteContent.PublishedContentJson
+// (/content/published) : record nommé plutôt qu'objet anonyme pour être (dé)sérialisable des deux côtés.
+public record SiteContentResponse(
+    Guid Id,
+    Guid ClientSiteId,
+    string SiteName,
+    string Description,
+    List<Offer> Offers,
+    string EstablishmentName,
+    string EstablishmentType,
+    string Address,
+    string Phone,
+    string Email,
+    string ManagerName,
+    string ManagerPhone,
+    string ManagerEmail,
+    string GooglePlaceId,
+    string GooglePlaceName,
+    string CgvContent,
+    List<DayHoursDto> OpeningHours
+);
+
 public record OfferInput(string Title, string Price, string Description, Guid? ProductId);
 public record SiteContentInput(
     string SiteName,
@@ -178,5 +214,6 @@ public record SiteContentInput(
     string ManagerEmail,
     List<DayHoursDto> OpeningHours,
     string GooglePlaceId,
-    string GooglePlaceName
+    string GooglePlaceName,
+    string CgvContent
 );

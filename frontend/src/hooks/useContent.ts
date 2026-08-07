@@ -38,6 +38,7 @@ export type SiteContent = {
   openingHours: DayHours[];
   googlePlaceId: string;
   googlePlaceName: string;
+  cgvContent: string;
 };
 
 // `locale` optionnel (module Multilingue) — "fr" ou omis n'ajoute pas de paramètre, le backend
@@ -48,7 +49,7 @@ export function useContent(clientSiteId: string, locale?: string) {
 
   useEffect(() => {
     const query = locale && locale !== "fr" ? `?locale=${locale}` : "";
-    fetch(`${API_BASE_URL}/api/t/${clientSiteId}/content${query}`)
+    fetch(`${API_BASE_URL}/api/t/${clientSiteId}/content/published${query}`)
       .then((res) => res.json())
       .then((data: SiteContent) => setContent(data))
       .catch((err) => console.error("Erreur useContent :", err));

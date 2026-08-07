@@ -8,6 +8,7 @@ import CustomerDetailPage from "./pages/CustomerDetailPage";
 import ProductDetailPage from "./pages/ProductDetailPage";
 import BlogPostDetailPage from "./pages/BlogPostDetailPage";
 import PageDetailPage from "./pages/PageDetailPage";
+import CgvPage from "./pages/CgvPage";
 import type { AdminSection } from "./components/admin/AdminLayout";
 import type { AgencySection } from "./components/admin/AgencyLayout";
 import { API_BASE_URL } from "./config";
@@ -125,6 +126,12 @@ function App() {
         <CustomPageView slug={segments[3]} apiBaseUrl={API_BASE_URL} clientSiteId={segments[1]} />
       </Suspense>
     );
+  }
+
+  // /t/{clientSiteId}/cgv — CGV du tenant, contenu "core" (SiteContent.CgvContent) pas un module,
+  // voir CgvPage.tsx.
+  if (segments[0] === "t" && segments[1] && segments[2] === "cgv") {
+    return <CgvPage clientSiteId={segments[1]} />;
   }
 
   // /t/{clientSiteId}/panier — page panier du module Catalogue, identique pour tous les templates

@@ -28,6 +28,18 @@ public static class GooglePlacesEndpoints
             return await SearchAsync(query, config, httpFactory);
         });
 
+        // Même recherche, sans authentification cette fois : utilisée par le champ "Adresse de
+        // livraison" du panier public (voir CartPage.tsx), qui n'a par définition aucune session
+        // admin. Gardée derrière le module Catalogue (pas de recherche possible sur un site où il
+        // n'est pas activé) et derrière la policy "public-places" (Program.cs) pour limiter l'abus
+        // vu que chaque appel consomme du quota Google payant.
+        app.MapGet("/api/t/{clientSiteId:guid}/google-places/search", async (
+            Guid clientSiteId, string query, IConfiguration config, ModuleRegistry registry, IHttpClientFactory httpFactory) =>
+        {
+            if (!await registry.IsEnabledAsync(clientSiteId, "catalogue")) return Results.NotFound();
+            return await SearchAsync(query, config, httpFactory);
+        }).RequireRateLimiting("public-places");
+
         app.MapGet("/api/t/{clientSiteId:guid}/admin/google-places/details", async (
             Guid clientSiteId, string placeId, HttpRequest req, IConfiguration config, AppDbContext db, IHttpClientFactory httpFactory) =>
         {

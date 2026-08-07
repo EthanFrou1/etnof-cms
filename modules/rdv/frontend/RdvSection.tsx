@@ -39,17 +39,21 @@ function dayLabel(iso: string, locale?: Locale) {
   return new Date(iso).toLocaleDateString(localeTag(locale), { weekday: "long", day: "numeric", month: "long" });
 }
 
+function shortDayLabel(iso: string, locale?: Locale) {
+  return new Date(iso).toLocaleDateString(localeTag(locale), { weekday: "short", day: "numeric", month: "short" });
+}
+
 function timeLabel(iso: string, locale?: Locale) {
   return new Date(iso).toLocaleTimeString(localeTag(locale), { hour: "2-digit", minute: "2-digit" });
 }
 
 function groupByDay(slots: TimeSlot[], locale?: Locale) {
-  const groups: { day: string; slots: TimeSlot[] }[] = [];
+  const groups: { day: string; iso: string; slots: TimeSlot[] }[] = [];
   for (const slot of slots) {
     const day = dayLabel(slot.startsAt, locale);
     const group = groups.find((g) => g.day === day);
     if (group) group.slots.push(slot);
-    else groups.push({ day, slots: [slot] });
+    else groups.push({ day, iso: slot.startsAt, slots: [slot] });
   }
   return groups;
 }
@@ -61,6 +65,7 @@ export default function RdvSection({ apiBaseUrl, clientSiteId, palette, locale }
   // complet ("aucun créneau disponible" reste une information utile dans ce cas).
   const [configured, setConfigured] = useState<boolean | null>(null);
   const [selectedStartsAt, setSelectedStartsAt] = useState<string | null>(null);
+  const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(initialForm);
   const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState("");
@@ -112,6 +117,8 @@ export default function RdvSection({ apiBaseUrl, clientSiteId, palette, locale }
   if (configured === false) return null;
 
   const groups = slots ? groupByDay(slots, locale) : [];
+  const activeDay = selectedDay ?? groups[0]?.day ?? null;
+  const activeGroup = groups.find((g) => g.day === activeDay) ?? null;
 
   return (
     <section
@@ -131,36 +138,56 @@ export default function RdvSection({ apiBaseUrl, clientSiteId, palette, locale }
         <p className="text-sm text-gray-text">{t(locale, "rdv.noSlots")}</p>
       ) : (
         <div className="flex flex-col gap-4">
-          {groups.map((group) => (
-            <div key={group.day}>
-              <span className="text-sm font-semibold capitalize" style={{ color: palette.ink }}>
-                {group.day}
-              </span>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {group.slots.map((slot) => {
-                  const selected = selectedStartsAt === slot.startsAt;
-                  return (
-                    <button
-                      key={slot.startsAt}
-                      type="button"
-                      onClick={() => {
-                        setSelectedStartsAt(slot.startsAt);
-                        setStatus("idle");
-                      }}
-                      className="rounded-button border px-3 py-2 text-sm font-medium transition-colors"
-                      style={
-                        selected
-                          ? { backgroundColor: palette.accent, borderColor: palette.accent, color: "#FFFFFF" }
-                          : { borderColor: "var(--module-accent)", color: palette.ink }
-                      }
-                    >
-                      {timeLabel(slot.startsAt, locale)}
-                    </button>
-                  );
-                })}
-              </div>
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {groups.map((group) => {
+              const selected = group.day === activeDay;
+              return (
+                <button
+                  key={group.day}
+                  type="button"
+                  onClick={() => {
+                    setSelectedDay(group.day);
+                    setSelectedStartsAt(null);
+                    setStatus("idle");
+                  }}
+                  className="shrink-0 rounded-button border px-3 py-2 text-sm font-medium capitalize transition-colors"
+                  style={
+                    selected
+                      ? { backgroundColor: palette.accent, borderColor: palette.accent, color: "#FFFFFF" }
+                      : { borderColor: "var(--module-accent)", color: palette.ink }
+                  }
+                >
+                  {shortDayLabel(group.iso, locale)}
+                </button>
+              );
+            })}
+          </div>
+
+          {activeGroup && (
+            <div className="flex flex-wrap gap-2">
+              {activeGroup.slots.map((slot) => {
+                const selected = selectedStartsAt === slot.startsAt;
+                return (
+                  <button
+                    key={slot.startsAt}
+                    type="button"
+                    onClick={() => {
+                      setSelectedStartsAt(slot.startsAt);
+                      setStatus("idle");
+                    }}
+                    className="rounded-button border px-3 py-2 text-sm font-medium transition-colors"
+                    style={
+                      selected
+                        ? { backgroundColor: palette.accent, borderColor: palette.accent, color: "#FFFFFF" }
+                        : { borderColor: "var(--module-accent)", color: palette.ink }
+                    }
+                  >
+                    {timeLabel(slot.startsAt, locale)}
+                  </button>
+                );
+              })}
             </div>
-          ))}
+          )}
 
           {selectedStartsAt && (
             <form onSubmit={handleSubmit} className="mt-2 flex flex-col gap-1.5 border-t border-border-subtle pt-4">

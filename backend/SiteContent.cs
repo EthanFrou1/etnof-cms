@@ -31,12 +31,24 @@ public class SiteContent
     public string GooglePlaceId { get; set; } = string.Empty;
     public string GooglePlaceName { get; set; } = string.Empty;
 
+    // CGV du tenant (HTML riche, même éditeur que Blog/Pages) — champ dédié plutôt qu'une page libre
+    // du module Pages (payant, optionnel) car c'est une obligation légale pour toute boutique en
+    // ligne, pas une fonctionnalité premium. Voir CartPage.tsx : le bouton "Payer par carte" reste
+    // désactivé tant que ce champ est vide sur un site où Catalogue+Stripe sont actifs.
+    public string CgvContent { get; set; } = string.Empty;
+
     // JSON sérialisé d'une liste de 7 DayHoursDto (lundi -> dimanche) — même convention que
     // ClientSite.ModulesConfigJson : colonne texte brute, parsée/reformée à la frontière API
     // (voir ContentEndpoints.ToResponse) plutôt qu'une collection mappée par EF Core. Le format
     // stocké dans cette colonne texte peut changer librement (ex. l'ancien format était une simple
     // liste de chaînes) sans migration EF Core, seule la désérialisation change.
     public string OpeningHoursJson { get; set; } = "[]";
+
+    // Snapshot JSON du contenu public tel que publié (voir PublishEndpoints.cs) — distinct des champs
+    // ci-dessus qui reflètent le brouillon en cours d'édition dans l'admin. Null tant que le tenant n'a
+    // jamais cliqué "Rafraîchir le site" : dans ce cas l'endpoint public retombe sur le contenu live
+    // (voir ContentEndpoints.MapEndpoints, /content/published) pour ne rien casser sur les sites déjà en prod.
+    public string? PublishedContentJson { get; set; }
 }
 
 public class Offer

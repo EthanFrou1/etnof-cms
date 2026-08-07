@@ -4,6 +4,7 @@ import type { DayHours, SiteContent } from "../../hooks/useContent";
 import { adminFetch } from "../../hooks/useAdminSession";
 import { useModules } from "../../hooks/useModules";
 import { IconClock, IconMail, IconPhone, IconPin } from "../../components/admin/icons";
+import RichTextEditor from "../../components/admin/RichTextEditor";
 
 type EstablishmentSectionProps = {
   clientSiteId: string;
@@ -37,6 +38,7 @@ const TABS = [
   { id: "info", label: "Informations" },
   { id: "photos", label: "Photos" },
   { id: "hours", label: "Horaires" },
+  { id: "cgv", label: "CGV" },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -284,6 +286,9 @@ function HoursTab({
 export default function EstablishmentSection({ clientSiteId, password }: EstablishmentSectionProps) {
   const modules = useModules(clientSiteId);
   const hoursModuleEnabled = Boolean(modules?.horaires?.enabled);
+  // Catalogue + Stripe actifs ensemble = paiement en ligne réel possible, donc CGV obligatoires
+  // (voir CartPage.tsx, DashboardSection.tsx pour le même garde-fou).
+  const catalogueSaleEnabled = Boolean(modules?.catalogue?.enabled && modules?.stripe?.enabled);
   // "modules === null" (pas encore chargé) laisse l'onglet visible un court instant plutôt que de
   // le faire disparaître puis réapparaître — mêmes règles que CATALOGUE_SECTIONS (AdminLayout.tsx).
   const visibleTabs = TABS.filter((tab) => tab.id !== "hours" || modules === null || hoursModuleEnabled);
@@ -307,6 +312,7 @@ export default function EstablishmentSection({ clientSiteId, password }: Establi
   const [managerEmail, setManagerEmail] = useState("");
   const [googlePlaceId, setGooglePlaceId] = useState("");
   const [googlePlaceName, setGooglePlaceName] = useState("");
+  const [cgvContent, setCgvContent] = useState("");
   const [openingHours, setOpeningHours] = useState<DayHours[]>(WEEKDAYS.map(() => emptyDayHours()));
   const [images, setImages] = useState<EstablishmentImage[]>([]);
   const [importingPhotos, setImportingPhotos] = useState(false);
@@ -344,6 +350,7 @@ export default function EstablishmentSection({ clientSiteId, password }: Establi
         setManagerEmail(data.managerEmail);
         setGooglePlaceId(data.googlePlaceId);
         setGooglePlaceName(data.googlePlaceName);
+        setCgvContent(data.cgvContent);
         setOpeningHours(normalizeHours(data.openingHours));
       });
     loadImages();
@@ -452,6 +459,7 @@ export default function EstablishmentSection({ clientSiteId, password }: Establi
         managerEmail !== content.managerEmail ||
         googlePlaceId !== content.googlePlaceId ||
         googlePlaceName !== content.googlePlaceName ||
+        cgvContent !== content.cgvContent ||
         !hoursEqual(openingHours, normalizeHours(content.openingHours)))
   );
 
@@ -480,6 +488,7 @@ export default function EstablishmentSection({ clientSiteId, password }: Establi
         managerEmail,
         googlePlaceId,
         googlePlaceName,
+        cgvContent,
         openingHours,
       }),
     });
@@ -512,6 +521,14 @@ export default function EstablishmentSection({ clientSiteId, password }: Establi
           </button>
         </div>
       </div>
+
+      {catalogueSaleEnabled && !cgvContent.trim() && (
+        <div className="rounded-card border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+          <strong>CGV manquantes.</strong> La boutique en ligne est active mais aucune condition
+          générale de vente n'est renseignée — le bouton de paiement reste désactivé sur le panier
+          public tant que l'onglet <button type="button" onClick={() => setActiveTab("cgv")} className="underline">CGV</button> n'est pas rempli.
+        </div>
+      )}
 
       <div className="flex gap-2 border-b border-border-subtle">
         {visibleTabs.map((tab) => (
@@ -676,6 +693,19 @@ export default function EstablishmentSection({ clientSiteId, password }: Establi
           )}
 
           {activeTab === "hours" && <HoursTab hours={openingHours} onChange={updateHour} />}
+
+          {activeTab === "cgv" && (
+            <section className="rounded-card bg-white p-8 shadow-card">
+              <h2 className="mb-1 text-lg font-bold text-navy">Conditions générales de vente</h2>
+              <p className="mb-4 text-sm text-gray-text">
+                Affichées sur une page publique dédiée (<code>/cgv</code>) et liées depuis la case à
+                cocher du panier. Obligatoires dès que la boutique en ligne (Catalogue + Paiement
+                Stripe) est active — sans ce texte, le bouton de paiement reste désactivé pour tes
+                clients.
+              </p>
+              <RichTextEditor value={cgvContent} onChange={setCgvContent} />
+            </section>
+          )}
         </div>
 
         <EstablishmentPreview

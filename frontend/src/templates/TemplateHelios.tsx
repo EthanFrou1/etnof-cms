@@ -1,7 +1,8 @@
-import { lazy, Suspense, useState } from "react";
+import { lazy, Suspense, useState, type ReactNode } from "react";
 import { API_BASE_URL } from "../config";
 import { t } from "@modules/multilingue/frontend/translations";
-import { TEMPLATES } from "./registry";
+import { useRevealOnScroll } from "../hooks/useRevealOnScroll";
+import { resolvePalette } from "./registry";
 import SiteFooter from "./SiteFooter";
 import type { TemplateProps } from "./types";
 
@@ -17,12 +18,6 @@ const CustomPagesNav = lazy(() => import("@modules/pages/frontend/CustomPagesNav
 const WhatsAppButton = lazy(() => import("@modules/whatsapp/frontend/WhatsAppButton"));
 const LanguageSwitcher = lazy(() => import("@modules/multilingue/frontend/LanguageSwitcher"));
 
-// 3 variantes de couleurs (accent + fond + fin de dégradé) propres à ce template — voir registry.ts
-// pour le détail (aussi utilisé par le sélecteur de palette dans l'admin, SiteSection.tsx). "ink"
-// reste commun aux 3 (structure identique, seule la couleur d'accent change, cf.
-// docs/09-charte-graphique.md). Volontairement en dehors de tailwind.config.js : ces tokens
-// n'appartiennent qu'à Helios, pas à la charte etnof-web partagée utilisée ailleurs (admin, Hestia).
-const HELIOS_PALETTES = TEMPLATES.find((t) => t.id === "helios")!.palettes;
 const ink = "#1A1512";
 
 // Motif de rayons de soleil (signature visuelle propre à Helios, dieu du soleil), en fine bande
@@ -63,7 +58,22 @@ function SunRayDivider({ color }: { color: string }) {
   );
 }
 
-export default function TemplateHelios({ clientSiteId, modules, content, paletteId, locale, onChangeLocale }: TemplateProps) {
+// Fondu + léger décalage vers le haut dès qu'un bloc entre dans le viewport (une seule fois, voir
+// useRevealOnScroll.ts) — pas utilisé sur le header hero (toujours visible immédiatement), seulement
+// sur l'offre du moment et le bloc de modules, seuls autres blocs "pleine largeur" de ce template.
+function Reveal({ children }: { children: ReactNode }) {
+  const { ref, visible } = useRevealOnScroll<HTMLDivElement>();
+  return (
+    <div
+      ref={ref}
+      className={`transition-all duration-700 ease-out ${visible ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0"}`}
+    >
+      {children}
+    </div>
+  );
+}
+
+export default function TemplateHelios({ clientSiteId, modules, content, paletteId, customAccent, locale, onChangeLocale }: TemplateProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const mapsAddress = content?.address;
   const mapsApiKey = modules?.maps?.apiKey;
@@ -71,7 +81,7 @@ export default function TemplateHelios({ clientSiteId, modules, content, palette
   const whatsappMessage = modules?.whatsapp?.message;
   const pagesMenuLabel = modules?.pages?.menuLabel;
   const siteName = content?.siteName ?? "etnof-cms";
-  const palette = HELIOS_PALETTES.find((p) => p.id === paletteId) ?? HELIOS_PALETTES[0];
+  const palette = resolvePalette("helios", paletteId, customAccent);
   const { accent, background, gradientEnd } = palette;
   // Palette passée aux modules (Contact, Maps, Blog, Catalogue) — voir docs/10-templates.md,
   // "Palette appliquée aux modules" : chaque module reçoit accent/background/ink, plus de charte
@@ -86,32 +96,32 @@ export default function TemplateHelios({ clientSiteId, modules, content, palette
           <span className="text-lg font-extrabold text-white">{siteName}</span>
           <div className="hidden items-center gap-6 text-sm font-medium text-white/80 md:flex">
             {modules?.catalogue?.enabled && (
-              <a href="#catalogue" className="hover:text-white">
+              <a href="#catalogue" className="transition-colors duration-200 hover:text-white">
                 {t(locale, "nav.catalogue")}
               </a>
             )}
             {modules?.blog?.enabled && (
-              <a href="#blog" className="hover:text-white">
+              <a href="#blog" className="transition-colors duration-200 hover:text-white">
                 {t(locale, "nav.blog")}
               </a>
             )}
             {modules?.rdv?.enabled && (
-              <a href="#rdv" className="hover:text-white">
+              <a href="#rdv" className="transition-colors duration-200 hover:text-white">
                 {t(locale, "nav.rdv")}
               </a>
             )}
             {modules?.contact?.enabled && (
-              <a href="#contact" className="hover:text-white">
+              <a href="#contact" className="transition-colors duration-200 hover:text-white">
                 {t(locale, "nav.contact")}
               </a>
             )}
             {modules?.newsletter?.enabled && (
-              <a href="#newsletter" className="hover:text-white">
+              <a href="#newsletter" className="transition-colors duration-200 hover:text-white">
                 {t(locale, "nav.newsletter")}
               </a>
             )}
             {modules?.["avis-google"]?.enabled && (
-              <a href="#avis-google" className="hover:text-white">
+              <a href="#avis-google" className="transition-colors duration-200 hover:text-white">
                 {t(locale, "nav.avisGoogle")}
               </a>
             )}
@@ -144,32 +154,32 @@ export default function TemplateHelios({ clientSiteId, modules, content, palette
             className="mx-auto mt-4 flex max-w-5xl flex-col gap-1 border-t border-white/10 pt-4 text-sm font-medium text-white/80 md:hidden"
           >
             {modules?.catalogue?.enabled && (
-              <a href="#catalogue" className="rounded-button px-2 py-2 hover:text-white">
+              <a href="#catalogue" className="rounded-button px-2 py-2 transition-colors duration-200 hover:text-white">
                 {t(locale, "nav.catalogue")}
               </a>
             )}
             {modules?.blog?.enabled && (
-              <a href="#blog" className="rounded-button px-2 py-2 hover:text-white">
+              <a href="#blog" className="rounded-button px-2 py-2 transition-colors duration-200 hover:text-white">
                 {t(locale, "nav.blog")}
               </a>
             )}
             {modules?.rdv?.enabled && (
-              <a href="#rdv" className="rounded-button px-2 py-2 hover:text-white">
+              <a href="#rdv" className="rounded-button px-2 py-2 transition-colors duration-200 hover:text-white">
                 {t(locale, "nav.rdv")}
               </a>
             )}
             {modules?.contact?.enabled && (
-              <a href="#contact" className="rounded-button px-2 py-2 hover:text-white">
+              <a href="#contact" className="rounded-button px-2 py-2 transition-colors duration-200 hover:text-white">
                 {t(locale, "nav.contact")}
               </a>
             )}
             {modules?.newsletter?.enabled && (
-              <a href="#newsletter" className="rounded-button px-2 py-2 hover:text-white">
+              <a href="#newsletter" className="rounded-button px-2 py-2 transition-colors duration-200 hover:text-white">
                 {t(locale, "nav.newsletter")}
               </a>
             )}
             {modules?.["avis-google"]?.enabled && (
-              <a href="#avis-google" className="rounded-button px-2 py-2 hover:text-white">
+              <a href="#avis-google" className="rounded-button px-2 py-2 transition-colors duration-200 hover:text-white">
                 {t(locale, "nav.avisGoogle")}
               </a>
             )}
@@ -206,57 +216,60 @@ export default function TemplateHelios({ clientSiteId, modules, content, palette
 
       <div className="mx-auto flex max-w-5xl flex-col gap-16 px-4 pb-16 pt-10 sm:px-8">
         {firstOffer && (
-          <section className="flex flex-col gap-4">
-            <div
-              className="-mt-20 rounded-card bg-white p-10 shadow-card"
-              style={{ boxShadow: "0 12px 40px rgba(0,0,0,0.12)" }}
-            >
-              <span className="text-xs font-semibold uppercase tracking-[0.1em]" style={{ color: accent }}>
-                {t(locale, "section.offerOfTheMoment")}
-              </span>
-              <div className="mt-2 flex flex-wrap items-baseline justify-between gap-4">
-                <span className="text-2xl font-extrabold" style={{ color: ink }}>
-                  {firstOffer.title}
+          <Reveal>
+            <section className="flex flex-col gap-4">
+              <div
+                className="-mt-20 rounded-card bg-white p-10 shadow-card"
+                style={{ boxShadow: "0 12px 40px rgba(0,0,0,0.12)" }}
+              >
+                <span className="text-xs font-semibold uppercase tracking-[0.1em]" style={{ color: accent }}>
+                  {t(locale, "section.offerOfTheMoment")}
                 </span>
-                <span
-                  className="whitespace-nowrap rounded-button px-3 py-1.5 text-lg font-bold text-white"
-                  style={{ backgroundColor: accent }}
-                >
-                  {firstOffer.price}
-                </span>
+                <div className="mt-2 flex flex-wrap items-baseline justify-between gap-4">
+                  <span className="text-2xl font-extrabold" style={{ color: ink }}>
+                    {firstOffer.title}
+                  </span>
+                  <span
+                    className="whitespace-nowrap rounded-button px-3 py-1.5 text-lg font-bold text-white"
+                    style={{ backgroundColor: accent }}
+                  >
+                    {firstOffer.price}
+                  </span>
+                </div>
+                {firstOffer.description && (
+                  <p className="mt-3 max-w-xl leading-relaxed" style={{ color: `${ink}99` }}>
+                    {firstOffer.description}
+                  </p>
+                )}
               </div>
-              {firstOffer.description && (
-                <p className="mt-3 max-w-xl leading-relaxed" style={{ color: `${ink}99` }}>
-                  {firstOffer.description}
-                </p>
-              )}
-            </div>
 
-            {restOffers.length > 0 && (
-              <div className="grid gap-4 sm:grid-cols-3">
-                {restOffers.map((offer) => (
-                  <div key={offer.id} className="rounded-card bg-white p-6 shadow-card">
-                    <div className="flex items-baseline justify-between gap-3">
-                      <span className="font-bold" style={{ color: ink }}>
-                        {offer.title}
-                      </span>
-                      <span className="whitespace-nowrap text-sm font-semibold" style={{ color: accent }}>
-                        {offer.price}
-                      </span>
+              {restOffers.length > 0 && (
+                <div className="grid gap-4 sm:grid-cols-3">
+                  {restOffers.map((offer) => (
+                    <div key={offer.id} className="rounded-card bg-white p-6 shadow-card">
+                      <div className="flex items-baseline justify-between gap-3">
+                        <span className="font-bold" style={{ color: ink }}>
+                          {offer.title}
+                        </span>
+                        <span className="whitespace-nowrap text-sm font-semibold" style={{ color: accent }}>
+                          {offer.price}
+                        </span>
+                      </div>
+                      {offer.description && (
+                        <p className="mt-2 text-sm leading-relaxed text-gray-text">
+                          {offer.description}
+                        </p>
+                      )}
                     </div>
-                    {offer.description && (
-                      <p className="mt-2 text-sm leading-relaxed text-gray-text">
-                        {offer.description}
-                      </p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
+                  ))}
+                </div>
+              )}
+            </section>
+          </Reveal>
         )}
 
         <Suspense fallback={null}>
+          <Reveal>
           <div className="grid gap-8 sm:grid-cols-2">
             {modules?.catalogue?.enabled && (
               <div id="catalogue" className="sm:col-span-2">
@@ -302,6 +315,7 @@ export default function TemplateHelios({ clientSiteId, modules, content, palette
               />
             )}
           </div>
+          </Reveal>
         </Suspense>
 
         <SiteFooter content={content} palette={modulePalette} modules={modules} />

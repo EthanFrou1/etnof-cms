@@ -93,6 +93,107 @@ function ProductPreview({ name, price, description, stock, images }: {
   );
 }
 
+type ProductReview = {
+  id: string;
+  authorName: string;
+  rating: number;
+  comment: string;
+  selected: boolean;
+  createdAt: string;
+};
+
+// Même composant que frontend/src/pages/admin/AvisGoogleSection.tsx (ToggleSwitch) — le client
+// choisit quels avis (soumis publiquement, sans vérification d'achat en V1) sont affichés sur le site.
+function ToggleSwitch({ checked, onChange }: { checked: boolean; onChange: (value: boolean) => void }) {
+  return (
+    <label className="relative inline-flex cursor-pointer items-center">
+      <input type="checkbox" className="peer sr-only" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+      <div className="h-6 w-11 rounded-full bg-border-subtle transition-colors duration-200 peer-checked:bg-green-accent" />
+      <div className="absolute left-1 h-4 w-4 rounded-full bg-white shadow transition-transform duration-200 peer-checked:translate-x-5" />
+    </label>
+  );
+}
+
+function Stars({ rating }: { rating: number }) {
+  const rounded = Math.round(rating);
+  return (
+    <span className="text-amber-400">
+      {"★".repeat(rounded)}
+      <span className="text-border-subtle">{"★".repeat(5 - rounded)}</span>
+    </span>
+  );
+}
+
+function ReviewsSection({ clientSiteId, productId, password }: { clientSiteId: string; productId: string; password: string }) {
+  const [reviews, setReviews] = useState<ProductReview[] | null>(null);
+
+  const load = () =>
+    adminFetch(API_BASE_URL, `/api/t/${clientSiteId}/admin/catalogue/products/${productId}/reviews`, password)
+      .then((res) => res.json())
+      .then(setReviews);
+
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const toggleReview = async (id: string, selected: boolean) => {
+    setReviews((current) => current?.map((r) => (r.id === id ? { ...r, selected } : r)) ?? current);
+    await adminFetch(API_BASE_URL, `/api/t/${clientSiteId}/admin/catalogue/reviews/${id}`, password, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ selected }),
+    });
+  };
+
+  const handleDelete = async (id: string) => {
+    await adminFetch(API_BASE_URL, `/api/t/${clientSiteId}/admin/catalogue/reviews/${id}`, password, { method: "DELETE" });
+    load();
+  };
+
+  return (
+    <section className="rounded-card bg-white p-8 shadow-card">
+      <h2 className="mb-1 text-lg font-bold text-navy">Avis</h2>
+      <p className="mb-4 text-sm text-gray-text">
+        Soumis librement par les visiteurs (pas de vérification d'achat) — choisis lesquels afficher sur la fiche
+        produit.
+      </p>
+
+      {!reviews ? (
+        <p className="text-sm text-gray-text">Chargement…</p>
+      ) : reviews.length === 0 ? (
+        <p className="text-sm text-gray-text">Aucun avis pour l'instant.</p>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {reviews.map((review) => (
+            <div key={review.id} className="flex items-start justify-between gap-4 rounded-button bg-bg-page-start/60 p-4">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="font-medium text-navy">{review.authorName}</span>
+                  <Stars rating={review.rating} />
+                </div>
+                <p className="mt-1 text-sm text-gray-text">{review.comment}</p>
+                <span className="mt-1 block text-xs text-gray-text/70">
+                  {new Date(review.createdAt).toLocaleDateString("fr-FR")}
+                </span>
+              </div>
+              <div className="flex shrink-0 flex-col items-center gap-2">
+                <div className="flex flex-col items-center gap-1">
+                  <ToggleSwitch checked={review.selected} onChange={(value) => toggleReview(review.id, value)} />
+                  <span className="text-[11px] text-gray-text">{review.selected ? "Affiché" : "Masqué"}</span>
+                </div>
+                <button type="button" onClick={() => handleDelete(review.id)} className="text-xs text-red-500 hover:text-red-600">
+                  Supprimer
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
 function ProductDetailContent({
   clientSiteId,
   productId,
@@ -268,6 +369,8 @@ function ProductDetailContent({
               </label>
             </div>
           </section>
+
+          <ReviewsSection clientSiteId={clientSiteId} productId={productId} password={password} />
         </div>
 
         <ProductPreview

@@ -87,6 +87,18 @@ Pas de navigation EF `Order.Customer` (évite le cycle de sérialisation JSON d�
 | UnitPrice | decimal | Copie du prix au moment de la commande |
 | Quantity | int | |
 
+### ProductReview (module Catalogue, ajouté le 2026-08-06)
+| Champ | Type | Note |
+|---|---|---|
+| Id | Guid | |
+| ClientSiteId | Guid | |
+| ProductId | Guid | Pas de FK stricte, même choix qu'`OrderItem.ProductId` |
+| AuthorName | string | Saisi librement par le visiteur, pas de vérification d'achat en V1 |
+| Rating | int | 1 à 5 |
+| Comment | string | |
+| Selected | bool | Même pattern de curation que `GoogleReview.Selected` — soumis publiquement, affiché seulement une fois approuvé par le client depuis son admin. Défaut `false` à la création |
+| CreatedAt | datetime | |
+
 ### Order.StripeSessionId (ajouté le 2026-07-29, module Stripe)
 Colonne nullable ajoutée à `Order` (voir plus haut) : identifiant de la session Stripe Checkout ayant produit la commande. Sert de clé d'idempotence pour le webhook (Stripe peut renvoyer le même événement plusieurs fois) — `null` pour les commandes créées avant le module Stripe.
 
@@ -131,6 +143,7 @@ Photos affichées dans le panneau résumé de la page "Établissement" (`Establi
 | ManagerName / ManagerPhone / ManagerEmail | string | Section "Responsable de l'établissement" (même onglet) — contact interne, jamais affiché publiquement |
 | GooglePlaceId / GooglePlaceName | string | Fiche Google liée depuis la recherche de cette page (ajouté le 2026-07-29) — gratuite, ne contient jamais d'avis. Lue par le module Avis Google pour proposer directement "Actualiser les avis" sans re-chercher, sans jamais déclencher l'appel payant "reviews" toute seule |
 | OpeningHoursJson | text | JSON d'une liste de 7 `DayHoursDto` (`Closed`/`MorningOpen`/`MorningClose`/`AfternoonOpen`/`AfternoonClose`, lundi→dimanche) — colonne texte brute reformée à la frontière API, même convention que `ClientSite.ModulesConfigJson` ; onglet "Horaires", gaté par le module "Horaires" |
+| CgvContent | text | HTML riche (TipTap), onglet "CGV" (ajouté le 2026-08-06) — champ core plutôt qu'une page du module Pages (payant/optionnel) car obligation légale, pas une fonctionnalité premium. Affiché sur `/t/{clientSiteId}/cgv`. Bloque le paiement du panier (module Catalogue+Stripe) tant que vide, voir `docs/04-catalogue-modules.md` |
 
 ### Offer (core, liste liée à SiteContent)
 | Champ | Type | Note |

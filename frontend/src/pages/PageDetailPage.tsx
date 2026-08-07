@@ -79,11 +79,10 @@ function PageDetailContent({
       body: JSON.stringify(form),
     });
     if (res.ok) {
-      const updated = (await res.json()) as CustomPage;
-      setPage(updated);
-      setForm(toForm(updated));
+      window.location.href = `/admin/${clientSiteId}/pages`;
+      return;
     }
-    setSaveStatus(res.ok ? "saved" : "error");
+    setSaveStatus("error");
   };
 
   const handleDelete = async () => {
