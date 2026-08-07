@@ -4,6 +4,7 @@ import type { SiteContent } from "../../hooks/useContent";
 import type { TemplateId } from "../../hooks/useTemplate";
 import { adminFetch } from "../../hooks/useAdminSession";
 import { TEMPLATES, resolvePalette } from "../../templates/registry";
+import RichTextEditor from "../../components/admin/RichTextEditor";
 
 type SiteSectionProps = {
   clientSiteId: string;
@@ -150,14 +151,10 @@ function ContentTab({
             onChange={(e) => onSiteNameChange(e.target.value)}
           />
         </label>
-        <label className="text-sm font-medium text-gray-text">
+        <div className="flex flex-col gap-1 text-sm font-medium text-gray-text">
           Description
-          <textarea
-            className={`mt-1 w-full ${inputClass}`}
-            value={description}
-            onChange={(e) => onDescriptionChange(e.target.value)}
-          />
-        </label>
+          <RichTextEditor value={description} onChange={onDescriptionChange} compact />
+        </div>
       </div>
     </section>
   );
@@ -290,6 +287,7 @@ export default function SiteSection({ clientSiteId, password }: SiteSectionProps
             googlePlaceId: content.googlePlaceId,
             googlePlaceName: content.googlePlaceName,
             openingHours: content.openingHours,
+            cgvContent: content.cgvContent,
           }),
         })
       );

@@ -680,4 +680,31 @@ Testé : `dotnet build`/`tsc --noEmit` propres. Vérifié dans le navigateur (CD
 
 ---
 
+## Publication volontaire du site, retouches modules (RDV/Galerie/Avis), logo par tenant — 2026-08-07
+
+Session composée de plusieurs retours d'Ethan traités à la suite, à partir de captures d'écran :
+
+**1. Publication volontaire du contenu/template/logo** : jusqu'ici toute modification enregistrée en admin (Contenu, Établissement, Modèle) était immédiatement visible sur le site public. Nouveau bouton "Rafraîchir le site" (`/admin/{id}/site`) : `SiteContent` gagne `PublishedContentJson` (snapshot JSON) et `ClientSite` gagne `PublishedTemplateId`/`PublishedPaletteId`/`PublishedCustomAccent`/`PublishedLogoPath`/`PublishedAt` (migrations `AddContentPublishSnapshot`, `AddClientSiteLogo`), copiés depuis les colonnes live par `POST /api/t/{id}/admin/publish` (`backend/PublishEndpoints.cs`). Le site public lit désormais `/content/published` et `/template/published` (nouveaux endpoints ; `/content` et `/template` restent inchangés, toujours utilisés tels quels par l'admin) — repli automatique sur le live tant qu'un tenant n'a jamais publié, pour ne rien casser sur les sites existants. Volontairement limité à `SiteContent` + template/logo : les modules avec leurs propres données (Catalogue, Galerie, Blog, RDV...) restent en temps réel.
+
+**2. Retouches UX signalées par capture d'écran** :
+- Pages personnalisées : "Enregistrer" ramène désormais à la liste des pages (`/admin/{id}/pages`) au lieu de rester sur l'éditeur.
+- RDV public : les créneaux (auparavant tous affichés à plat, illisible) passent par une sélection de date en onglets (façon Calendly) puis seuls les créneaux du jour choisi s'affichent.
+- Avis Google : les avis longs sont tronqués (`line-clamp-4`) avec un bouton "Voir plus"/"Voir moins" par avis.
+- Largeur du contenu du site : conteneurs `max-w-5xl` → `max-w-7xl` sur les deux templates + footer.
+- Sélecteur de palette/couleur perso retiré de l'UI admin (`SiteSection.tsx`) — jugé inutile pour l'instant par Ethan. Les colonnes `PaletteId`/`CustomAccent` restent en base, retrait réversible.
+- Description (`SiteContent.Description`) passe en HTML riche : même éditeur TipTap que le contenu de page, en mode `compact` (pas de hauteur fixe imposée, suit son contenu ; toolbar réduite à gras/italique/lien, headings/listes/citation n'ont pas de sens pour un sous-titre). Rendu via `dangerouslySetInnerHTML` sur le site public ; `useDocumentMeta.ts` nettoie le HTML en texte brut avant de l'utiliser comme `<meta name="description">`.
+- **Bug trouvé en testant la Description** : `SiteSection.tsx` et `OffersSection.tsx` n'envoyaient pas `cgvContent` dans leur payload `PUT /admin/content` (qui remplace tout l'objet `SiteContent`) → `null` sur une colonne `NOT NULL`, 500 à l'enregistrement. Même classe de bug déjà rencontrée et documentée plus haut dans ce fichier pour `ContentSection.tsx` (2026-07-27) — cette fois sur deux pages différentes qui n'avaient pas reçu le même correctif. Corrigé en échoant `content.cgvContent` comme le fait déjà `EstablishmentSection.tsx`.
+
+**3. Bug de fond trouvé et corrigé — `position: fixed` cassé par le reveal-on-scroll** : la modale plein écran de la Galerie ("trop grande, devrait faire la taille de l'écran") et le bouton flottant "Panier" ("cassé") avaient la même cause racine : `useRevealOnScroll`/`Band` applique une classe Tailwind `translate-y-*` à chaque section de contenu — même `translate-y-0` génère un `transform` CSS, qui crée un nouveau *containing block* pour tout descendant `position: fixed`, cassant son positionnement viewport-relatif. Fix : `GallerySection.tsx` (modale) et `CatalogueSection.tsx` (`CartButton` + modale d'avis produit) rendus via `createPortal(..., document.body)`, qui échappe l'ancêtre transformé.
+
+**4. Galerie transformée en slider** : navigation précédent/suivant (boucle en bout de liste), flèches clavier (←/→), Échap pour fermer, compteur "2/5".
+
+**5. Réordonnancement des sections** : Galerie et Avis Google remontés juste après Catalogue (au lieu d'être tout en bas) sur les deux templates ; menu de navigation aligné dans le même ordre, avec un nouveau lien "Galerie" qui n'existait pas encore dans le menu.
+
+**6. Logo par tenant** : upload/suppression depuis `/admin/{id}/establishment` (onglet Informations, `LogoUploader`), même pattern d'upload que le logo agence (`CompanyProfileEndpoints.cs`) adapté à `ClientSite.LogoPath`. Utilisé comme favicon (`useDocumentMeta.ts`, nouveau paramètre `faviconUrl`) et affiché en cercle (`rounded-full`, jusqu'à 23rem sur `sm:` et plus) à droite du texte de description (Établissement sur Hestia, hero sur Helios) — sans logo, seul le texte s'affiche, agrandi (`text-lg` → `text-xl`) au passage. Suit le même système de publication que le point 1 (`PublishedLogoPath`).
+
+Testé : `dotnet build`/`tsc --noEmit` propres après chaque étape ; migrations générées et appliquées (`dotnet ef database update`) ; cycle publish/draft vérifié manuellement par Ethan (édition → pas de changement public → clic "Rafraîchir le site" → changement visible) ; bug `cgvContent` reproduit puis re-testé après fix. Pas d'outil de capture d'écran automatisé disponible dans cet environnement pour cette session — tous les retours visuels (positionnement/taille du logo, rendu du slider Galerie, largeur du contenu) sont venus d'Ethan au fil de la session, avec allers-retours directs sur ses captures d'écran.
+
+---
+
 **Note pour toi (Ethan)** : donne ce fichier à Claude Code phase par phase (« on attaque la Phase 2, voici le contexte : [colle le contenu de 02-architecture-modules.md et 03-modele-donnees.md] »). Ne lui donne pas tout le projet d'un coup, ça évite qu'il brûle des étapes ou fasse des suppositions sur les phases suivantes.

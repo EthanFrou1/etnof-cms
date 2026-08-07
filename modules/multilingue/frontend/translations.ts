@@ -14,6 +14,7 @@ type Dict = Record<string, string>;
 
 const fr: Dict = {
   "nav.catalogue": "Catalogue",
+  "nav.galerie": "Galerie",
   "nav.blog": "Blog",
   "nav.rdv": "Rendez-vous",
   "nav.contact": "Contact",
@@ -76,10 +77,14 @@ const fr: Dict = {
   "avisGoogle.label": "Avis Google",
   "avisGoogle.title": "Ce qu'en disent nos clients",
   "avisGoogle.reviewsCount": "avis",
+  "avisGoogle.showMore": "Voir plus",
+  "avisGoogle.showLess": "Voir moins",
 
   "gallery.label": "Galerie",
   "gallery.title": "En images",
   "gallery.close": "Fermer",
+  "gallery.previous": "Photo précédente",
+  "gallery.next": "Photo suivante",
 
   "cookies.message": "Ce site utilise des cookies de mesure d'audience (Google Analytics) pour comprendre sa fréquentation. Vous pouvez accepter ou refuser.",
   "cookies.accept": "Accepter",
@@ -128,6 +133,7 @@ const fr: Dict = {
 
 const en: Dict = {
   "nav.catalogue": "Shop",
+  "nav.galerie": "Gallery",
   "nav.blog": "Blog",
   "nav.rdv": "Book now",
   "nav.contact": "Contact",
@@ -190,10 +196,14 @@ const en: Dict = {
   "avisGoogle.label": "Google Reviews",
   "avisGoogle.title": "What our customers say",
   "avisGoogle.reviewsCount": "reviews",
+  "avisGoogle.showMore": "Show more",
+  "avisGoogle.showLess": "Show less",
 
   "gallery.label": "Gallery",
   "gallery.title": "In pictures",
   "gallery.close": "Close",
+  "gallery.previous": "Previous photo",
+  "gallery.next": "Next photo",
 
   "cookies.message": "This site uses audience measurement cookies (Google Analytics) to understand its traffic. You can accept or decline.",
   "cookies.accept": "Accept",
@@ -242,6 +252,7 @@ const en: Dict = {
 
 const es: Dict = {
   "nav.catalogue": "Tienda",
+  "nav.galerie": "Galería",
   "nav.blog": "Blog",
   "nav.rdv": "Reservar",
   "nav.contact": "Contacto",
@@ -304,10 +315,14 @@ const es: Dict = {
   "avisGoogle.label": "Reseñas de Google",
   "avisGoogle.title": "Lo que dicen nuestros clientes",
   "avisGoogle.reviewsCount": "reseñas",
+  "avisGoogle.showMore": "Ver más",
+  "avisGoogle.showLess": "Ver menos",
 
   "gallery.label": "Galería",
   "gallery.title": "En imágenes",
   "gallery.close": "Cerrar",
+  "gallery.previous": "Foto anterior",
+  "gallery.next": "Foto siguiente",
 
   "cookies.message": "Este sitio utiliza cookies de medición de audiencia (Google Analytics) para entender su tráfico. Puedes aceptar o rechazar.",
   "cookies.accept": "Aceptar",

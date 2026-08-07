@@ -197,10 +197,10 @@ function Band({ background, children, reveal = true }: { background: string; chi
         ref={reveal ? ref : undefined}
         className={
           reveal
-            ? `mx-auto max-w-5xl px-4 py-14 transition-all duration-700 ease-out sm:px-8 ${
+            ? `mx-auto max-w-7xl px-4 py-14 transition-all duration-700 ease-out sm:px-8 ${
                 visible ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0"
               }`
-            : "mx-auto max-w-5xl px-4 py-14 sm:px-8"
+            : "mx-auto max-w-7xl px-4 py-14 sm:px-8"
         }
       >
         {children}
@@ -209,7 +209,7 @@ function Band({ background, children, reveal = true }: { background: string; chi
   );
 }
 
-export default function TemplateHestia({ clientSiteId, modules, content, paletteId, customAccent, locale, onChangeLocale }: TemplateProps) {
+export default function TemplateHestia({ clientSiteId, modules, content, paletteId, customAccent, logoUrl, locale, onChangeLocale }: TemplateProps) {
   useHestiaFonts();
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -257,7 +257,7 @@ export default function TemplateHestia({ clientSiteId, modules, content, palette
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: background, fontFamily: poppins }}>
-      <div className="mx-auto max-w-5xl px-4 pt-6 sm:px-8">
+      <div className="mx-auto max-w-7xl px-4 pt-6 sm:px-8">
         <nav
           className="relative flex items-center justify-between rounded-pill px-6 py-3 shadow-soft"
           style={{ backgroundColor: "#FFFFFF" }}
@@ -269,6 +269,16 @@ export default function TemplateHestia({ clientSiteId, modules, content, palette
             {modules?.catalogue?.enabled && (
               <a href="#catalogue" style={{ color: "inherit" }} className="transition-opacity duration-200 hover:opacity-70">
                 {t(locale, "nav.catalogue")}
+              </a>
+            )}
+            {modules?.galerie?.enabled && (
+              <a href="#galerie" style={{ color: "inherit" }} className="transition-opacity duration-200 hover:opacity-70">
+                {t(locale, "nav.galerie")}
+              </a>
+            )}
+            {modules?.["avis-google"]?.enabled && (
+              <a href="#avis-google" style={{ color: "inherit" }} className="transition-opacity duration-200 hover:opacity-70">
+                {t(locale, "nav.avisGoogle")}
               </a>
             )}
             {modules?.blog?.enabled && (
@@ -289,11 +299,6 @@ export default function TemplateHestia({ clientSiteId, modules, content, palette
             {modules?.newsletter?.enabled && (
               <a href="#newsletter" style={{ color: "inherit" }} className="transition-opacity duration-200 hover:opacity-70">
                 {t(locale, "nav.newsletter")}
-              </a>
-            )}
-            {modules?.["avis-google"]?.enabled && (
-              <a href="#avis-google" style={{ color: "inherit" }} className="transition-opacity duration-200 hover:opacity-70">
-                {t(locale, "nav.avisGoogle")}
               </a>
             )}
             {modules?.pages?.enabled && typeof pagesMenuLabel === "string" && (
@@ -329,6 +334,16 @@ export default function TemplateHestia({ clientSiteId, modules, content, palette
                   {t(locale, "nav.catalogue")}
                 </a>
               )}
+              {modules?.galerie?.enabled && (
+                <a href="#galerie" style={{ color: "inherit" }} className="rounded-button px-2 py-2 transition-opacity duration-200 hover:opacity-70">
+                  {t(locale, "nav.galerie")}
+                </a>
+              )}
+              {modules?.["avis-google"]?.enabled && (
+                <a href="#avis-google" style={{ color: "inherit" }} className="rounded-button px-2 py-2 transition-opacity duration-200 hover:opacity-70">
+                  {t(locale, "nav.avisGoogle")}
+                </a>
+              )}
               {modules?.blog?.enabled && (
                 <a href="#blog" style={{ color: "inherit" }} className="rounded-button px-2 py-2 transition-opacity duration-200 hover:opacity-70">
                   {t(locale, "nav.blog")}
@@ -347,11 +362,6 @@ export default function TemplateHestia({ clientSiteId, modules, content, palette
               {modules?.newsletter?.enabled && (
                 <a href="#newsletter" style={{ color: "inherit" }} className="rounded-button px-2 py-2 transition-opacity duration-200 hover:opacity-70">
                   {t(locale, "nav.newsletter")}
-                </a>
-              )}
-              {modules?.["avis-google"]?.enabled && (
-                <a href="#avis-google" style={{ color: "inherit" }} className="rounded-button px-2 py-2 transition-opacity duration-200 hover:opacity-70">
-                  {t(locale, "nav.avisGoogle")}
                 </a>
               )}
               {modules?.pages?.enabled && typeof pagesMenuLabel === "string" && (
@@ -387,9 +397,20 @@ export default function TemplateHestia({ clientSiteId, modules, content, palette
             <div className="flex flex-col gap-3">
               <Overline accent={accent}>{t(locale, "section.establishment")}</Overline>
               {content?.description && (
-                <p className="max-w-2xl text-lg leading-relaxed" style={{ color: `${ink}B3` }}>
-                  {content.description}
-                </p>
+                <div className="flex flex-col gap-8 sm:flex-row sm:items-start sm:gap-16">
+                  <div
+                    className="max-w-2xl text-xl leading-relaxed [&_a]:underline [&_strong]:font-bold"
+                    style={{ color: `${ink}B3` }}
+                    dangerouslySetInnerHTML={{ __html: content.description }}
+                  />
+                  {logoUrl && (
+                    <img
+                      src={`${API_BASE_URL}${logoUrl}`}
+                      alt=""
+                      className="h-20 w-20 shrink-0 rounded-full bg-white object-contain p-2 shadow-card sm:h-[23rem] sm:w-[23rem]"
+                    />
+                  )}
+                </div>
               )}
             </div>
             {images.length > 3 ? (
@@ -473,6 +494,16 @@ export default function TemplateHestia({ clientSiteId, modules, content, palette
                 <CatalogueSection apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} palette={modulePalette} locale={locale} />
               </div>
             )}
+            {modules?.galerie?.enabled && (
+              <div id="galerie">
+                <GallerySection apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} palette={modulePalette} locale={locale} />
+              </div>
+            )}
+            {modules?.["avis-google"]?.enabled && (
+              <div id="avis-google">
+                <AvisGoogleSection apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} palette={modulePalette} locale={locale} />
+              </div>
+            )}
             {modules?.blog?.enabled && (
               <div id="blog">
                 <BlogSection apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} palette={modulePalette} locale={locale} />
@@ -491,16 +522,6 @@ export default function TemplateHestia({ clientSiteId, modules, content, palette
             {modules?.newsletter?.enabled && (
               <div id="newsletter">
                 <NewsletterSection apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} palette={modulePalette} locale={locale} />
-              </div>
-            )}
-            {modules?.["avis-google"]?.enabled && (
-              <div id="avis-google">
-                <AvisGoogleSection apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} palette={modulePalette} locale={locale} />
-              </div>
-            )}
-            {modules?.galerie?.enabled && (
-              <div id="galerie">
-                <GallerySection apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} palette={modulePalette} locale={locale} />
               </div>
             )}
             {modules?.maps?.enabled && typeof mapsAddress === "string" && (

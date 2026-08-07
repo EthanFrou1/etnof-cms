@@ -132,6 +132,74 @@ function EstablishmentPreview({
   );
 }
 
+// Logo du tenant — utilisé comme favicon et affiché à côté de la description Établissement sur le site
+// public (voir TemplateHestia.tsx/TemplateHelios.tsx). Un seul logo à la fois (pas une liste comme
+// PhotosTab ci-dessous) : uploader en remplace un existant, "Supprimer" retombe sur le texte seul.
+function LogoUploader({
+  clientSiteId,
+  password,
+  logoUrl,
+  onLogoChanged,
+}: {
+  clientSiteId: string;
+  password: string;
+  logoUrl: string | null;
+  onLogoChanged: () => void;
+}) {
+  const handleUpload = async (file: File) => {
+    const body = new FormData();
+    body.append("file", file);
+    await adminFetch(API_BASE_URL, `/api/t/${clientSiteId}/admin/logo`, password, {
+      method: "POST",
+      body,
+    });
+    onLogoChanged();
+  };
+
+  const handleDelete = async () => {
+    await adminFetch(API_BASE_URL, `/api/t/${clientSiteId}/admin/logo`, password, { method: "DELETE" });
+    onLogoChanged();
+  };
+
+  return (
+    <div className="flex flex-col gap-1 text-sm font-medium text-gray-text">
+      Logo
+      <p className="text-xs font-normal text-gray-text/80">
+        Utilisé comme favicon et affiché à côté de la description sur le site public. Sans logo, seul
+        le texte s'affiche.
+      </p>
+      <div className="mt-1 flex items-center gap-3">
+        {logoUrl ? (
+          <div className="relative">
+            <img src={`${API_BASE_URL}${logoUrl}`} alt="" className="h-20 w-20 rounded-button border border-border-subtle object-contain p-1" />
+            <button
+              type="button"
+              onClick={handleDelete}
+              className="absolute -right-1.5 -top-1.5 h-5 w-5 rounded-full bg-red-500 text-xs text-white"
+            >
+              ×
+            </button>
+          </div>
+        ) : (
+          <label className="flex h-20 w-20 cursor-pointer items-center justify-center rounded-button border border-dashed border-border-subtle text-xs text-gray-text hover:border-brand-mid">
+            + Logo
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/svg+xml"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handleUpload(file);
+                e.target.value = "";
+              }}
+            />
+          </label>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function PhotosTab({
   clientSiteId,
   password,
@@ -316,6 +384,7 @@ export default function EstablishmentSection({ clientSiteId, password }: Establi
   const [openingHours, setOpeningHours] = useState<DayHours[]>(WEEKDAYS.map(() => emptyDayHours()));
   const [images, setImages] = useState<EstablishmentImage[]>([]);
   const [importingPhotos, setImportingPhotos] = useState(false);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
 
   const [suggestions, setSuggestions] = useState<PlaceResult[]>([]);
   const [inputFocused, setInputFocused] = useState(false);
@@ -334,6 +403,11 @@ export default function EstablishmentSection({ clientSiteId, password }: Establi
     fetch(`${API_BASE_URL}/api/t/${clientSiteId}/establishment/images`)
       .then((res) => res.json())
       .then(setImages);
+
+  const loadLogo = () =>
+    fetch(`${API_BASE_URL}/api/t/${clientSiteId}/template`)
+      .then((res) => res.json())
+      .then((data: { logoUrl: string | null }) => setLogoUrl(data.logoUrl));
 
   useEffect(() => {
     fetch(`${API_BASE_URL}/api/t/${clientSiteId}/content`)
@@ -354,6 +428,7 @@ export default function EstablishmentSection({ clientSiteId, password }: Establi
         setOpeningHours(normalizeHours(data.openingHours));
       });
     loadImages();
+    loadLogo();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -561,6 +636,10 @@ export default function EstablishmentSection({ clientSiteId, password }: Establi
                   ici). La recherche Google préremplit aussi les horaires et importe les 3 premières
                   photos disponibles (onglets Horaires et Photos).
                 </p>
+
+                <div className="mb-4">
+                  <LogoUploader clientSiteId={clientSiteId} password={password} logoUrl={logoUrl} onLogoChanged={loadLogo} />
+                </div>
 
                 <div className="flex flex-col gap-3">
                   <label className="relative flex flex-col gap-1 text-sm font-medium text-gray-text">

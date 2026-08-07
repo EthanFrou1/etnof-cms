@@ -40,4 +40,11 @@ public class ClientSite
     public string? PublishedPaletteId { get; set; }
     public string? PublishedCustomAccent { get; set; }
     public DateTime? PublishedAt { get; set; }
+
+    // Logo du tenant — utilisé comme favicon et affiché à côté de la description Établissement sur le
+    // site public (voir TemplateHestia.tsx/TemplateHelios.tsx). Même principe brouillon/publié que les
+    // champs Published* ci-dessus : PublishedLogoPath reste null tant que le tenant n'a jamais cliqué
+    // "Rafraîchir le site", auquel cas l'endpoint public retombe sur LogoPath (voir TemplateEndpoints).
+    public string? LogoPath { get; set; }
+    public string? PublishedLogoPath { get; set; }
 }

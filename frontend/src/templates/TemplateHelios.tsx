@@ -73,7 +73,7 @@ function Reveal({ children }: { children: ReactNode }) {
   );
 }
 
-export default function TemplateHelios({ clientSiteId, modules, content, paletteId, customAccent, locale, onChangeLocale }: TemplateProps) {
+export default function TemplateHelios({ clientSiteId, modules, content, paletteId, customAccent, logoUrl, locale, onChangeLocale }: TemplateProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const mapsAddress = content?.address;
   const mapsApiKey = modules?.maps?.apiKey;
@@ -92,12 +92,22 @@ export default function TemplateHelios({ clientSiteId, modules, content, palette
   return (
     <div className="min-h-screen" style={{ backgroundColor: background }}>
       <nav className="relative px-4 py-4 sm:px-8" style={{ backgroundColor: ink }}>
-        <div className="mx-auto flex max-w-5xl items-center justify-between">
+        <div className="mx-auto flex max-w-7xl items-center justify-between">
           <span className="text-lg font-extrabold text-white">{siteName}</span>
           <div className="hidden items-center gap-6 text-sm font-medium text-white/80 md:flex">
             {modules?.catalogue?.enabled && (
               <a href="#catalogue" className="transition-colors duration-200 hover:text-white">
                 {t(locale, "nav.catalogue")}
+              </a>
+            )}
+            {modules?.galerie?.enabled && (
+              <a href="#galerie" className="transition-colors duration-200 hover:text-white">
+                {t(locale, "nav.galerie")}
+              </a>
+            )}
+            {modules?.["avis-google"]?.enabled && (
+              <a href="#avis-google" className="transition-colors duration-200 hover:text-white">
+                {t(locale, "nav.avisGoogle")}
               </a>
             )}
             {modules?.blog?.enabled && (
@@ -118,11 +128,6 @@ export default function TemplateHelios({ clientSiteId, modules, content, palette
             {modules?.newsletter?.enabled && (
               <a href="#newsletter" className="transition-colors duration-200 hover:text-white">
                 {t(locale, "nav.newsletter")}
-              </a>
-            )}
-            {modules?.["avis-google"]?.enabled && (
-              <a href="#avis-google" className="transition-colors duration-200 hover:text-white">
-                {t(locale, "nav.avisGoogle")}
               </a>
             )}
             {modules?.pages?.enabled && typeof pagesMenuLabel === "string" && (
@@ -151,11 +156,21 @@ export default function TemplateHelios({ clientSiteId, modules, content, palette
 
         {mobileMenuOpen && (
           <div
-            className="mx-auto mt-4 flex max-w-5xl flex-col gap-1 border-t border-white/10 pt-4 text-sm font-medium text-white/80 md:hidden"
+            className="mx-auto mt-4 flex max-w-7xl flex-col gap-1 border-t border-white/10 pt-4 text-sm font-medium text-white/80 md:hidden"
           >
             {modules?.catalogue?.enabled && (
               <a href="#catalogue" className="rounded-button px-2 py-2 transition-colors duration-200 hover:text-white">
                 {t(locale, "nav.catalogue")}
+              </a>
+            )}
+            {modules?.galerie?.enabled && (
+              <a href="#galerie" className="rounded-button px-2 py-2 transition-colors duration-200 hover:text-white">
+                {t(locale, "nav.galerie")}
+              </a>
+            )}
+            {modules?.["avis-google"]?.enabled && (
+              <a href="#avis-google" className="rounded-button px-2 py-2 transition-colors duration-200 hover:text-white">
+                {t(locale, "nav.avisGoogle")}
               </a>
             )}
             {modules?.blog?.enabled && (
@@ -178,11 +193,6 @@ export default function TemplateHelios({ clientSiteId, modules, content, palette
                 {t(locale, "nav.newsletter")}
               </a>
             )}
-            {modules?.["avis-google"]?.enabled && (
-              <a href="#avis-google" className="rounded-button px-2 py-2 transition-colors duration-200 hover:text-white">
-                {t(locale, "nav.avisGoogle")}
-              </a>
-            )}
             {modules?.pages?.enabled && typeof pagesMenuLabel === "string" && (
               <Suspense fallback={null}>
                 <CustomPagesNav apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} label={pagesMenuLabel} ink={ink} variant="mobile" />
@@ -203,18 +213,30 @@ export default function TemplateHelios({ clientSiteId, modules, content, palette
         className="px-4 pb-16 pt-20 sm:px-8"
         style={{ background: `linear-gradient(135deg, ${accent}, ${gradientEnd ?? accent})` }}
       >
-        <div className="mx-auto flex max-w-5xl flex-col gap-5">
+        <div className="mx-auto flex max-w-7xl flex-col gap-5">
           <h1 className="max-w-2xl text-5xl font-black leading-[1.05] text-white sm:text-6xl">
             {siteName}
           </h1>
           {content?.description && (
-            <p className="max-w-xl text-lg leading-relaxed text-white/90">{content.description}</p>
+            <div className="flex flex-col gap-8 sm:flex-row sm:items-start sm:gap-16">
+              <div
+                className="max-w-xl text-xl leading-relaxed text-white/90 [&_a]:underline [&_strong]:font-bold"
+                dangerouslySetInnerHTML={{ __html: content.description }}
+              />
+              {logoUrl && (
+                <img
+                  src={`${API_BASE_URL}${logoUrl}`}
+                  alt=""
+                  className="h-20 w-20 shrink-0 rounded-full bg-white object-contain p-2 shadow-card sm:h-[23rem] sm:w-[23rem]"
+                />
+              )}
+            </div>
           )}
         </div>
       </header>
       <SunRayDivider color={accent} />
 
-      <div className="mx-auto flex max-w-5xl flex-col gap-16 px-4 pb-16 pt-10 sm:px-8">
+      <div className="mx-auto flex max-w-7xl flex-col gap-16 px-4 pb-16 pt-10 sm:px-8">
         {firstOffer && (
           <Reveal>
             <section className="flex flex-col gap-4">
@@ -276,6 +298,16 @@ export default function TemplateHelios({ clientSiteId, modules, content, palette
                 <CatalogueSection apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} palette={modulePalette} locale={locale} />
               </div>
             )}
+            {modules?.galerie?.enabled && (
+              <div id="galerie" className="sm:col-span-2">
+                <GallerySection apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} palette={modulePalette} locale={locale} />
+              </div>
+            )}
+            {modules?.["avis-google"]?.enabled && (
+              <div id="avis-google" className="sm:col-span-2">
+                <AvisGoogleSection apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} palette={modulePalette} locale={locale} />
+              </div>
+            )}
             {modules?.blog?.enabled && (
               <div id="blog" className="sm:col-span-2">
                 <BlogSection apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} palette={modulePalette} locale={locale} />
@@ -294,16 +326,6 @@ export default function TemplateHelios({ clientSiteId, modules, content, palette
             {modules?.newsletter?.enabled && (
               <div id="newsletter">
                 <NewsletterSection apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} palette={modulePalette} locale={locale} />
-              </div>
-            )}
-            {modules?.["avis-google"]?.enabled && (
-              <div id="avis-google" className="sm:col-span-2">
-                <AvisGoogleSection apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} palette={modulePalette} locale={locale} />
-              </div>
-            )}
-            {modules?.galerie?.enabled && (
-              <div id="galerie" className="sm:col-span-2">
-                <GallerySection apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} palette={modulePalette} locale={locale} />
               </div>
             )}
             {modules?.maps?.enabled && typeof mapsAddress === "string" && (

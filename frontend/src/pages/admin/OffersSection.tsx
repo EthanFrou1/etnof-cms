@@ -113,6 +113,7 @@ export default function OffersSection({ clientSiteId, password }: OffersSectionP
         googlePlaceId: content.googlePlaceId,
         googlePlaceName: content.googlePlaceName,
         openingHours: content.openingHours,
+        cgvContent: content.cgvContent,
       }),
     });
     if (res.ok) {

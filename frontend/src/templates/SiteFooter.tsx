@@ -32,7 +32,7 @@ export default function SiteFooter({ content, palette, dark = false, modules }: 
   if (dark) {
     return (
       <footer style={{ backgroundColor: palette.ink }}>
-        <div className="mx-auto flex max-w-5xl flex-col items-center gap-1.5 px-4 py-14 text-center text-sm sm:px-8">
+        <div className="mx-auto flex max-w-7xl flex-col items-center gap-1.5 px-4 py-14 text-center text-sm sm:px-8">
           {name && (
             <span className="mb-1 text-lg font-black" style={{ color: palette.background }}>
               {name}

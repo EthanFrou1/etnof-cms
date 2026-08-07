@@ -1,4 +1,5 @@
 import { lazy, Suspense } from "react";
+import { API_BASE_URL } from "../config";
 import { useModules } from "../hooks/useModules";
 import { useContent } from "../hooks/useContent";
 import { useTemplate } from "../hooks/useTemplate";
@@ -17,16 +18,17 @@ export default function PublicSite({ clientSiteId }: PublicSiteProps) {
   const modules = useModules(clientSiteId);
   const { locale, setLocale } = useLocale(clientSiteId);
   const content = useContent(clientSiteId, locale);
-  const { templateId, paletteId, customAccent } = useTemplate(clientSiteId);
+  const { templateId, paletteId, customAccent, logoUrl } = useTemplate(clientSiteId);
 
   useDocumentMeta({
     title: content?.siteName || "…",
     description: content?.description,
+    faviconUrl: logoUrl ? `${API_BASE_URL}${logoUrl}` : undefined,
   });
 
   if (!templateId) return null;
 
-  const props = { clientSiteId, modules, content, paletteId, customAccent, locale, onChangeLocale: setLocale };
+  const props = { clientSiteId, modules, content, paletteId, customAccent, logoUrl, locale, onChangeLocale: setLocale };
   const measurementId = modules?.analytics?.measurementId;
 
   return (
