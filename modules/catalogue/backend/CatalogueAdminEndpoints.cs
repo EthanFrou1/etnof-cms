@@ -129,10 +129,9 @@ public static class CatalogueAdminEndpoints
             var fileName = $"{Guid.NewGuid()}{extension}";
             var filePath = Path.Combine(uploadDir, fileName);
 
-            await using (var stream = File.Create(filePath))
-            {
-                await file.CopyToAsync(stream);
-            }
+            using var inputStream = new MemoryStream();
+            await file.CopyToAsync(inputStream);
+            await File.WriteAllBytesAsync(filePath, ImageProcessing.ResizeAndCompress(inputStream.ToArray(), extension));
 
             var maxSortOrder = await db.ProductImages
                 .Where(i => i.ProductId == id)
@@ -167,6 +166,44 @@ public static class CatalogueAdminEndpoints
             db.ProductImages.Remove(image);
             await db.SaveChangesAsync();
 
+            return Results.NoContent();
+        });
+
+        // Toutes les avis d'un produit (approuvés ET en attente) — même pattern de modération que
+        // modules/avis-google/backend/AvisGoogleAdminEndpoints.cs (Selected toggle par le client).
+        group.MapGet("/products/{productId:guid}/reviews", async (Guid clientSiteId, Guid productId, HttpRequest req, IConfiguration config, AppDbContext db) =>
+        {
+            if (!await TenantAdminAuth.IsAuthorizedAsync(req, config, db, clientSiteId)) return Results.Unauthorized();
+
+            var reviews = await db.ProductReviews
+                .Where(r => r.ClientSiteId == clientSiteId && r.ProductId == productId)
+                .OrderByDescending(r => r.CreatedAt)
+                .ToListAsync();
+
+            return Results.Ok(reviews);
+        });
+
+        group.MapPut("/reviews/{id:guid}", async (Guid clientSiteId, Guid id, SelectReviewInput input, HttpRequest req, IConfiguration config, AppDbContext db) =>
+        {
+            if (!await TenantAdminAuth.IsAuthorizedAsync(req, config, db, clientSiteId)) return Results.Unauthorized();
+
+            var review = await db.ProductReviews.FirstOrDefaultAsync(r => r.Id == id && r.ClientSiteId == clientSiteId);
+            if (review is null) return Results.NotFound();
+
+            review.Selected = input.Selected;
+            await db.SaveChangesAsync();
+            return Results.Ok(review);
+        });
+
+        group.MapDelete("/reviews/{id:guid}", async (Guid clientSiteId, Guid id, HttpRequest req, IConfiguration config, AppDbContext db) =>
+        {
+            if (!await TenantAdminAuth.IsAuthorizedAsync(req, config, db, clientSiteId)) return Results.Unauthorized();
+
+            var review = await db.ProductReviews.FirstOrDefaultAsync(r => r.Id == id && r.ClientSiteId == clientSiteId);
+            if (review is null) return Results.NotFound();
+
+            db.ProductReviews.Remove(review);
+            await db.SaveChangesAsync();
             return Results.NoContent();
         });
 
@@ -311,3 +348,4 @@ public static class CatalogueAdminEndpoints
 public record ProductInput(string Name, string Description, decimal Price, int Stock);
 public record OrderStatusInput(string Status);
 public record CustomerInput(string Name, string Email, string Phone, string Address, string Notes);
+public record SelectReviewInput(bool Selected);

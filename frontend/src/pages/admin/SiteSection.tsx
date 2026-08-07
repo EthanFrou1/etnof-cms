@@ -3,7 +3,7 @@ import { API_BASE_URL } from "../../config";
 import type { SiteContent } from "../../hooks/useContent";
 import type { TemplateId } from "../../hooks/useTemplate";
 import { adminFetch } from "../../hooks/useAdminSession";
-import { TEMPLATES } from "../../templates/registry";
+import { TEMPLATES, resolvePalette } from "../../templates/registry";
 
 type SiteSectionProps = {
   clientSiteId: string;
@@ -25,22 +25,24 @@ function TemplateCard({
   isSelected,
   onSelect,
   paletteId,
-  onPaletteChange,
+  customAccent,
 }: {
   template: (typeof TEMPLATES)[number];
   isSelected: boolean;
   onSelect: () => void;
   paletteId: string | null;
-  onPaletteChange: (id: string) => void;
+  customAccent: string | null;
 }) {
   const [imgFailed, setImgFailed] = useState(false);
 
-  // La card du template sélectionné suit la palette de brouillon en cours ; les autres cards (non
-  // sélectionnées) restent sur leur image par défaut (1re palette). C'est ce qui fait "changer l'image
-  // de fond du modèle en fonction de la palette activée", demandé par Ethan.
+  // Sélecteur de palette retiré de l'UI (voir SiteSection.handleTemplateChange) — chaque template
+  // garde sa 1re palette. La card du template sélectionné suit quand même paletteId/customAccent tels
+  // que chargés, au cas où un site aurait déjà une palette non-défaut enregistrée avant ce retrait.
+  // Pour "custom", pas d'image dédiée (le fond reste celui du 1er preset, voir resolvePalette) — le
+  // dégradé de repli (fallbackGradient) reprend la couleur déjà enregistrée pour ce site.
   const activePalette =
     isSelected && template.palettes.length > 0
-      ? template.palettes.find((p) => p.id === paletteId) ?? template.palettes[0]
+      ? resolvePalette(template.id, paletteId, customAccent)
       : template.palettes[0];
   const imageSrc = activePalette?.previewImage ?? template.previewImage;
   const fallbackGradient = activePalette
@@ -87,32 +89,6 @@ function TemplateCard({
         <span className="absolute bottom-3 left-4 text-lg font-bold text-white drop-shadow-sm">
           {template.label}
         </span>
-
-        {/* Palette de couleurs en overlay, en bas à droite de la card — seulement sur le template
-            actuellement sélectionné (choisir une palette n'a de sens que pour lui). */}
-        {isSelected && template.palettes.length > 0 && (
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="absolute bottom-2.5 right-3 flex items-center gap-1.5 rounded-pill bg-navy/50 px-2 py-1.5 backdrop-blur-sm"
-          >
-            {template.palettes.map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                title={p.label}
-                onClick={() => onPaletteChange(p.id)}
-                className={`h-5 w-5 overflow-hidden rounded-full border-2 transition-colors ${
-                  paletteId === p.id ? "border-white" : "border-white/30 hover:border-white/70"
-                }`}
-              >
-                <span className="flex h-full w-full">
-                  <span className="h-full w-1/2" style={{ backgroundColor: p.background }} />
-                  <span className="h-full w-1/2" style={{ backgroundColor: p.accent }} />
-                </span>
-              </button>
-            ))}
-          </div>
-        )}
       </div>
 
       <div className="p-4">
@@ -126,12 +102,12 @@ function TemplateTab({
   templateId,
   onTemplateChange,
   paletteId,
-  onPaletteChange,
+  customAccent,
 }: {
   templateId: TemplateId | null;
   onTemplateChange: (id: TemplateId) => void;
   paletteId: string | null;
-  onPaletteChange: (id: string) => void;
+  customAccent: string | null;
 }) {
   return (
     <section>
@@ -144,7 +120,7 @@ function TemplateTab({
             isSelected={templateId === t.id}
             onSelect={() => onTemplateChange(t.id)}
             paletteId={paletteId}
-            onPaletteChange={onPaletteChange}
+            customAccent={customAccent}
           />
         ))}
       </div>
@@ -194,6 +170,8 @@ export default function SiteSection({ clientSiteId, password }: SiteSectionProps
   const [draftTemplateId, setDraftTemplateId] = useState<TemplateId | null>(null);
   const [paletteId, setPaletteId] = useState<string | null>(null);
   const [draftPaletteId, setDraftPaletteId] = useState<string | null>(null);
+  const [customAccent, setCustomAccent] = useState<string | null>(null);
+  const [draftCustomAccent, setDraftCustomAccent] = useState<string | null>(null);
 
   // Tous les autres champs de SiteContent (établissement, offres…) sont édités sur d'autres pages
   // mais partagés avec elles via le même endpoint PUT /admin/content, qui remplace tout l'objet —
@@ -204,14 +182,41 @@ export default function SiteSection({ clientSiteId, password }: SiteSectionProps
 
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
 
+  // Distinct de saveStatus : "Enregistrer" écrit le brouillon (ce que l'admin voit ici), "Rafraîchir
+  // le site" copie ce brouillon vers le site public (voir PublishEndpoints.cs) — tant que ce bouton
+  // n'est pas cliqué, le site public continue d'afficher l'ancienne version publiée.
+  const [publishedAt, setPublishedAt] = useState<string | null>(null);
+  const [publishStatus, setPublishStatus] = useState<"idle" | "publishing" | "error">("idle");
+
+  useEffect(() => {
+    adminFetch(API_BASE_URL, `/api/t/${clientSiteId}/admin/publish-status`, password)
+      .then((res) => res.json())
+      .then((data: { publishedAt: string | null }) => setPublishedAt(data.publishedAt));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handlePublish = async () => {
+    setPublishStatus("publishing");
+    const res = await adminFetch(API_BASE_URL, `/api/t/${clientSiteId}/admin/publish`, password, { method: "POST" });
+    if (res.ok) {
+      const data = (await res.json()) as { publishedAt: string };
+      setPublishedAt(data.publishedAt);
+      setPublishStatus("idle");
+    } else {
+      setPublishStatus("error");
+    }
+  };
+
   useEffect(() => {
     fetch(`${API_BASE_URL}/api/t/${clientSiteId}/template`)
       .then((res) => res.json())
-      .then((data: { templateId: TemplateId; paletteId: string | null }) => {
+      .then((data: { templateId: TemplateId; paletteId: string | null; customAccent: string | null }) => {
         setTemplateId(data.templateId);
         setDraftTemplateId(data.templateId);
         setPaletteId(data.paletteId);
         setDraftPaletteId(data.paletteId);
+        setCustomAccent(data.customAccent);
+        setDraftCustomAccent(data.customAccent);
       });
     fetch(`${API_BASE_URL}/api/t/${clientSiteId}/content`)
       .then((res) => res.json())
@@ -228,6 +233,9 @@ export default function SiteSection({ clientSiteId, password }: SiteSectionProps
 
   const handleTemplateChange = (id: TemplateId) => {
     setDraftTemplateId(id);
+    // "custom" reste valable sur n'importe quel template (couleur libre, pas un preset du modèle) —
+    // seul un id de preset devenu invalide pour le nouveau template déclenche un repli.
+    if (draftPaletteId === "custom") return;
     const palettes = TEMPLATES.find((t) => t.id === id)?.palettes ?? [];
     if (palettes.length > 0 && !palettes.some((p) => p.id === draftPaletteId)) {
       setDraftPaletteId(palettes[0].id);
@@ -235,7 +243,10 @@ export default function SiteSection({ clientSiteId, password }: SiteSectionProps
   };
 
   const templateDirty = draftTemplateId !== null && draftTemplateId !== templateId;
-  const paletteDirty = draftPalettesAvailable.length > 0 && draftPaletteId !== paletteId;
+  const paletteDirty =
+    draftPaletteId === "custom"
+      ? paletteId !== "custom" || draftCustomAccent !== customAccent
+      : draftPalettesAvailable.length > 0 && draftPaletteId !== paletteId;
   const contentDirty = Boolean(content && (siteName !== content.siteName || description !== content.description));
   const isDirty = templateDirty || paletteDirty || contentDirty;
 
@@ -249,7 +260,7 @@ export default function SiteSection({ clientSiteId, password }: SiteSectionProps
         adminFetch(API_BASE_URL, `/api/t/${clientSiteId}/admin/template`, password, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ templateId: draftTemplateId, paletteId: draftPaletteId }),
+          body: JSON.stringify({ templateId: draftTemplateId, paletteId: draftPaletteId, customAccent: draftCustomAccent }),
         })
       );
     }
@@ -290,6 +301,7 @@ export default function SiteSection({ clientSiteId, password }: SiteSectionProps
     if ((templateDirty || paletteDirty) && draftTemplateId) {
       setTemplateId(draftTemplateId);
       setPaletteId(draftPaletteId);
+      setCustomAccent(draftCustomAccent);
     }
     if (contentDirty) {
       const contentRes = results[templateDirty || paletteDirty ? 1 : 0];
@@ -317,6 +329,29 @@ export default function SiteSection({ clientSiteId, password }: SiteSectionProps
         </div>
       </div>
 
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-card bg-white p-5 shadow-card">
+        <div>
+          <p className="text-sm font-semibold text-navy">Rafraîchir le site public</p>
+          <p className="text-xs text-gray-text">
+            Les modifications enregistrées ci-dessus ne sont visibles sur le site public qu'après ce rafraîchissement.
+          </p>
+          <p className="mt-1 text-xs text-gray-text">
+            {publishedAt
+              ? `Dernière publication : ${new Date(publishedAt).toLocaleString("fr-FR")}`
+              : "Jamais publié"}
+          </p>
+          {publishStatus === "error" && <p className="text-xs text-red-500">Erreur lors de la publication.</p>}
+        </div>
+        <button
+          type="button"
+          onClick={handlePublish}
+          disabled={publishStatus === "publishing"}
+          className="rounded-button border border-brand-mid px-4 py-2.5 font-semibold text-brand-mid transition-colors hover:bg-brand-mid/10 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          {publishStatus === "publishing" ? "Publication…" : "Rafraîchir le site"}
+        </button>
+      </div>
+
       <div className="flex gap-2 border-b border-border-subtle">
         {TABS.map((tab) => (
           <button
@@ -339,7 +374,7 @@ export default function SiteSection({ clientSiteId, password }: SiteSectionProps
           templateId={draftTemplateId}
           onTemplateChange={handleTemplateChange}
           paletteId={draftPaletteId}
-          onPaletteChange={setDraftPaletteId}
+          customAccent={draftCustomAccent}
         />
       )}
       {activeTab === "content" && (

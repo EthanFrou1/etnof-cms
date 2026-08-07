@@ -49,10 +49,9 @@ public static class GalleryAdminEndpoints
             Directory.CreateDirectory(uploadDir);
 
             var fileName = $"{Guid.NewGuid()}{extension}";
-            await using (var stream = File.Create(Path.Combine(uploadDir, fileName)))
-            {
-                await file.CopyToAsync(stream);
-            }
+            using var inputStream = new MemoryStream();
+            await file.CopyToAsync(inputStream);
+            await File.WriteAllBytesAsync(Path.Combine(uploadDir, fileName), ImageProcessing.ResizeAndCompress(inputStream.ToArray(), extension));
 
             var nextSortOrder = (await db.GalleryImages
                 .Where(i => i.ClientSiteId == clientSiteId)

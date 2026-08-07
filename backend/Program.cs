@@ -58,6 +58,18 @@ builder.Services.AddRateLimiter(options =>
             Window = TimeSpan.FromMinutes(1),
             QueueLimit = 0,
         }));
+
+    // Recherche Google Places exposée sans authentification pour l'autocomplete d'adresse du panier
+    // public (voir GooglePlacesEndpoints.cs) : chaque requête coûte de l'argent côté Google, donc on
+    // limite le débit par IP plutôt que de laisser l'endpoint totalement ouvert.
+    options.AddPolicy("public-places", httpContext => RateLimitPartition.GetFixedWindowLimiter(
+        partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        factory: _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 15,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0,
+        }));
 });
 
 var app = builder.Build();
@@ -77,6 +89,7 @@ app.MapGet("/api/t/{clientSiteId:guid}/config/modules", async (Guid clientSiteId
 ContentEndpoints.MapEndpoints(app);
 TenantAdminEndpoints.MapEndpoints(app);
 TemplateEndpoints.MapEndpoints(app);
+PublishEndpoints.MapEndpoints(app);
 AgencyDashboardEndpoints.MapEndpoints(app);
 GooglePlacesEndpoints.MapEndpoints(app);
 EstablishmentEndpoints.MapEndpoints(app);

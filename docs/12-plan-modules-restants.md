@@ -207,6 +207,14 @@ Le contenu d'un article était un simple `<textarea>` (texte brut). Dépendance 
 - Le contenu est maintenant stocké/renvoyé en HTML (`editor.getHTML()`) plutôt qu'en texte brut — **aucune migration de schéma** côté backend (`BlogPost.Content` reste une simple colonne `string`).
 - Côté public (`modules/blog/frontend/BlogPostPage.tsx`), rendu conditionnel : si le contenu contient une balise HTML (regex `/<[a-z][\s\S]*>/i`), rendu via `dangerouslySetInnerHTML` (contenu de confiance : seul l'admin authentifié du tenant peut l'écrire, même modèle de confiance que le reste de l'admin) ; sinon repli sur l'ancien rendu `whitespace-pre-wrap` pour ne pas casser les articles écrits avant ce changement. La génération de la meta description (voir "SEO de base" ci-dessus) retire aussi les balises HTML avant troncature.
 
+### Optimisation des images uploadées, implémentée le 2026-08-06
+
+Suite du brainstorm de fonctionnalités manquantes (`docs/07-admin-global.md`), catégorie UI/UX site public. Constat vérifié avant de coder : les 4 points d'upload d'image du projet (photos produits, galerie, établissement, logo agence) stockaient les octets bruts reçus du navigateur, sans aucun redimensionnement/compression — un visiteur pouvait donc télécharger une photo de smartphone à pleine résolution (3-4000px) rien que pour afficher une vignette. Dépendance externe validée avec Ethan avant d'installer (règle 5 de `CLAUDE.md`) : `SkiaSharp` (licence MIT), retenue plutôt qu'ImageSharp pour sa licence sans ambiguïté et parce que ses binaires natifs étaient déjà partiellement présents en dépendance transitive de QuestPDF.
+
+- Nouveau `backend/ImageProcessing.cs`, un seul point d'appel (`ResizeAndCompress(bytes, extension)`) réutilisé par les 4 endpoints d'upload (`CatalogueAdminEndpoints.cs`, `GalleryAdminEndpoints.cs`, `EstablishmentEndpoints.cs`, `CompanyProfileEndpoints.cs`).
+- Redimensionne si la plus grande dimension dépasse 1600px (conserve le ratio), réencode dans le **même format que l'original** (jamais de bascule vers JPEG, pour ne pas casser la transparence d'un PNG). Les SVG (logo) passent inchangés — vectoriel, rien à redimensionner. Si le décodage échoue (fichier corrompu), les octets d'origine sont conservés tels quels plutôt que de faire échouer tout l'upload.
+- Vérifié à l'exécution (pas seulement à la compilation) via un petit projet jetable : le logo existant (500×500) recompresse sans perte de dimension, une image synthétique 3000×2000 redescend bien à 1600×1067.
+
 ### Statistiques (Google Analytics), implémenté le 2026-08-06
 
 Demandé par Ethan comme suite du brainstorm de fonctionnalités manquantes (`docs/07-admin-global.md`) — question posée avant de coder : compteur maison (zéro dépendance, zéro cookie) ou intégration Google Analytics (plus riche, mais dépendance externe + bandeau de consentement RGPD nécessaire) ? Réponse : Google Analytics.

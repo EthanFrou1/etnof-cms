@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Modules.Catalogue;
 
 namespace Backend;
 
@@ -252,6 +253,122 @@ public static class BrevoEmailService
     // Adresse de support agence — même identité que le fallback expéditeur utilisé plus haut pour
     // l'email de confirmation de paiement.
     private const string SupportInbox = "etnofweb@gmail.com";
+
+    // Confirmation de commande du module Catalogue (voir modules/stripe/backend/StripeModule.cs,
+    // webhook checkout.session.completed) — même compte Brevo partagé que le reste de ce fichier,
+    // pas de compte par tenant (aucun tenant n'a le sien, voir docs/13-facturation-devis.md pour la
+    // même décision côté facturation agence). L'expéditeur technique reste SupportInbox (seule
+    // adresse vérifiée dans le compte Brevo), mais le nom affiché est celui du site du tenant et le
+    // `replyTo` pointe vers son adresse de contact si renseignée — le client répond directement au
+    // commerçant, pas à l'agence.
+    public static async Task<bool> SendOrderConfirmationEmailAsync(
+        HttpClient http, string apiKey, SiteContent site, Order order, List<OrderItem> items)
+    {
+        if (string.IsNullOrWhiteSpace(apiKey) || string.IsNullOrWhiteSpace(order.CustomerEmail)) return false;
+
+        var senderName = string.IsNullOrWhiteSpace(site.SiteName) ? "Votre boutique" : site.SiteName;
+
+        var payload = new BrevoEmailRequest(
+            Sender: new BrevoContact(senderName, SupportInbox),
+            To: new List<BrevoContact> { new(order.CustomerName, order.CustomerEmail) },
+            Subject: $"Confirmation de commande — {senderName}",
+            HtmlContent: BuildOrderConfirmationHtml(site, senderName, order, items),
+            ReplyTo: string.IsNullOrWhiteSpace(site.Email) ? null : new BrevoContact(senderName, site.Email)
+        );
+
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Post, EndpointUrl);
+            request.Headers.Add("api-key", apiKey);
+            request.Headers.Add("Accept", "application/json");
+            request.Content = JsonContent.Create(payload, options: JsonOptions);
+
+            using var response = await http.SendAsync(request);
+            return response.IsSuccessStatusCode;
+        }
+        catch (Exception)
+        {
+            // Ne remonte jamais — l'appelant (webhook Stripe) ne doit jamais échouer à cause d'un
+            // problème d'envoi d'email : la commande est déjà enregistrée, c'est ce qui compte.
+            return false;
+        }
+    }
+
+    // Même gabarit visuel que BuildInvoiceEmailHtml (badge/carte/pied de page), simplifié : pas de
+    // bouton CTA (aucune page de suivi de commande publique pour l'instant — limite V1 assumée, voir
+    // docs/12-plan-modules-restants.md).
+    private static string BuildOrderConfirmationHtml(SiteContent site, string senderName, Order order, List<OrderItem> items)
+    {
+        const string navy = "#0F172A";
+        const string greenAccent = "#22C55E";
+        const string grayText = "#64748B";
+        const string border = "#E2E8F0";
+        const string bgPage = "#F8FAFC";
+        const string fontFamily = "-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Roboto,Helvetica,Arial,sans-serif";
+
+        var lineRows = string.Join("", items.Select(item => $@"
+                <tr>
+                  <td style=""padding:10px 0;border-bottom:1px solid {border};font-size:13px;color:{navy};"">{WebUtility.HtmlEncode(item.ProductName)}</td>
+                  <td align=""right"" style=""padding:10px 0;border-bottom:1px solid {border};font-size:13px;color:{grayText};white-space:nowrap;"">{item.Quantity} × {item.UnitPrice:0.00} €</td>
+                  <td align=""right"" style=""padding:10px 0 10px 12px;border-bottom:1px solid {border};font-size:13px;font-weight:700;color:{navy};white-space:nowrap;"">{(item.Quantity * item.UnitPrice):0.00} €</td>
+                </tr>"));
+
+        var footerParts = new[]
+            {
+                !string.IsNullOrWhiteSpace(site.Email) ? $@"<a href=""mailto:{site.Email}"" style=""color:{grayText};text-decoration:underline;"">{WebUtility.HtmlEncode(site.Email)}</a>" : null,
+                !string.IsNullOrWhiteSpace(site.Phone) ? WebUtility.HtmlEncode(site.Phone) : null,
+            }.Where(part => part is not null);
+        var footerLine = string.Join(" · ", footerParts);
+
+        return $@"
+<body style=""margin:0;padding:32px 16px;background-color:{bgPage};font-family:{fontFamily};"">
+  <table role=""presentation"" width=""100%"" cellpadding=""0"" cellspacing=""0"">
+    <tr>
+      <td align=""center"">
+        <table role=""presentation"" width=""560"" cellpadding=""0"" cellspacing=""0"" style=""max-width:560px;width:100%;background-color:#FFFFFF;border-radius:20px;box-shadow:0 2px 12px rgba(15,23,42,0.05);"">
+          <tr>
+            <td style=""padding:40px;"">
+              <div style=""text-transform:uppercase;letter-spacing:0.1em;font-size:13px;font-weight:600;color:{greenAccent};margin-bottom:8px;"">
+                {WebUtility.HtmlEncode(senderName)}
+              </div>
+              <h1 style=""margin:0 0 16px;font-size:24px;font-weight:800;color:{navy};"">Commande confirmée</h1>
+              <p style=""margin:0 0 24px;font-size:15px;line-height:1.6;color:{grayText};"">
+                Bonjour {WebUtility.HtmlEncode(order.CustomerName)},<br>
+                Merci pour votre commande ! Nous confirmons la réception de votre paiement.
+              </p>
+
+              <table role=""presentation"" width=""100%"" cellpadding=""0"" cellspacing=""0"" style=""margin-bottom:24px;"">
+                <tr>
+                  <td style=""padding-bottom:8px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:{grayText};"">Récapitulatif</td>
+                  <td></td>
+                  <td></td>
+                </tr>
+                {lineRows}
+                <tr>
+                  <td colspan=""2"" style=""padding-top:14px;font-size:15px;font-weight:800;color:{navy};"">Total</td>
+                  <td align=""right"" style=""padding-top:14px;font-size:15px;font-weight:800;color:{navy};white-space:nowrap;"">{order.Total:0.00} €</td>
+                </tr>
+              </table>
+
+              <p style=""margin:32px 0 0;font-size:13px;line-height:1.6;color:{grayText};border-top:1px solid {border};padding-top:20px;"">
+                Merci !<br>L'équipe {WebUtility.HtmlEncode(senderName)}
+              </p>
+            </td>
+          </tr>
+        </table>
+
+        <table role=""presentation"" width=""560"" cellpadding=""0"" cellspacing=""0"" style=""max-width:560px;width:100%;"">
+          <tr>
+            <td align=""center"" style=""padding:20px 16px;font-size:12px;color:{grayText};"">
+              {WebUtility.HtmlEncode(senderName)}{(footerLine.Length > 0 ? $" · {footerLine}" : "")}
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>";
+    }
 
     // Message envoyé par un client depuis la bulle d'aide de son admin (SupportBubble.tsx) — pas de
     // pièce jointe, pas de mise en page facture, juste le nom du site + le message. Le `replyToEmail`

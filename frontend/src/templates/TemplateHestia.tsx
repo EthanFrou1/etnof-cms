@@ -1,8 +1,9 @@
 import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from "react";
 import { API_BASE_URL } from "../config";
 import { useEstablishmentImages, type EstablishmentImage } from "../hooks/useEstablishmentImages";
+import { useRevealOnScroll } from "../hooks/useRevealOnScroll";
 import { t, type Locale } from "@modules/multilingue/frontend/translations";
-import { TEMPLATES } from "./registry";
+import { resolvePalette } from "./registry";
 import SiteFooter from "./SiteFooter";
 import type { TemplateProps } from "./types";
 
@@ -18,12 +19,6 @@ const CustomPagesNav = lazy(() => import("@modules/pages/frontend/CustomPagesNav
 const WhatsAppButton = lazy(() => import("@modules/whatsapp/frontend/WhatsAppButton"));
 const LanguageSwitcher = lazy(() => import("@modules/multilingue/frontend/LanguageSwitcher"));
 
-// 3 variantes de couleurs (accent + fond) propres à ce template — voir registry.ts pour le détail
-// (aussi utilisé par le sélecteur de palette dans l'admin, SiteSection.tsx). "ink"/blanc restent
-// communs aux 3 (structure identique, seule la couleur d'accent change, cf. docs/09-charte-graphique.md).
-// Volontairement en dehors de tailwind.config.js : ces tokens n'appartiennent qu'à Hestia, pas à la
-// charte etnof-web partagée utilisée ailleurs (admin, autre template).
-const HESTIA_PALETTES = TEMPLATES.find((t) => t.id === "hestia")!.palettes;
 const ink = "#211A16";
 const poppins = "'Poppins', sans-serif";
 
@@ -147,7 +142,7 @@ function PhotoSlider({ images }: { images: EstablishmentImage[] }) {
           type="button"
           onClick={() => scrollByTile(-1)}
           aria-label="Photo précédente"
-          className="flex h-9 w-9 items-center justify-center rounded-pill border bg-white text-lg hover:opacity-80"
+          className="flex h-9 w-9 items-center justify-center rounded-pill border bg-white text-lg transition-opacity duration-200 hover:opacity-80"
           style={{ ...arrowStyle, borderColor: `${ink}1A` }}
         >
           ‹
@@ -156,7 +151,7 @@ function PhotoSlider({ images }: { images: EstablishmentImage[] }) {
           type="button"
           onClick={() => scrollByTile(1)}
           aria-label="Photo suivante"
-          className="flex h-9 w-9 items-center justify-center rounded-pill border bg-white text-lg hover:opacity-80"
+          className="flex h-9 w-9 items-center justify-center rounded-pill border bg-white text-lg transition-opacity duration-200 hover:opacity-80"
           style={{ ...arrowStyle, borderColor: `${ink}1A` }}
         >
           ›
@@ -190,15 +185,31 @@ function CloseIcon({ color }: { color: string }) {
 
 // Une "bande" pleine largeur avec son propre fond, conteneur centré à l'intérieur — permet aux
 // sections de fond alterné de vraiment déborder d'un bord à l'autre du site (voir docs/10-templates.md).
-function Band({ background, children }: { background: string; children: ReactNode }) {
+// `reveal=false` pour le hero (premier Band, toujours visible immédiatement, pas de délai d'entrée
+// même subtil sur ce que le visiteur voit en tout premier) — les autres bandes du site (Établissement,
+// Horaires, Offres, modules) se révèlent en fondu + léger décalage dès qu'elles entrent dans le
+// viewport, voir useRevealOnScroll.ts et docs/10-templates.md.
+function Band({ background, children, reveal = true }: { background: string; children: ReactNode; reveal?: boolean }) {
+  const { ref, visible } = useRevealOnScroll<HTMLDivElement>();
   return (
     <div style={{ backgroundColor: background }}>
-      <div className="mx-auto max-w-5xl px-4 py-14 sm:px-8">{children}</div>
+      <div
+        ref={reveal ? ref : undefined}
+        className={
+          reveal
+            ? `mx-auto max-w-5xl px-4 py-14 transition-all duration-700 ease-out sm:px-8 ${
+                visible ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0"
+              }`
+            : "mx-auto max-w-5xl px-4 py-14 sm:px-8"
+        }
+      >
+        {children}
+      </div>
     </div>
   );
 }
 
-export default function TemplateHestia({ clientSiteId, modules, content, paletteId, locale, onChangeLocale }: TemplateProps) {
+export default function TemplateHestia({ clientSiteId, modules, content, paletteId, customAccent, locale, onChangeLocale }: TemplateProps) {
   useHestiaFonts();
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -208,7 +219,7 @@ export default function TemplateHestia({ clientSiteId, modules, content, palette
   const whatsappMessage = modules?.whatsapp?.message;
   const pagesMenuLabel = modules?.pages?.menuLabel;
   const siteName = content?.siteName ?? "etnof-cms";
-  const palette = HESTIA_PALETTES.find((p) => p.id === paletteId) ?? HESTIA_PALETTES[0];
+  const palette = resolvePalette("hestia", paletteId, customAccent);
   const { accent, background } = palette;
   // Palette passée aux modules (Contact, Maps, Blog, Catalogue) — voir docs/10-templates.md,
   // "Palette appliquée aux modules" : chaque module reçoit accent/background/ink, plus de charte
@@ -256,32 +267,32 @@ export default function TemplateHestia({ clientSiteId, modules, content, palette
           </span>
           <div className="hidden items-center gap-5 text-sm font-medium md:flex" style={{ color: `${ink}99` }}>
             {modules?.catalogue?.enabled && (
-              <a href="#catalogue" style={{ color: "inherit" }} className="hover:opacity-70">
+              <a href="#catalogue" style={{ color: "inherit" }} className="transition-opacity duration-200 hover:opacity-70">
                 {t(locale, "nav.catalogue")}
               </a>
             )}
             {modules?.blog?.enabled && (
-              <a href="#blog" style={{ color: "inherit" }} className="hover:opacity-70">
+              <a href="#blog" style={{ color: "inherit" }} className="transition-opacity duration-200 hover:opacity-70">
                 {t(locale, "nav.blog")}
               </a>
             )}
             {modules?.rdv?.enabled && (
-              <a href="#rdv" style={{ color: "inherit" }} className="hover:opacity-70">
+              <a href="#rdv" style={{ color: "inherit" }} className="transition-opacity duration-200 hover:opacity-70">
                 {t(locale, "nav.rdv")}
               </a>
             )}
             {modules?.contact?.enabled && (
-              <a href="#contact" style={{ color: "inherit" }} className="hover:opacity-70">
+              <a href="#contact" style={{ color: "inherit" }} className="transition-opacity duration-200 hover:opacity-70">
                 {t(locale, "nav.contact")}
               </a>
             )}
             {modules?.newsletter?.enabled && (
-              <a href="#newsletter" style={{ color: "inherit" }} className="hover:opacity-70">
+              <a href="#newsletter" style={{ color: "inherit" }} className="transition-opacity duration-200 hover:opacity-70">
                 {t(locale, "nav.newsletter")}
               </a>
             )}
             {modules?.["avis-google"]?.enabled && (
-              <a href="#avis-google" style={{ color: "inherit" }} className="hover:opacity-70">
+              <a href="#avis-google" style={{ color: "inherit" }} className="transition-opacity duration-200 hover:opacity-70">
                 {t(locale, "nav.avisGoogle")}
               </a>
             )}
@@ -314,32 +325,32 @@ export default function TemplateHestia({ clientSiteId, modules, content, palette
               style={{ backgroundColor: "#FFFFFF", color: `${ink}99` }}
             >
               {modules?.catalogue?.enabled && (
-                <a href="#catalogue" style={{ color: "inherit" }} className="rounded-button px-2 py-2 hover:opacity-70">
+                <a href="#catalogue" style={{ color: "inherit" }} className="rounded-button px-2 py-2 transition-opacity duration-200 hover:opacity-70">
                   {t(locale, "nav.catalogue")}
                 </a>
               )}
               {modules?.blog?.enabled && (
-                <a href="#blog" style={{ color: "inherit" }} className="rounded-button px-2 py-2 hover:opacity-70">
+                <a href="#blog" style={{ color: "inherit" }} className="rounded-button px-2 py-2 transition-opacity duration-200 hover:opacity-70">
                   {t(locale, "nav.blog")}
                 </a>
               )}
               {modules?.rdv?.enabled && (
-                <a href="#rdv" style={{ color: "inherit" }} className="rounded-button px-2 py-2 hover:opacity-70">
+                <a href="#rdv" style={{ color: "inherit" }} className="rounded-button px-2 py-2 transition-opacity duration-200 hover:opacity-70">
                   {t(locale, "nav.rdv")}
                 </a>
               )}
               {modules?.contact?.enabled && (
-                <a href="#contact" style={{ color: "inherit" }} className="rounded-button px-2 py-2 hover:opacity-70">
+                <a href="#contact" style={{ color: "inherit" }} className="rounded-button px-2 py-2 transition-opacity duration-200 hover:opacity-70">
                   {t(locale, "nav.contact")}
                 </a>
               )}
               {modules?.newsletter?.enabled && (
-                <a href="#newsletter" style={{ color: "inherit" }} className="rounded-button px-2 py-2 hover:opacity-70">
+                <a href="#newsletter" style={{ color: "inherit" }} className="rounded-button px-2 py-2 transition-opacity duration-200 hover:opacity-70">
                   {t(locale, "nav.newsletter")}
                 </a>
               )}
               {modules?.["avis-google"]?.enabled && (
-                <a href="#avis-google" style={{ color: "inherit" }} className="rounded-button px-2 py-2 hover:opacity-70">
+                <a href="#avis-google" style={{ color: "inherit" }} className="rounded-button px-2 py-2 transition-opacity duration-200 hover:opacity-70">
                   {t(locale, "nav.avisGoogle")}
                 </a>
               )}
@@ -360,7 +371,7 @@ export default function TemplateHestia({ clientSiteId, modules, content, palette
         </nav>
       </div>
 
-      <Band background={background}>
+      <Band background={background} reveal={false}>
         <header className="flex flex-col items-center gap-5 px-2 text-center">
           <Overline accent={accent}>{t(locale, "hero.welcome")}</Overline>
           <h1 className="text-[40px] font-black leading-[1.04] sm:text-[84px]" style={{ color: ink }}>

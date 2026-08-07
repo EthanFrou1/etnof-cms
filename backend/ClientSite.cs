@@ -25,5 +25,19 @@ public class ClientSite
     // (backend) et frontend/src/templates/registry.ts (couleurs + labels affichés dans l'admin).
     public string PaletteId { get; set; } = "argile";
 
+    // Couleur d'accent libre choisie via un color picker (voir SiteSection.tsx), utilisée seulement
+    // quand PaletteId == "custom" (voir TemplateEndpoints, frontend/src/templates/registry.ts
+    // resolvePalette) — le fond, lui, reste toujours celui d'un preset du template, jamais personnalisable.
+    public string? CustomAccent { get; set; }
+
     public DateTime CreatedAt { get; set; }
+
+    // Snapshot du template/palette/accent tel que publié (voir PublishEndpoints.cs) — distinct de
+    // TemplateId/PaletteId/CustomAccent ci-dessus qui reflètent le brouillon en cours d'édition dans
+    // l'admin. PublishedAt reste null tant que le tenant n'a jamais cliqué "Rafraîchir le site" : dans
+    // ce cas l'endpoint public retombe sur les valeurs live (voir TemplateEndpoints, /template/published).
+    public string? PublishedTemplateId { get; set; }
+    public string? PublishedPaletteId { get; set; }
+    public string? PublishedCustomAccent { get; set; }
+    public DateTime? PublishedAt { get; set; }
 }

@@ -3,6 +3,7 @@ using System;
 using Backend;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Backend.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260806142017_AddClientSiteCustomAccent")]
+    partial class AddClientSiteCustomAccent
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -127,18 +130,6 @@ namespace Backend.Migrations
 
                     b.Property<string>("PasswordHash")
                         .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("PublishedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("PublishedCustomAccent")
-                        .HasColumnType("text");
-
-                    b.Property<string>("PublishedPaletteId")
-                        .HasColumnType("text");
-
-                    b.Property<string>("PublishedTemplateId")
                         .HasColumnType("text");
 
                     b.Property<string>("SiteType")
@@ -509,9 +500,6 @@ namespace Backend.Migrations
 
                     b.Property<string>("Phone")
                         .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("PublishedContentJson")
                         .HasColumnType("text");
 
                     b.Property<string>("SiteName")

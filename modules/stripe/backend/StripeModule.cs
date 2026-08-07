@@ -107,7 +107,8 @@ public static class StripeModule
         // Appelé par Stripe (pas par le navigateur) : confirme qu'un paiement a bien eu lieu. C'est
         // ce webhook, jamais la redirection navigateur, qui fait foi pour créer la commande — voir
         // commentaire en tête de fichier.
-        app.MapPost("/api/t/{clientSiteId:guid}/stripe/webhook", async (Guid clientSiteId, HttpRequest request, AppDbContext db) =>
+        app.MapPost("/api/t/{clientSiteId:guid}/stripe/webhook", async (
+            Guid clientSiteId, HttpRequest request, AppDbContext db, IHttpClientFactory httpFactory) =>
         {
             var settings = await db.StripeSettings.FirstOrDefaultAsync(s => s.ClientSiteId == clientSiteId);
             if (settings is null || string.IsNullOrWhiteSpace(settings.WebhookSecret))
@@ -223,6 +224,26 @@ public static class StripeModule
             db.Orders.Add(order);
             await db.SaveChangesAsync();
             await transaction.CommitAsync();
+
+            // Best-effort, comme la confirmation de paiement de facture (voir InvoicePaymentEndpoints.cs)
+            // — Stripe doit recevoir 200 dans tous les cas, la commande est déjà enregistrée ci-dessus.
+            try
+            {
+                var emailSettings = await AgencyEmailEndpoints.GetOrCreateAsync(db);
+                if (!string.IsNullOrWhiteSpace(emailSettings.BrevoApiKey))
+                {
+                    var site = await db.SiteContents.FirstOrDefaultAsync(s => s.ClientSiteId == clientSiteId);
+                    if (site is not null)
+                    {
+                        var http = httpFactory.CreateClient();
+                        await BrevoEmailService.SendOrderConfirmationEmailAsync(http, emailSettings.BrevoApiKey, site, order, order.Items);
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                // Ignoré volontairement — voir commentaire ci-dessus.
+            }
 
             return Results.Ok();
         });

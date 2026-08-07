@@ -17,7 +17,7 @@ export default function PublicSite({ clientSiteId }: PublicSiteProps) {
   const modules = useModules(clientSiteId);
   const { locale, setLocale } = useLocale(clientSiteId);
   const content = useContent(clientSiteId, locale);
-  const { templateId, paletteId } = useTemplate(clientSiteId);
+  const { templateId, paletteId, customAccent } = useTemplate(clientSiteId);
 
   useDocumentMeta({
     title: content?.siteName || "…",
@@ -26,7 +26,7 @@ export default function PublicSite({ clientSiteId }: PublicSiteProps) {
 
   if (!templateId) return null;
 
-  const props = { clientSiteId, modules, content, paletteId, locale, onChangeLocale: setLocale };
+  const props = { clientSiteId, modules, content, paletteId, customAccent, locale, onChangeLocale: setLocale };
   const measurementId = modules?.analytics?.measurementId;
 
   return (

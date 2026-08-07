@@ -44,10 +44,9 @@ public static class EstablishmentEndpoints
             var fileName = $"{Guid.NewGuid()}{extension}";
             var filePath = Path.Combine(uploadDir, fileName);
 
-            await using (var stream = File.Create(filePath))
-            {
-                await file.CopyToAsync(stream);
-            }
+            using var inputStream = new MemoryStream();
+            await file.CopyToAsync(inputStream);
+            await File.WriteAllBytesAsync(filePath, ImageProcessing.ResizeAndCompress(inputStream.ToArray(), extension));
 
             var maxSortOrder = await db.EstablishmentImages
                 .Where(i => i.ClientSiteId == clientSiteId)

@@ -44,6 +44,16 @@ Deux idées retenues par Ethan mais explicitement mises de côté pour plus tard
 - **Sauvegardes automatiques** — aucun mécanisme de backup de la base Postgres aujourd'hui (multi-tenant, un seul schéma partagé). À faire : dump planifié + rétention, avant qu'un vrai client soit dessus si possible.
 - **Multi-utilisateurs / rôles** — un seul mot de passe par site (agence et par tenant), pas de rôle "collaborateur"/accès limité. Rejoint le point déjà noté plus haut ("Back-office/CMS à durcir avant vente").
 
+### Checklist d'onboarding côté tenant (2026-08-06)
+
+Suite du même brainstorm, catégorie "UI/UX admin" — premier des trois points retenus (avec actions groupées sur les tableaux et historique/annulation de contenu, pas encore faits). Choisi en premier car le plus rapide à livrer des trois : pas de nouveau modèle de données, l'état de chaque étape est recalculé à la volée depuis des données déjà en base plutôt que suivi dans une table dédiée (reste toujours juste si un client vide un champ après coup, pas de risque de désynchronisation).
+
+- Nouveau bloc `OnboardingChecklist` en haut de `DashboardSection.tsx` (avant le bandeau CGV manquantes) : 4 étapes — établissement renseigné (nom+adresse), description du site renseignée, au moins une offre/produit ajouté, au moins une photo d'établissement ajoutée. Chaque étape non cochée est un lien direct vers la page admin concernée.
+- **Le bloc entier disparaît une fois les 4 étapes complètes** plutôt que de rester affiché "100%" en permanence — évite d'encombrer le tableau de bord d'un site déjà bien rempli, cohérent avec l'esprit "checklist de démarrage" plutôt que "tableau de suivi permanent".
+- Volontairement laissés de côté comme étapes : activer un module (l'agence, pas le client, décide des modules autorisés — pas un geste que le client fait lui-même) et choisir une mise en page (le template par défaut est un choix valide, pas une case à cocher).
+
+Testé : `tsc -b` propre, `GET /api/t/{id}/establishment/images` (nouvel appel ajouté au chargement du tableau de bord, déjà un endpoint public existant) vérifié en curl. Pas de vérification visuelle dans un navigateur réel (pas d'outil de capture d'écran disponible dans cet environnement) — à confirmer par Ethan.
+
 ### Navigation fusionnée en sidebar (2026-07-30)
 
 `AgencyDashboardPage.tsx` (vue globale, une seule page qui scrollait) et `AgencyBillingPage.tsx` (facturation, ses propres onglets internes) sont remplacées par une navigation unique, même pattern que l'admin par tenant (`AdminLayout.tsx`) :

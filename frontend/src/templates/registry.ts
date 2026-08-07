@@ -39,3 +39,21 @@ export const TEMPLATES: { id: TemplateId; label: string; description: string; pa
     ],
   },
 ];
+
+// Résout la palette effective d'un tenant : soit un des presets ci-dessus (`paletteId` connu), soit
+// une couleur d'accent libre choisie via un color picker (`paletteId === "custom"`, voir
+// SiteSection.tsx) — dans ce cas le fond reste celui du premier preset du template (jamais
+// personnalisable, voir docs/09-charte-graphique.md) et `gradientEnd` reste absent : le dégradé
+// signature d'Helios (voir TemplateHelios.tsx) retombe alors sur une couleur pleine plutôt qu'un
+// dégradé inventé au hasard à partir d'une seule couleur choisie par le client.
+export function resolvePalette(templateId: TemplateId, paletteId: string | null, customAccent?: string | null): PaletteDef {
+  const template = TEMPLATES.find((tpl) => tpl.id === templateId);
+  const presets = template?.palettes ?? [];
+  const fallback = presets[0] ?? { id: "default", label: "", accent: "#2563EB", background: "#F8FAFC", previewImage: "" };
+
+  if (paletteId === "custom" && customAccent) {
+    return { id: "custom", label: "Personnalisé", accent: customAccent, background: fallback.background, previewImage: fallback.previewImage };
+  }
+
+  return presets.find((p) => p.id === paletteId) ?? fallback;
+}

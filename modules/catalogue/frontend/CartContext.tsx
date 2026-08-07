@@ -6,11 +6,21 @@ export type CartItem = {
   price: number;
   quantity: number;
   maxStock: number;
+  imagePath?: string;
+  description?: string;
 };
 
 type CartContextValue = {
   items: CartItem[];
-  addItem: (productId: string, name: string, price: number, maxStock: number, quantity: number) => void;
+  addItem: (
+    productId: string,
+    name: string,
+    price: number,
+    maxStock: number,
+    quantity: number,
+    imagePath?: string,
+    description?: string
+  ) => void;
   updateQuantity: (productId: string, quantity: number) => void;
   removeItem: (productId: string) => void;
   clear: () => void;
@@ -41,14 +51,14 @@ export function CartProvider({ clientSiteId, children }: { clientSiteId: string;
     localStorage.setItem(storageKey(clientSiteId), JSON.stringify(items));
   }, [clientSiteId, items]);
 
-  const addItem: CartContextValue["addItem"] = (productId, name, price, maxStock, quantity) => {
+  const addItem: CartContextValue["addItem"] = (productId, name, price, maxStock, quantity, imagePath, description) => {
     setItems((current) => {
       const existing = current.find((i) => i.productId === productId);
       if (existing) {
         const nextQuantity = Math.min(existing.quantity + quantity, maxStock);
         return current.map((i) => (i.productId === productId ? { ...i, quantity: nextQuantity } : i));
       }
-      return [...current, { productId, name, price, maxStock, quantity: Math.min(quantity, maxStock) }];
+      return [...current, { productId, name, price, maxStock, quantity: Math.min(quantity, maxStock), imagePath, description }];
     });
   };
 

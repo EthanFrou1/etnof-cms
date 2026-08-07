@@ -41,6 +41,46 @@ type Booking = {
   startsAt: string;
 };
 
+type OnboardingStep = { label: string; done: boolean; href: string };
+
+// Checklist de démarrage — n'existe qu'en mémoire (recalculée depuis les données déjà en base à
+// chaque chargement), pas de table de suivi dédiée : plus simple, et toujours juste même si le
+// client corrige un champ puis le revide. Le bloc entier disparaît une fois les 4 étapes complètes,
+// pour ne pas encombrer le tableau de bord d'un site déjà bien rempli.
+function OnboardingChecklist({ clientSiteId, steps }: { clientSiteId: string; steps: OnboardingStep[] }) {
+  const remaining = steps.filter((s) => !s.done).length;
+  if (remaining === 0) return null;
+
+  return (
+    <section className="rounded-card bg-white p-6 shadow-card">
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="text-lg font-bold text-navy">Pour bien démarrer</h2>
+        <span className="text-xs font-semibold text-gray-text">{steps.length - remaining}/{steps.length}</span>
+      </div>
+      <div className="flex flex-col gap-2">
+        {steps.map((step) => (
+          <a
+            key={step.label}
+            href={step.done ? undefined : `/admin/${clientSiteId}${step.href}`}
+            className={`flex items-center gap-3 rounded-button px-3 py-2 text-sm ${
+              step.done ? "text-gray-text/60" : "text-navy hover:bg-bg-page-start"
+            }`}
+          >
+            <span
+              className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                step.done ? "bg-green-accent text-white" : "border border-border-subtle text-transparent"
+              }`}
+            >
+              ✓
+            </span>
+            <span className={step.done ? "line-through" : "font-medium"}>{step.label}</span>
+          </a>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 // Un produit est signalé dès que son stock passe à ce seuil ou en dessous — assez bas pour rester
 // une vraie alerte plutôt qu'un bruit de fond permanent sur un petit catalogue.
 const LOW_STOCK_THRESHOLD = 3;
@@ -181,6 +221,7 @@ export default function DashboardSection({ clientSiteId, password }: DashboardSe
   const [orders, setOrders] = useState<Order[] | null>(null);
   const [products, setProducts] = useState<Product[] | null>(null);
   const [bookings, setBookings] = useState<Booking[] | null>(null);
+  const [establishmentImageCount, setEstablishmentImageCount] = useState<number | null>(null);
 
   useEffect(() => {
     adminFetch(API_BASE_URL, `/api/t/${clientSiteId}/admin/modules`, password)
@@ -198,11 +239,18 @@ export default function DashboardSection({ clientSiteId, password }: DashboardSe
     adminFetch(API_BASE_URL, `/api/t/${clientSiteId}/admin/messages`, password)
       .then((res) => res.json())
       .then(setMessages);
+
+    fetch(`${API_BASE_URL}/api/t/${clientSiteId}/establishment/images`)
+      .then((res) => res.json())
+      .then((data: unknown[]) => setEstablishmentImageCount(data.length));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const catalogueEnabled = Boolean(modules?.catalogue?.enabled);
   const rdvEnabled = Boolean(modules?.rdv?.enabled);
+  // Même garde-fou que EstablishmentSection.tsx (onglet CGV) et CartPage.tsx (bouton de paiement) :
+  // boutique en ligne active sans CGV renseignées = anomalie à signaler bien en vue.
+  const missingCgv = Boolean(modules?.catalogue?.enabled && modules?.stripe?.enabled && content && !content.cgvContent.trim());
 
   useEffect(() => {
     if (!catalogueEnabled) return;
@@ -227,9 +275,37 @@ export default function DashboardSection({ clientSiteId, password }: DashboardSe
   const templateLabel = TEMPLATES.find((t) => t.id === templateId)?.label ?? "…";
   const lowStockProducts = (products ?? []).filter((p) => p.stock <= LOW_STOCK_THRESHOLD).sort((a, b) => a.stock - b.stock);
 
+  // Uniquement calculée une fois les données nécessaires chargées — sinon les 4 étapes
+  // apparaîtraient toutes "à faire" pendant une fraction de seconde au premier rendu.
+  const onboardingSteps: OnboardingStep[] | null =
+    content && establishmentImageCount !== null
+      ? [
+          { label: "Renseigner l'établissement (nom, adresse)", done: Boolean(content.establishmentName.trim()), href: "/establishment" },
+          { label: "Ajouter une description du site", done: Boolean(content.description.trim()), href: "/site" },
+          {
+            label: "Ajouter une offre ou un produit",
+            done: content.offers.length > 0 || (products?.length ?? 0) > 0,
+            href: catalogueEnabled ? "/products" : "/offers",
+          },
+          { label: "Ajouter au moins une photo de l'établissement", done: establishmentImageCount > 0, href: "/establishment" },
+        ]
+      : null;
+
   return (
     <div className="flex flex-col gap-6">
       <h1 className="text-2xl font-extrabold text-navy">Tableau de bord</h1>
+
+      {onboardingSteps && <OnboardingChecklist clientSiteId={clientSiteId} steps={onboardingSteps} />}
+
+      {missingCgv && (
+        <div className="rounded-card border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+          <strong>CGV manquantes.</strong> La boutique en ligne est active mais aucune condition
+          générale de vente n'est renseignée — le paiement reste désactivé pour tes clients.{" "}
+          <a href={`/admin/${clientSiteId}/establishment`} className="underline">
+            Renseigner les CGV →
+          </a>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <StatTile label="Modules actifs" value={modules ? enabledModuleCount : "…"} />
