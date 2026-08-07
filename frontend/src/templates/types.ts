@@ -10,6 +10,7 @@ export type TemplateProps = {
   content: SiteContent | null;
   paletteId: string | null;
   customAccent: string | null;
+  logoUrl: string | null;
   locale: Locale;
   onChangeLocale: (locale: Locale) => void;
 };

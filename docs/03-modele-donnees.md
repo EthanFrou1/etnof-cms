@@ -136,7 +136,7 @@ Photos affichées dans le panneau résumé de la page "Établissement" (`Establi
 | Id | Guid | |
 | ClientSiteId | Guid | |
 | SiteName | string | Page "Site internet", onglet "Contenu" |
-| Description | text | idem |
+| Description | text | idem — HTML riche (TipTap, mode compact : gras/italique/lien seulement) depuis le 2026-08-07, affiché avec `dangerouslySetInnerHTML` sur le site public, nettoyé en texte brut pour la balise `<meta name="description">` |
 | EstablishmentName / EstablishmentType | string | Page "Établissement", onglet "Informations" — remplissables via recherche Google Places |
 | Address | string | idem — Maps (`ModulesConfigJson.maps`) la lit ici, ne la stocke plus lui-même |
 | Phone / Email | string | idem — affichés publiquement |
@@ -144,6 +144,7 @@ Photos affichées dans le panneau résumé de la page "Établissement" (`Establi
 | GooglePlaceId / GooglePlaceName | string | Fiche Google liée depuis la recherche de cette page (ajouté le 2026-07-29) — gratuite, ne contient jamais d'avis. Lue par le module Avis Google pour proposer directement "Actualiser les avis" sans re-chercher, sans jamais déclencher l'appel payant "reviews" toute seule |
 | OpeningHoursJson | text | JSON d'une liste de 7 `DayHoursDto` (`Closed`/`MorningOpen`/`MorningClose`/`AfternoonOpen`/`AfternoonClose`, lundi→dimanche) — colonne texte brute reformée à la frontière API, même convention que `ClientSite.ModulesConfigJson` ; onglet "Horaires", gaté par le module "Horaires" |
 | CgvContent | text | HTML riche (TipTap), onglet "CGV" (ajouté le 2026-08-06) — champ core plutôt qu'une page du module Pages (payant/optionnel) car obligation légale, pas une fonctionnalité premium. Affiché sur `/t/{clientSiteId}/cgv`. Bloque le paiement du panier (module Catalogue+Stripe) tant que vide, voir `docs/04-catalogue-modules.md` |
+| PublishedContentJson | text? | Ajouté le 2026-08-07 — snapshot JSON de ce même contenu tel que publié (bouton "Rafraîchir le site", `PublishEndpoints.cs`). `null` tant que le tenant n'a jamais publié : l'endpoint public retombe alors sur les champs live ci-dessus. Voir aussi `ClientSite.Published*` pour le même principe côté template/logo |
 
 ### Offer (core, liste liée à SiteContent)
 | Champ | Type | Note |

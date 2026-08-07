@@ -31,6 +31,47 @@ type AvisGoogleResponse = {
   reviews: Review[];
 };
 
+// Longueur à partir de laquelle un avis dépasse ~4 lignes affichées (voir line-clamp-4 ci-dessous) et
+// justifie le bouton "Voir plus" — seuil approximatif, pas de mesure DOM réelle nécessaire pour ce besoin.
+const LONG_REVIEW_THRESHOLD = 220;
+
+function ReviewCard({ review, palette, locale }: { review: Review; palette: ModulePalette; locale?: Locale }) {
+  const [expanded, setExpanded] = useState(false);
+  const isLong = review.text.length > LONG_REVIEW_THRESHOLD;
+
+  return (
+    <div className="flex flex-col gap-2 rounded-button border border-border-subtle p-4">
+      <div className="flex items-center gap-2">
+        {review.profilePhotoUrl ? (
+          <img src={review.profilePhotoUrl} alt="" className="h-8 w-8 rounded-full" referrerPolicy="no-referrer" />
+        ) : (
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-200 text-xs font-semibold text-gray-text">
+            {review.authorName.charAt(0)}
+          </div>
+        )}
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold" style={{ color: palette.ink }}>
+            {review.authorName}
+          </p>
+          <p className="text-xs text-gray-text">{review.relativeTimeDescription}</p>
+        </div>
+      </div>
+      <Stars rating={review.rating} />
+      <p className={`text-sm text-gray-text ${expanded ? "" : "line-clamp-4"}`}>{review.text}</p>
+      {isLong && (
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="self-start text-xs font-semibold hover:underline"
+          style={{ color: palette.accent }}
+        >
+          {expanded ? t(locale, "avisGoogle.showLess") : t(locale, "avisGoogle.showMore")}
+        </button>
+      )}
+    </div>
+  );
+}
+
 function Stars({ rating, size = "h-4 w-4" }: { rating: number; size?: string }) {
   const rounded = Math.round(rating);
   return (
@@ -93,25 +134,7 @@ export default function AvisGoogleSection({ apiBaseUrl, clientSiteId, palette, l
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {data.reviews.map((review) => (
-          <div key={review.id} className="flex flex-col gap-2 rounded-button border border-border-subtle p-4">
-            <div className="flex items-center gap-2">
-              {review.profilePhotoUrl ? (
-                <img src={review.profilePhotoUrl} alt="" className="h-8 w-8 rounded-full" referrerPolicy="no-referrer" />
-              ) : (
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-200 text-xs font-semibold text-gray-text">
-                  {review.authorName.charAt(0)}
-                </div>
-              )}
-              <div className="min-w-0">
-                <p className="truncate text-sm font-semibold" style={{ color: palette.ink }}>
-                  {review.authorName}
-                </p>
-                <p className="text-xs text-gray-text">{review.relativeTimeDescription}</p>
-              </div>
-            </div>
-            <Stars rating={review.rating} />
-            <p className="text-sm text-gray-text">{review.text}</p>
-          </div>
+          <ReviewCard key={review.id} review={review} palette={palette} locale={locale} />
         ))}
       </div>
     </section>

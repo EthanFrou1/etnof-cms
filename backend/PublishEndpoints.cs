@@ -3,12 +3,13 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Backend;
 
-// Publication volontaire du contenu principal du site et du template/palette — voir SiteSection.tsx,
+// Publication volontaire du contenu principal du site et du template/palette/logo — voir SiteSection.tsx,
 // bouton "Rafraîchir le site". Tant que ce bouton n'a pas été cliqué, le site public
 // (ContentEndpoints./content/published, TemplateEndpoints./template/published) continue de servir
 // l'ancienne version, même si l'admin a déjà enregistré des modifications côté brouillon (live).
-// Volontairement limité à SiteContent + ClientSite.TemplateId/PaletteId/CustomAccent : les modules avec
-// leurs propres données (Catalogue, Galerie, Blog, RDV...) restent en temps réel, voir docs/02-architecture-modules.md.
+// Volontairement limité à SiteContent + ClientSite.TemplateId/PaletteId/CustomAccent/LogoPath : les
+// modules avec leurs propres données (Catalogue, Galerie, Blog, RDV...) restent en temps réel, voir
+// docs/02-architecture-modules.md.
 public static class PublishEndpoints
 {
     public static void MapEndpoints(WebApplication app)
@@ -27,6 +28,7 @@ public static class PublishEndpoints
             site.PublishedTemplateId = site.TemplateId;
             site.PublishedPaletteId = site.PaletteId;
             site.PublishedCustomAccent = site.CustomAccent;
+            site.PublishedLogoPath = site.LogoPath;
             site.PublishedAt = DateTime.UtcNow;
 
             await db.SaveChangesAsync();

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 // Écart assumé à "un module reste isolé" (docs/02-architecture-modules.md) : import direct du
 // dictionnaire i18n du module Multilingue plutôt que de dupliquer des chaînes ici — voir
 // modules/multilingue/frontend/translations.ts.
@@ -181,7 +182,7 @@ function ProductReviewModal({
     setStatus(res.ok ? "sent" : "error");
   };
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
       <div
         className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-card bg-white shadow-soft"
@@ -277,7 +278,8 @@ function ProductReviewModal({
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -372,14 +374,15 @@ function ProductCard({
 function CartButton({ clientSiteId, palette, locale }: { clientSiteId: string; palette: ModulePalette; locale?: Locale }) {
   const { itemCount } = useCart();
 
-  return (
+  return createPortal(
     <a
       href={`/t/${clientSiteId}/panier`}
       className="fixed bottom-6 right-6 z-40 flex items-center gap-2 rounded-pill px-5 py-3 text-sm font-semibold text-white shadow-soft"
       style={{ backgroundColor: palette.ink }}
     >
       {t(locale, "catalogue.cart")} {itemCount > 0 && `(${itemCount})`}
-    </a>
+    </a>,
+    document.body
   );
 }
 
