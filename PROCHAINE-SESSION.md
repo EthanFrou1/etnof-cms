@@ -4,7 +4,7 @@ Ce fichier résume où on en est pour reprendre rapidement. Le détail complet (
 
 ## Commits
 
-**Rien n'est commité** depuis `f6980d2` (branche `feature/admin-content-restructure`) — `git status` montre ~64 fichiers modifiés/nouveaux, tout le travail décrit ci-dessous inclus. À faire par Ethan (ou sur sa demande explicite) : relire le diff et committer en plusieurs fois par sujet plutôt qu'un seul énorme commit, vu le volume.
+Tout le travail de cette session est commité (`c48ea77`, branche `feature/admin-content-restructure`) et poussé sur `origin`. La PR n'a pas encore été ouverte automatiquement (`gh` CLI absent de cette machine) — lien direct pour la créer manuellement : https://github.com/EthanFrou1/etnof-cms/pull/new/feature/admin-content-restructure (titre et description déjà rédigés, donnés par Claude dans la conversation). **Ne pas merger avant validation d'Ethan.**
 
 ## ⚠️ Backend à relancer
 
@@ -37,7 +37,7 @@ Sans ça, tout ce qui touche aux tailles produit et à "Notre histoire" (voir pl
 
 - [ ] Redémarrer le backend (voir plus haut) avant toute nouvelle session de test.
 - [ ] Remplacer les photos placeholder d'Atelier Lumen par de vraies photos (prompts IA sur chaque fiche produit).
-- [ ] Committer le travail de cette session (rien n'est commité, voir plus haut).
+- [ ] Ouvrir la PR sur GitHub (lien ci-dessus) et la merger une fois relue.
 - [ ] Décider si le système de tailles/la section "Notre histoire" doivent aussi arriver sur Hestia/Helios (pour l'instant Charis seulement, non demandé ailleurs).
 - [ ] Reporté des sessions précédentes, toujours vrai : vrais tarifs des modules à valider, poids des images de cards Modules.
 
