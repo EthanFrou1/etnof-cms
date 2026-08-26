@@ -14,7 +14,10 @@ export default function CartButton({ clientSiteId, palette, locale }: { clientSi
   return createPortal(
     <a
       href={`/t/${clientSiteId}/panier`}
-      className="fixed bottom-6 right-6 z-40 flex items-center gap-2 rounded-pill px-5 py-3 text-sm font-semibold text-white shadow-soft"
+      // bottom-24 en dessous de sm : laisse la place à la barre sticky "Ajouter au panier" de la
+      // fiche produit (ProductPage.tsx, visible uniquement sm:hidden) sans se superposer — au-delà
+      // de sm cette barre n'existe pas, on revient à bottom-6.
+      className="fixed bottom-24 right-6 z-40 flex items-center gap-2 rounded-pill px-5 py-3 text-sm font-semibold text-white shadow-soft sm:bottom-6"
       style={{ backgroundColor: palette.ink }}
     >
       {t(locale, "catalogue.cart")} {itemCount > 0 && `(${itemCount})`}

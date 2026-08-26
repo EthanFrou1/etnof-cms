@@ -82,13 +82,22 @@ export default function ProductCard({
             {t(locale, "catalogue.noPhoto")}
           </div>
         )}
-        {!inStock && (
-          <span
-            className="absolute left-3 top-3 rounded-pill bg-white/90 px-2.5 py-1 text-[11px] font-semibold"
-            style={{ color: palette.ink }}
-          >
-            {t(locale, "catalogue.outOfStock")}
-          </span>
+        {(collectionName || !inStock) && (
+          <div className="absolute left-3 top-3 flex flex-col items-start gap-1.5">
+            {collectionName && (
+              <span
+                className="rounded-pill bg-white/90 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.06em]"
+                style={{ color: palette.accent }}
+              >
+                {collectionName}
+              </span>
+            )}
+            {!inStock && (
+              <span className="rounded-pill bg-white/90 px-2.5 py-1 text-[11px] font-semibold" style={{ color: palette.ink }}>
+                {t(locale, "catalogue.outOfStock")}
+              </span>
+            )}
+          </div>
         )}
         {!hasSizes && (
           <button
@@ -132,11 +141,6 @@ export default function ProductCard({
         )}
       </div>
       <div className="flex flex-col gap-0.5">
-        {collectionName && (
-          <span className="text-[10px] font-semibold uppercase tracking-[0.08em]" style={{ color: `${palette.ink}80` }}>
-            {collectionName}
-          </span>
-        )}
         <div className="flex items-baseline justify-between gap-2 text-sm">
           <span className="font-medium" style={{ color: palette.ink }}>
             {product.name}

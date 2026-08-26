@@ -111,14 +111,14 @@ export default function SiteChrome({
 
     return (
       <>
-        {modules?.catalogue?.enabled && (
-          <a href={`/t/${clientSiteId}/boutique`} style={{ color: "inherit" }} className={linkClass}>
-            {t(locale, "nav.catalogue")}
-          </a>
-        )}
         {hasStory && (
           <a href={`/t/${clientSiteId}#histoire`} style={{ color: "inherit" }} className={linkClass}>
             {t(locale, "nav.story")}
+          </a>
+        )}
+        {modules?.catalogue?.enabled && (
+          <a href={`/t/${clientSiteId}/boutique`} style={{ color: "inherit" }} className={linkClass}>
+            {t(locale, "nav.catalogue")}
           </a>
         )}
         {modules?.galerie?.enabled && hasGalerieImages && (
