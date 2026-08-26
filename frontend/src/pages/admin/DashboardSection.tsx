@@ -281,7 +281,7 @@ export default function DashboardSection({ clientSiteId, password }: DashboardSe
     content && establishmentImageCount !== null
       ? [
           { label: "Renseigner l'établissement (nom, adresse)", done: Boolean(content.establishmentName.trim()), href: "/establishment" },
-          { label: "Ajouter une description du site", done: Boolean(content.description.trim()), href: "/site" },
+          { label: "Ajouter une description du site", done: Boolean(content.description.trim()), href: "/site#content" },
           {
             label: "Ajouter une offre ou un produit",
             done: content.offers.length > 0 || (products?.length ?? 0) > 0,

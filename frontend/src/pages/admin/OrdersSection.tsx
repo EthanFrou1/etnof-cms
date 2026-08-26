@@ -2,12 +2,14 @@ import { Fragment, useEffect, useMemo, useState } from "react";
 import { API_BASE_URL } from "../../config";
 import { adminFetch } from "../../hooks/useAdminSession";
 import { StatusLegend } from "../../components/admin/StatusLegend";
+import Select from "../../components/admin/Select";
 
 type OrderItem = {
   id: string;
   productName: string;
   unitPrice: number;
   quantity: number;
+  sizeLabel: string | null;
 };
 
 type Order = {
@@ -156,20 +158,17 @@ export default function OrdersSection({ clientSiteId, password }: OrdersSectionP
                 setPage(1);
               }}
             />
-            <select
-              className={inputClass}
-              value={statusFilter}
-              onChange={(e) => {
-                setStatusFilter(e.target.value as "all" | Order["status"]);
-                setPage(1);
-              }}
-            >
-              {STATUS_FILTERS.map((f) => (
-                <option key={f.value} value={f.value}>
-                  {f.label}
-                </option>
-              ))}
-            </select>
+            <div className="w-44 shrink-0">
+              <Select
+                className={inputClass}
+                value={statusFilter}
+                onChange={(v) => {
+                  setStatusFilter(v as "all" | Order["status"]);
+                  setPage(1);
+                }}
+                options={STATUS_FILTERS.map((f) => ({ value: f.value, label: f.label }))}
+              />
+            </div>
             <StatusLegend items={STATUS_LEGEND} />
             <span className="text-sm text-gray-text">
               {filteredSorted.length} commande{filteredSorted.length > 1 ? "s" : ""}
@@ -264,6 +263,7 @@ export default function OrdersSection({ clientSiteId, password }: OrdersSectionP
                               <div key={item.id} className="flex justify-between text-sm text-gray-text">
                                 <span>
                                   {item.quantity} × {item.productName}
+                                  {item.sizeLabel && ` (${item.sizeLabel})`}
                                 </span>
                                 <span>{formatPrice(item.unitPrice * item.quantity)}</span>
                               </div>

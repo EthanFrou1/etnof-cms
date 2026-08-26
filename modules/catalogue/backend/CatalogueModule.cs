@@ -17,6 +17,7 @@ public static class CatalogueModule
                 .Where(p => p.ClientSiteId == clientSiteId)
                 .OrderByDescending(p => p.CreatedAt)
                 .Include(p => p.Images.OrderBy(i => i.SortOrder))
+                .Include(p => p.Sizes.OrderBy(s => s.SortOrder))
                 .ToListAsync();
 
             // Agrégée en une seule requête plutôt que par produit (pas de N+1) — seuls les avis
@@ -38,10 +39,28 @@ public static class CatalogueModule
                     p.Price,
                     p.Stock,
                     p.Images,
+                    p.Sizes,
+                    p.CollectionId,
+                    p.Highlighted,
                     AverageRating = rating is null ? (double?)null : rating.Average,
                     ReviewCount = rating?.Count ?? 0,
                 };
             }));
+        });
+
+        // Utilisé uniquement par la page boutique du template Charis pour ses chips de filtre
+        // (Hestia/Helios n'ont pas de filtre par collection, voir docs/10-templates.md).
+        app.MapGet("/api/t/{clientSiteId:guid}/catalogue/collections", async (Guid clientSiteId, AppDbContext db, ModuleRegistry registry) =>
+        {
+            if (!await registry.IsEnabledAsync(clientSiteId, Name)) return Results.NotFound();
+
+            var collections = await db.Collections
+                .Where(c => c.ClientSiteId == clientSiteId)
+                .OrderBy(c => c.SortOrder)
+                .Select(c => new { c.Id, c.Name })
+                .ToListAsync();
+
+            return Results.Ok(collections);
         });
 
         app.MapGet("/api/t/{clientSiteId:guid}/catalogue/products/{id:guid}", async (Guid clientSiteId, Guid id, AppDbContext db, ModuleRegistry registry) =>
@@ -51,6 +70,7 @@ public static class CatalogueModule
             var product = await db.Products
                 .Where(p => p.ClientSiteId == clientSiteId && p.Id == id)
                 .Include(p => p.Images.OrderBy(i => i.SortOrder))
+                .Include(p => p.Sizes.OrderBy(s => s.SortOrder))
                 .FirstOrDefaultAsync();
 
             return product is null ? Results.NotFound() : Results.Ok(product);

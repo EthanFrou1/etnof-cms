@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { API_BASE_URL } from "../../config";
 import { adminFetch } from "../../hooks/useAdminSession";
 import ConfirmModal from "../../components/admin/ConfirmModal";
+import Select from "../../components/admin/Select";
 
 type ProductImage = {
   id: string;
@@ -15,6 +16,13 @@ type Product = {
   price: number;
   stock: number;
   images: ProductImage[];
+  collectionId: string | null;
+  highlighted: boolean;
+};
+
+type Collection = {
+  id: string;
+  name: string;
 };
 
 type ProductsSectionProps = {
@@ -210,6 +218,8 @@ function AddProductModal({ clientSiteId, password, onClose, onCreated }: AddProd
 
 export default function ProductsSection({ clientSiteId, password }: ProductsSectionProps) {
   const [products, setProducts] = useState<Product[] | null>(null);
+  const [collections, setCollections] = useState<Collection[]>([]);
+  const [collectionFilter, setCollectionFilter] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
 
@@ -220,8 +230,13 @@ export default function ProductsSection({ clientSiteId, password }: ProductsSect
 
   useEffect(() => {
     loadProducts();
+    adminFetch(API_BASE_URL, `/api/t/${clientSiteId}/admin/catalogue/collections`, password)
+      .then((res) => res.json())
+      .then(setCollections);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const visibleProducts = products?.filter((p) => !collectionFilter || p.collectionId === collectionFilter) ?? null;
 
   const handleDelete = async (id: string) => {
     await adminFetch(API_BASE_URL, `/api/t/${clientSiteId}/admin/catalogue/products/${id}`, password, {
@@ -237,26 +252,41 @@ export default function ProductsSection({ clientSiteId, password }: ProductsSect
         <div>
           <h1 className="text-2xl font-extrabold text-navy">Produits</h1>
           <p className="text-sm text-gray-text">
-            {products ? `${products.length} produit${products.length > 1 ? "s" : ""}` : "Chargement…"}
+            {visibleProducts ? `${visibleProducts.length} produit${visibleProducts.length > 1 ? "s" : ""}` : "Chargement…"}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => setShowModal(true)}
-          className="rounded-button bg-brand-gradient px-4 py-2.5 font-semibold text-white hover:opacity-90"
-        >
-          + Ajouter un produit
-        </button>
+        <div className="flex items-center gap-3">
+          {collections.length > 0 && (
+            <div className="w-52 shrink-0">
+              <Select
+                className="rounded-button border border-border-subtle bg-white px-3 py-2 text-sm text-navy focus:border-brand-mid focus:outline-none focus:ring-2 focus:ring-brand-mid/20"
+                value={collectionFilter}
+                onChange={setCollectionFilter}
+                options={[{ value: "", label: "Toutes les collections" }, ...collections.map((c) => ({ value: c.id, label: c.name }))]}
+              />
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={() => setShowModal(true)}
+            className="rounded-button bg-brand-gradient px-4 py-2.5 font-semibold text-white hover:opacity-90"
+          >
+            + Ajouter un produit
+          </button>
+        </div>
       </div>
 
-      {!products ? null : products.length === 0 ? (
+      {!visibleProducts ? null : visibleProducts.length === 0 ? (
         <section className="rounded-card bg-white p-8 shadow-card">
-          <p className="text-gray-text">Aucun produit pour l'instant.</p>
+          <p className="text-gray-text">
+            {collectionFilter ? "Aucun produit dans cette collection." : "Aucun produit pour l'instant."}
+          </p>
         </section>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {products.map((product) => {
+          {visibleProducts.map((product) => {
             const thumbnail = product.images[0];
+            const collectionName = collections.find((c) => c.id === product.collectionId)?.name;
             return (
               <article
                 key={product.id}
@@ -265,7 +295,7 @@ export default function ProductsSection({ clientSiteId, password }: ProductsSect
                 }}
                 className="flex cursor-pointer flex-col overflow-hidden rounded-card bg-white shadow-card transition-all duration-200 hover:-translate-y-1 hover:shadow-soft"
               >
-                <div className="aspect-[16/10] bg-bg-page-start">
+                <div className="relative aspect-[2/1] bg-bg-page-start">
                   {thumbnail ? (
                     <img
                       src={`${API_BASE_URL}${thumbnail.path}`}
@@ -276,6 +306,16 @@ export default function ProductsSection({ clientSiteId, password }: ProductsSect
                     <div className="flex h-full w-full items-center justify-center text-sm text-gray-text/40">
                       Pas de photo
                     </div>
+                  )}
+                  {product.highlighted && (
+                    <span className="absolute left-2 top-2 rounded-pill bg-white/90 px-2 py-0.5 text-xs font-semibold text-amber-500">
+                      ★ Mis en avant
+                    </span>
+                  )}
+                  {collectionName && (
+                    <span className="absolute right-2 top-2 rounded-pill bg-white/90 px-2 py-0.5 text-xs font-semibold text-brand-mid">
+                      {collectionName}
+                    </span>
                   )}
                 </div>
 
@@ -297,7 +337,7 @@ export default function ProductsSection({ clientSiteId, password }: ProductsSect
                       e.stopPropagation();
                       setProductToDelete(product);
                     }}
-                    className="mt-2 self-start text-sm text-red-500 hover:text-red-600"
+                    className="mt-2 self-start rounded-button border border-red-200 bg-red-50 px-3 py-1.5 text-sm font-semibold text-red-500 hover:border-red-300 hover:bg-red-100 hover:text-red-600"
                   >
                     Supprimer le produit
                   </button>

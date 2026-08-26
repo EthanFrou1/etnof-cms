@@ -705,6 +705,46 @@ Session composée de plusieurs retours d'Ethan traités à la suite, à partir d
 
 Testé : `dotnet build`/`tsc --noEmit` propres après chaque étape ; migrations générées et appliquées (`dotnet ef database update`) ; cycle publish/draft vérifié manuellement par Ethan (édition → pas de changement public → clic "Rafraîchir le site" → changement visible) ; bug `cgvContent` reproduit puis re-testé après fix. Pas d'outil de capture d'écran automatisé disponible dans cet environnement pour cette session — tous les retours visuels (positionnement/taille du logo, rendu du slider Galerie, largeur du contenu) sont venus d'Ethan au fil de la session, avec allers-retours directs sur ses captures d'écran.
 
+## Nouveau template "Charis" — vitrine mode/vêtements — 2026-08-25
+
+Ethan a demandé un template dédié aux commerces de vente de vêtements en ligne, inspiré du rendu de sites modernes comme karminecorp.fr (survol d'une card produit qui change de photo, fiche produit avec grande photo + slider). Détail complet dans `docs/10-templates.md`. Résumé :
+
+- Décidé avec Ethan avant de coder (`AskUserQuestion`) : comportement survol/slider **exclusif au nouveau template** (Hestia/Helios inchangés) et **vraie page produit dédiée** (nouvelle route publique) plutôt qu'une modale agrandie. Nom choisi : `Charis` (Grâces, charme/élégance).
+- Nouveau `TemplateCharis.tsx` + `charis/ProductGrid.tsx` (grille à survol, remplace `CatalogueSection` pour ce template) + `charis/ProductPage.tsx` (fiche produit, route `/t/{clientSiteId}/produits/{productId}`) — aucun changement backend au-delà de l'enregistrement du template (`TemplateEndpoints.KnownTemplateIds`/`KnownPalettesByTemplate`), le multi-photos/panier/avis produits existaient déjà.
+- Wording ajouté dans l'admin (`ProductDetailPage.tsx`, section Photos) expliquant le rôle de l'ordre des photos (1ʳᵉ = affichée par défaut, 2ᵉ = au survol, suivantes = slider).
+
+Testé : `dotnet build`/`tsc -b` propres. Pas d'outil de capture d'écran disponible dans cet environnement pour cette session — vérification visuelle (survol, slider desktop/mobile, ajout au panier, Hestia/Helios non affectés) laissée à Ethan.
+
+## Collections, produits "mis en avant", page boutique dédiée — 2026-08-25 (même jour)
+
+Ethan a soulevé le problème d'échelle "beaucoup de produits" (20+) : grille plate illisible sur la home, aucun filtre côté admin. Détail complet dans `docs/04-catalogue-modules.md` et `docs/10-templates.md`. Résumé :
+
+- Décidé avec Ethan avant de coder (`AskUserQuestion`) : collections simples (0 ou 1 par produit) plutôt que des tags ; page boutique dédiée avec filtre par collection sur Charis, page boutique simple sans filtre sur Hestia/Helios.
+- Nouvelle entité `Collection` + `Product.CollectionId`/`Highlighted` (migration `AddProductCollections`) ; CRUD admin (`CollectionsSection.tsx`, nouvelle section) ; sélecteur collection + toggle "mis en avant" sur la fiche produit ; filtre + badge sur la liste produits.
+- Nouvelle route `/t/{clientSiteId}/boutique` (aiguilleur par template) ; home des 3 templates n'affiche plus qu'un aperçu (limite 8 ou slider "mis en avant" sur Charis) au lieu de tous les produits.
+
+Testé : `dotnet build`/`tsc -b` propres, migration appliquée. Smoke-test backend par `curl` (collections CRUD, rattachement produit, endpoints publics, suppression de collection). **Incident** : la description du produit de démo "Bougie parfumee" a été écrasée par erreur pendant le smoke-test (payload de test sans avoir relu la valeur existante) — reste vide, à re-remplir par Ethan si besoin. Pas de vérification visuelle (pas d'outil de capture d'écran dans cet environnement) — laissée à Ethan.
+
+## Session de test en conditions réelles sur un tenant Charis ("Atelier Lumen") — 2026-08-26
+
+Longue session de qualification : Ethan a créé un vrai site de test (boutique de vêtements, template Charis) et a testé/corrigé au fil de l'eau, capture d'écran à l'appui à chaque retour (contrairement aux chantiers Charis précédents, faits sans vérification visuelle). Plusieurs chantiers distincts, détail complet dans `docs/04-catalogue-modules.md` (catalogue/tailles) et `docs/10-templates.md` (Charis) :
+
+**Admin, transverse à tous les templates** :
+- **Composant `Select.tsx`** (`frontend/src/components/admin/Select.tsx`) : remplace tous les `<select>` natifs du projet (menu déroulant natif du navigateur impossible à styliser aux couleurs du site) — gère aussi les groupes d'options (équivalent `<optgroup>`, utilisé par le sélecteur de tarifs Devis/Factures). Un seul composant, réutilisé partout plutôt que refait à chaque page.
+- **Numéro de téléphone avec indicatif pays** (`frontend/src/components/admin/PhoneInput.tsx`) : ajout de la dépendance `libphonenumber-js` (signalé et confirmé par Ethan avant d'ajouter — voir `CLAUDE.md` règle 5) après qu'un numéro invalide s'est enregistré tel quel faute de vérification. Sélecteur de pays (drapeau + indicatif auto), formatage en direct, validation réelle par pays. Branché sur les 2 champs téléphone d'Établissement ; pas encore sur WhatsApp ni ailleurs.
+- **Page "Sites clients" (agence)** repensée : liste de cards (au lieu d'une liste texte) avec couleur d'accent du template/palette, filtres recherche/statut/template, badges modules complets, bouton "Modifier"/"Supprimer" ; nécessite d'exposer `PaletteId` dans `GET /api/admin/client-sites` (`AgencyDashboardEndpoints.cs`) pour calculer la couleur d'accent par site.
+- **Bouton "Supprimer le produit"** (liste Produits) : avait déjà sa modale de confirmation (session du 2026-07-27) mais gardait un style de simple lien texte, repris en vrai bouton (fond/bordure).
+
+**Charis (détail complet dans `docs/10-templates.md`)** : nav/footer partagés entre la home et les pages standalone (`SiteChrome.tsx`, nouveau), footer en mode sombre, palette "Noir" corrigée (fond identique au blanc des cards, aucun contraste), liens de nav conditionnés à l'existence de contenu réel (pas juste au module actif), nouvelle section "Réseaux sociaux" sur la home, nouveau champ `SiteContent.StoryContent` + section "Notre histoire", home remplie par un aperçu de chaque collection (au lieu de rester quasi vide s'il n'y a que 1-2 mises en avant), cards passées de 4 à 3 colonnes max.
+
+**Catalogue (détail complet dans `docs/04-catalogue-modules.md`)** : gestion des collections directement depuis la page Collections (cocher/décocher les produits, plus besoin de passer par chaque fiche produit), affichage public par section (une par collection, plus des chips de filtre) avec bascule automatique grille/slider selon que les produits tiennent sur une ligne, et surtout **nouveau système de tailles** (`ProductSize`, stock par taille, facultatif par produit) : admin, panier, checkout/webhook Stripe, affichage public (sélecteur sur fiche produit + tailles au survol de la card sur Charis).
+
+**Autres retouches** : bouton "Venir chez nous" sous la carte du module Maps (lien direct vers l'itinéraire Google Maps) ; bloc "Prompt IA" sur la fiche produit (génère un prompt texte à partir du nom/de la description pour les 4 photos attendues — principale/survol/2 slider — sans jamais appeler de service de génération d'image payant, l'utilisateur colle le prompt lui-même dans l'outil de son choix).
+
+Testé : `dotnet build`/`tsc -b` propres après chaque étape (Release config utilisée pour les migrations/builds backend le temps que le `dotnet run` de dev, verrouillant `bin/Debug`, tourne encore — **le backend doit être relancé pour charger tout le travail de cette session**, voir migrations ci-dessous). Deux migrations EF Core créées et **appliquées à la base locale** : `AddProductSizes` et `AddSiteContentStory`. Vérification visuelle par Ethan lui-même à chaque itération, contrairement aux sessions Charis précédentes.
+
+**Reste ouvert / non fait cette session** : sélecteur de tailles pas de réordonnancement manuel (ordre de création) ; taille non ajoutable à la création du produit (seulement depuis la fiche, une fois créé) ; pas de section "Notre histoire" ni de nav conditionnée sur Hestia/Helios (Charis seulement, non demandé pour les 2 autres) ; plusieurs produits de démo d'"Atelier Lumen" ont encore des photos placeholder (couleur unie, générées en urgence en tout début de session) à remplacer par de vraies photos (prompts déjà prêts sur chaque fiche produit).
+
 ---
 
 **Note pour toi (Ethan)** : donne ce fichier à Claude Code phase par phase (« on attaque la Phase 2, voici le contexte : [colle le contenu de 02-architecture-modules.md et 03-modele-donnees.md] »). Ne lui donne pas tout le projet d'un coup, ça évite qu'il brûle des étapes ou fasse des suppositions sur les phases suivantes.

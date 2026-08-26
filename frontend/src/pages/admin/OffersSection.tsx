@@ -3,6 +3,7 @@ import { API_BASE_URL } from "../../config";
 import type { Offer, SiteContent } from "../../hooks/useContent";
 import { adminFetch } from "../../hooks/useAdminSession";
 import { useModules } from "../../hooks/useModules";
+import Select from "../../components/admin/Select";
 
 type EditableOffer = Offer & { id: string };
 
@@ -101,6 +102,7 @@ export default function OffersSection({ clientSiteId, password }: OffersSectionP
       body: JSON.stringify({
         siteName: content.siteName,
         description: content.description,
+        storyContent: content.storyContent,
         offers: offers.map(({ title, price, description, productId }) => ({ title, price, description, productId })),
         establishmentName: content.establishmentName,
         establishmentType: content.establishmentType,
@@ -155,18 +157,15 @@ export default function OffersSection({ clientSiteId, password }: OffersSectionP
               {catalogueEnabled && (
                 <label className="flex flex-col gap-1 text-xs font-medium text-gray-text">
                   Produit associé (facultatif)
-                  <select
+                  <Select
                     className={inputClass}
                     value={offer.productId ?? ""}
-                    onChange={(e) => linkProduct(offer.id, e.target.value)}
-                  >
-                    <option value="">Aucun — offre libre</option>
-                    {products?.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(productId) => linkProduct(offer.id, productId)}
+                    options={[
+                      { value: "", label: "Aucun — offre libre" },
+                      ...(products?.map((p) => ({ value: p.id, label: p.name })) ?? []),
+                    ]}
+                  />
                 </label>
               )}
               <label className="flex flex-col gap-1 text-xs font-medium text-gray-text">

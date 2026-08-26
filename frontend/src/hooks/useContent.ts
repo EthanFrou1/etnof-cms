@@ -26,6 +26,7 @@ export type SiteContent = {
   clientSiteId: string;
   siteName: string;
   description: string;
+  storyContent: string;
   offers: Offer[];
   establishmentName: string;
   establishmentType: string;

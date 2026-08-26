@@ -60,6 +60,7 @@ public static class ContentEndpoints
 
             content.SiteName = input.SiteName;
             content.Description = input.Description;
+            content.StoryContent = input.StoryContent;
             content.EstablishmentName = input.EstablishmentName;
             content.EstablishmentType = input.EstablishmentType;
             content.Address = input.Address;
@@ -107,6 +108,7 @@ public static class ContentEndpoints
         content.ClientSiteId,
         content.SiteName,
         content.Description,
+        content.StoryContent,
         content.Offers,
         content.EstablishmentName,
         content.EstablishmentType,
@@ -148,6 +150,7 @@ public static class ContentEndpoints
         {
             SiteName = MultilingueModule.Merge(baseResponse.SiteName, siteFields, "siteName"),
             Description = MultilingueModule.Merge(baseResponse.Description, siteFields, "description"),
+            StoryContent = MultilingueModule.Merge(baseResponse.StoryContent, siteFields, "storyContent"),
             Offers = translatedOffers,
         };
     }
@@ -184,6 +187,7 @@ public record SiteContentResponse(
     Guid ClientSiteId,
     string SiteName,
     string Description,
+    string StoryContent,
     List<Offer> Offers,
     string EstablishmentName,
     string EstablishmentType,
@@ -203,6 +207,7 @@ public record OfferInput(string Title, string Price, string Description, Guid? P
 public record SiteContentInput(
     string SiteName,
     string Description,
+    string StoryContent,
     List<OfferInput> Offers,
     string EstablishmentName,
     string EstablishmentType,

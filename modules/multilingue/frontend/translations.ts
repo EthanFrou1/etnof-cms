@@ -14,12 +14,14 @@ type Dict = Record<string, string>;
 
 const fr: Dict = {
   "nav.catalogue": "Catalogue",
+  "nav.story": "Notre histoire",
   "nav.galerie": "Galerie",
   "nav.blog": "Blog",
   "nav.rdv": "Rendez-vous",
   "nav.contact": "Contact",
   "nav.newsletter": "Newsletter",
   "nav.avisGoogle": "Avis",
+  "nav.reseauxSociaux": "Réseaux sociaux",
 
   "hero.welcome": "Bienvenue",
   "section.establishment": "Établissement",
@@ -49,6 +51,7 @@ const fr: Dict = {
   "contact.error": "Erreur, réessaie.",
 
   "maps.findUs": "Où nous trouver",
+  "maps.directions": "Venir chez nous",
 
   "rdv.label": "Rendez-vous",
   "rdv.title": "Réserver un créneau",
@@ -90,6 +93,11 @@ const fr: Dict = {
   "cookies.accept": "Accepter",
   "cookies.refuse": "Refuser",
 
+  "footer.followUs": "Suivez-nous",
+
+  "social.title": "Suivez-nous",
+  "social.description": "Retrouvez toutes nos actualités et nouveautés sur nos réseaux sociaux.",
+
   "blog.backToSite": "← Retour au site",
   "blog.notFound": "Article introuvable.",
 
@@ -97,6 +105,7 @@ const fr: Dict = {
   "catalogue.noPhoto": "Pas de photo",
   "catalogue.outOfStock": "Rupture de stock",
   "catalogue.addToCart": "Ajouter au panier",
+  "catalogue.size": "Taille",
   "catalogue.cart": "Panier",
   "catalogue.cartEmpty": "Le panier est vide.",
   "catalogue.remove": "Retirer",
@@ -129,16 +138,23 @@ const fr: Dict = {
   "catalogue.reviewSending": "Envoi…",
   "catalogue.reviewSubmit": "Envoyer mon avis",
   "catalogue.leaveReview": "Laisser un avis",
+  "catalogue.viewAllProducts": "Voir tous les produits",
+  "catalogue.viewShop": "Voir le catalogue",
+  "catalogue.allCollections": "Tout",
+  "catalogue.emptyCollection": "Aucun produit dans cette collection.",
+  "catalogue.otherProducts": "Autres produits",
 };
 
 const en: Dict = {
   "nav.catalogue": "Shop",
+  "nav.story": "Our story",
   "nav.galerie": "Gallery",
   "nav.blog": "Blog",
   "nav.rdv": "Book now",
   "nav.contact": "Contact",
   "nav.newsletter": "Newsletter",
   "nav.avisGoogle": "Reviews",
+  "nav.reseauxSociaux": "Social media",
 
   "hero.welcome": "Welcome",
   "section.establishment": "About us",
@@ -168,6 +184,7 @@ const en: Dict = {
   "contact.error": "Something went wrong, try again.",
 
   "maps.findUs": "Find us",
+  "maps.directions": "Get directions",
 
   "rdv.label": "Appointments",
   "rdv.title": "Book a slot",
@@ -209,6 +226,11 @@ const en: Dict = {
   "cookies.accept": "Accept",
   "cookies.refuse": "Decline",
 
+  "footer.followUs": "Follow us",
+
+  "social.title": "Follow us",
+  "social.description": "Follow our latest news and new arrivals on social media.",
+
   "blog.backToSite": "← Back to site",
   "blog.notFound": "Article not found.",
 
@@ -216,6 +238,7 @@ const en: Dict = {
   "catalogue.noPhoto": "No photo",
   "catalogue.outOfStock": "Out of stock",
   "catalogue.addToCart": "Add to cart",
+  "catalogue.size": "Size",
   "catalogue.cart": "Cart",
   "catalogue.cartEmpty": "Your cart is empty.",
   "catalogue.remove": "Remove",
@@ -248,16 +271,23 @@ const en: Dict = {
   "catalogue.reviewSending": "Sending…",
   "catalogue.reviewSubmit": "Send my review",
   "catalogue.leaveReview": "Leave a review",
+  "catalogue.viewAllProducts": "View all products",
+  "catalogue.viewShop": "View catalogue",
+  "catalogue.allCollections": "All",
+  "catalogue.emptyCollection": "No products in this collection.",
+  "catalogue.otherProducts": "Other products",
 };
 
 const es: Dict = {
   "nav.catalogue": "Tienda",
+  "nav.story": "Nuestra historia",
   "nav.galerie": "Galería",
   "nav.blog": "Blog",
   "nav.rdv": "Reservar",
   "nav.contact": "Contacto",
   "nav.newsletter": "Newsletter",
   "nav.avisGoogle": "Reseñas",
+  "nav.reseauxSociaux": "Redes sociales",
 
   "hero.welcome": "Bienvenido",
   "section.establishment": "Sobre nosotros",
@@ -287,6 +317,7 @@ const es: Dict = {
   "contact.error": "Error, inténtalo de nuevo.",
 
   "maps.findUs": "Cómo llegar",
+  "maps.directions": "Ver cómo llegar",
 
   "rdv.label": "Citas",
   "rdv.title": "Reservar una cita",
@@ -328,6 +359,11 @@ const es: Dict = {
   "cookies.accept": "Aceptar",
   "cookies.refuse": "Rechazar",
 
+  "footer.followUs": "Síguenos",
+
+  "social.title": "Síguenos",
+  "social.description": "Descubre todas nuestras novedades en nuestras redes sociales.",
+
   "blog.backToSite": "← Volver al sitio",
   "blog.notFound": "Artículo no encontrado.",
 
@@ -335,6 +371,7 @@ const es: Dict = {
   "catalogue.noPhoto": "Sin foto",
   "catalogue.outOfStock": "Agotado",
   "catalogue.addToCart": "Añadir al carrito",
+  "catalogue.size": "Talla",
   "catalogue.cart": "Carrito",
   "catalogue.cartEmpty": "Tu carrito está vacío.",
   "catalogue.remove": "Quitar",
@@ -367,6 +404,11 @@ const es: Dict = {
   "catalogue.reviewSending": "Enviando…",
   "catalogue.reviewSubmit": "Enviar mi opinión",
   "catalogue.leaveReview": "Dejar una opinión",
+  "catalogue.viewAllProducts": "Ver todos los productos",
+  "catalogue.viewShop": "Ver el catálogo",
+  "catalogue.allCollections": "Todo",
+  "catalogue.emptyCollection": "Ningún producto en esta colección.",
+  "catalogue.otherProducts": "Otros productos",
 };
 
 const UI_STRINGS: Record<Locale, Dict> = { fr, en, es };

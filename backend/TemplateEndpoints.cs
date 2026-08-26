@@ -4,11 +4,11 @@ using Microsoft.EntityFrameworkCore;
 namespace Backend;
 
 // Choix de mise en page du site public (voir frontend/src/templates/). Valeurs connues : "hestia",
-// "helios". Lecture publique (le site en a besoin pour s'afficher), écriture protégée (le client
-// choisit sa mise en page depuis son propre admin).
+// "helios", "charis". Lecture publique (le site en a besoin pour s'afficher), écriture protégée (le
+// client choisit sa mise en page depuis son propre admin).
 public static class TemplateEndpoints
 {
-    public static readonly string[] KnownTemplateIds = ["hestia", "helios"];
+    public static readonly string[] KnownTemplateIds = ["hestia", "helios", "charis"];
 
     // Variantes de couleurs disponibles par template, choisies par le client depuis son admin en
     // plus du template lui-même — voir frontend/src/templates/registry.ts pour le détail visuel
@@ -18,6 +18,7 @@ public static class TemplateEndpoints
     {
         ["hestia"] = ["argile", "olivier", "egee"],
         ["helios"] = ["zenith", "aurore", "couchant"],
+        ["charis"] = ["noir", "sable", "bordeaux"],
     };
 
     public static void MapEndpoints(WebApplication app)

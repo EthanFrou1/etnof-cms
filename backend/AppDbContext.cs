@@ -23,10 +23,12 @@ public class AppDbContext : DbContext
     public DbSet<ClientSite> ClientSites => Set<ClientSite>();
     public DbSet<Product> Products => Set<Product>();
     public DbSet<ProductImage> ProductImages => Set<ProductImage>();
+    public DbSet<ProductSize> ProductSizes => Set<ProductSize>();
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<ProductReview> ProductReviews => Set<ProductReview>();
+    public DbSet<Collection> Collections => Set<Collection>();
     public DbSet<ModulePrice> ModulePrices => Set<ModulePrice>();
     public DbSet<EstablishmentImage> EstablishmentImages => Set<EstablishmentImage>();
     public DbSet<RdvSchedule> RdvSchedules => Set<RdvSchedule>();

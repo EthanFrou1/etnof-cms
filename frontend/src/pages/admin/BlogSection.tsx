@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { API_BASE_URL } from "../../config";
 import { adminFetch } from "../../hooks/useAdminSession";
 import ConfirmModal from "../../components/admin/ConfirmModal";
+import Select from "../../components/admin/Select";
 
 type BlogPost = {
   id: string;
@@ -142,20 +143,17 @@ export default function BlogSection({ clientSiteId, password }: BlogSectionProps
                 setPage(1);
               }}
             />
-            <select
-              className={inputClass}
-              value={statusFilter}
-              onChange={(e) => {
-                setStatusFilter(e.target.value as StatusFilter);
-                setPage(1);
-              }}
-            >
-              {STATUS_FILTERS.map((f) => (
-                <option key={f.value} value={f.value}>
-                  {f.label}
-                </option>
-              ))}
-            </select>
+            <div className="w-44 shrink-0">
+              <Select
+                className={inputClass}
+                value={statusFilter}
+                onChange={(v) => {
+                  setStatusFilter(v as StatusFilter);
+                  setPage(1);
+                }}
+                options={STATUS_FILTERS.map((f) => ({ value: f.value, label: f.label }))}
+              />
+            </div>
             <span className="text-sm text-gray-text">
               {filteredSorted.length} article{filteredSorted.length > 1 ? "s" : ""}
             </span>
