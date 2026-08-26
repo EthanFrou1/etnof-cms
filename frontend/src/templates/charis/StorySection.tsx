@@ -36,12 +36,12 @@ export default function StorySection({ clientSiteId, apiBaseUrl, storyContent, p
           <img src={`${apiBaseUrl}${image.path}`} alt="" className="h-full w-full object-cover" />
         </div>
       )}
-      <div className="flex flex-col gap-3">
-        <span className="text-xs font-semibold uppercase tracking-[0.1em]" style={{ color: palette.accent }}>
+      <div className="flex flex-col gap-4">
+        <span className="text-xl font-semibold uppercase tracking-[0.1em]" style={{ color: palette.accent }}>
           {t(locale, "nav.story")}
         </span>
         <div
-          className="text-base leading-relaxed [&_a]:underline [&_strong]:font-semibold"
+          className="text-lg leading-relaxed [&_a]:underline [&_strong]:font-semibold sm:text-xl"
           style={{ color: `${palette.ink}99` }}
           dangerouslySetInnerHTML={{ __html: storyContent }}
         />

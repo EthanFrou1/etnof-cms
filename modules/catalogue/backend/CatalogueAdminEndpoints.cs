@@ -159,6 +159,32 @@ public static class CatalogueAdminEndpoints
             return Results.Ok(collection);
         });
 
+        // Réordonnancement par glisser-déposer (CollectionsSection.tsx), même patron que
+        // /products/{id}/images/reorder : `collectionIds` = l'ordre voulu, complet (toutes les
+        // collections du tenant). SortOrder réécrit d'après la position dans le tableau.
+        group.MapPut("/collections/reorder", async (Guid clientSiteId, ReorderCollectionsInput input, HttpRequest req, IConfiguration config, AppDbContext db) =>
+        {
+            if (!await TenantAdminAuth.IsAuthorizedAsync(req, config, db, clientSiteId)) return Results.Unauthorized();
+
+            var collections = await db.Collections
+                .Where(c => c.ClientSiteId == clientSiteId)
+                .ToListAsync();
+
+            var currentIds = collections.Select(c => c.Id).ToHashSet();
+            if (input.CollectionIds.Count != collections.Count || !input.CollectionIds.ToHashSet().SetEquals(currentIds))
+            {
+                return Results.BadRequest(new { error = "La liste doit contenir exactement les collections du tenant." });
+            }
+
+            for (var index = 0; index < input.CollectionIds.Count; index++)
+            {
+                collections.First(c => c.Id == input.CollectionIds[index]).SortOrder = index;
+            }
+            await db.SaveChangesAsync();
+
+            return Results.Ok(collections.OrderBy(c => c.SortOrder));
+        });
+
         group.MapDelete("/collections/{id:guid}", async (Guid clientSiteId, Guid id, HttpRequest req, IConfiguration config, AppDbContext db) =>
         {
             if (!await TenantAdminAuth.IsAuthorizedAsync(req, config, db, clientSiteId)) return Results.Unauthorized();
@@ -526,6 +552,7 @@ public record ProductInput(string Name, string Description, decimal Price, int S
 public record ReorderImagesInput(List<Guid> ImageIds);
 public record ProductSizeInput(string Label, int Stock);
 public record CollectionInput(string Name);
+public record ReorderCollectionsInput(List<Guid> CollectionIds);
 public record OrderStatusInput(string Status);
 public record CustomerInput(string Name, string Email, string Phone, string Address, string Notes);
 public record SelectReviewInput(bool Selected);

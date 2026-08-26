@@ -33,6 +33,9 @@ function CatalogueContent({
 }) {
   const [products, setProducts] = useState<Product[] | null>(null);
   const [collections, setCollections] = useState<Collection[]>([]);
+  // null = chip "Tout" (pas de filtre) — demandé par Ethan pour retrouver les chips de filtre par
+  // collection annoncées dans le commentaire d'origine mais jamais branchées.
+  const [activeCollectionId, setActiveCollectionId] = useState<string | null>(null);
 
   useEffect(() => {
     fetch(`${apiBaseUrl}/api/t/${clientSiteId}/catalogue/products`)
@@ -47,29 +50,73 @@ function CatalogueContent({
 
   if (!products) return null;
 
-  // Une section par collection (titre + grille), plutôt qu'une seule grille filtrable par chips —
+  const collectionsById = collections.reduce<Record<string, string>>((acc, c) => {
+    acc[c.id] = c.name;
+    return acc;
+  }, {});
+
+  // Aucun filtre actif : une section par collection (titre + grille), plutôt qu'une seule grille —
   // demandé par Ethan pour se rapprocher du rendu Karminecorp (chaque collection mise en avant avec
   // son propre titre). Les produits sans collection sortent dans une dernière section "Autres
   // produits" seulement s'il existe déjà au moins une collection ; sinon (aucune collection créée) on
-  // retombe sur une grille unique sans titre, comme avant.
+  // retombe sur une grille unique sans titre, comme avant. Un filtre actif retombe sur une seule
+  // grille (pas de titre : le chip sélectionné l'indique déjà).
   const sections =
-    collections.length > 0
-      ? [
-          ...collections.map((collection) => ({
-            title: collection.name,
-            items: products.filter((p) => p.collectionId === collection.id),
-          })),
-          { title: t(locale, "catalogue.otherProducts"), items: products.filter((p) => !p.collectionId) },
-        ].filter((section) => section.items.length > 0)
-      : [{ title: null, items: products }];
+    activeCollectionId !== null
+      ? [{ title: null, items: products.filter((p) => p.collectionId === activeCollectionId) }]
+      : collections.length > 0
+        ? [
+            ...collections.map((collection) => ({
+              title: collection.name,
+              items: products.filter((p) => p.collectionId === collection.id),
+            })),
+            { title: t(locale, "catalogue.otherProducts"), items: products.filter((p) => !p.collectionId) },
+          ].filter((section) => section.items.length > 0)
+        : [{ title: null, items: products }];
 
   return (
     <>
+      {collections.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setActiveCollectionId(null)}
+            className="rounded-pill border px-4 py-2 text-sm font-medium transition-colors duration-200"
+            style={
+              activeCollectionId === null
+                ? { backgroundColor: palette.accent, borderColor: palette.accent, color: "#FFFFFF" }
+                : { borderColor: `${palette.ink}33`, color: palette.ink }
+            }
+          >
+            {t(locale, "catalogue.allCollections")}
+          </button>
+          {collections.map((collection) => (
+            <button
+              key={collection.id}
+              type="button"
+              onClick={() => setActiveCollectionId(collection.id)}
+              className="rounded-pill border px-4 py-2 text-sm font-medium transition-colors duration-200"
+              style={
+                activeCollectionId === collection.id
+                  ? { backgroundColor: palette.accent, borderColor: palette.accent, color: "#FFFFFF" }
+                  : { borderColor: `${palette.ink}33`, color: palette.ink }
+              }
+            >
+              {collection.name}
+            </button>
+          ))}
+        </div>
+      )}
+
       {sections.length === 0 ? (
         <p style={{ color: `${palette.ink}99` }}>{t(locale, "catalogue.emptyCollection")}</p>
       ) : (
-        sections.map((section) => (
-          <section key={section.title ?? "all"} className="flex flex-col gap-6">
+        sections.map((section, index) => (
+          <section
+            key={section.title ?? "all"}
+            className={`flex flex-col gap-6 ${index > 0 ? "border-t pt-10" : ""}`}
+            style={index > 0 ? { borderColor: `${palette.ink}14` } : undefined}
+          >
             {section.title && (
               <h2 className="text-xl font-semibold sm:text-2xl" style={{ color: palette.ink }}>
                 {section.title}
@@ -77,7 +124,14 @@ function CatalogueContent({
             )}
             <div className="grid grid-cols-2 gap-x-8 gap-y-12 sm:grid-cols-2 lg:grid-cols-3">
               {section.items.map((product) => (
-                <ProductCard key={product.id} clientSiteId={clientSiteId} product={product} palette={palette} locale={locale} />
+                <ProductCard
+                  key={product.id}
+                  clientSiteId={clientSiteId}
+                  product={product}
+                  palette={palette}
+                  locale={locale}
+                  collectionName={product.collectionId ? collectionsById[product.collectionId] : undefined}
+                />
               ))}
             </div>
           </section>
@@ -120,7 +174,7 @@ export default function CharisCataloguePage({ clientSiteId, apiBaseUrl }: Charis
       palette={palette}
       footer={<SiteFooter content={content} palette={palette} modules={modules} locale={locale} dark />}
     >
-      <div className="mx-auto flex max-w-6xl flex-col gap-8 px-4 py-10 sm:px-8">
+      <div className="mx-auto flex max-w-7xl flex-col gap-8 px-4 py-10 sm:px-8">
         <a href={`/t/${clientSiteId}`} className="self-start text-sm font-medium hover:opacity-70" style={{ color: `${palette.ink}99` }}>
           {t(locale, "blog.backToSite")}
         </a>

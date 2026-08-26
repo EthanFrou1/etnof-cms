@@ -262,3 +262,57 @@ Session de test en conditions réelles par Ethan sur un tenant Charis ("Atelier 
 **Home remplie par les collections, cards agrandies** (voir aussi `docs/04-catalogue-modules.md`, section système de collections/tailles) : la home affichait au mieux 2 produits "mis en avant" et rien d'autre — juge trop vide par Ethan. La grille de cards est passée de 4 à 3 colonnes maximum (cards plus grandes, "pièce principale du site") et affiche désormais un aperçu par collection en plus des mises en avant. Le lien "Voir la boutique" (renommé "Voir le catalogue" en toute fin de session) est passé d'un petit texte en bas de page à un lien stylé comme les liens du menu (majuscules, flèche), positionné juste sous les mises en avant plutôt qu'en haut ou en bas de toute la section.
 
 Testé : `dotnet build`/`tsc -b` propres à chaque étape. Vérifié dans le navigateur par Ethan lui-même à chaque itération (contrairement aux chantiers Charis précédents, faits sans capture d'écran) — plusieurs allers-retours corrigés en direct (taille des cards incohérente entre slider et grille, grand vide sous Newsletter causé par l'étirement de ligne de la grille CSS, seuil de bascule grille/slider mal calé laissant un produit orphelin). **Reste ouvert** : pas de section équivalente "Notre histoire"/nav conditionnée sur Hestia/Helios (non demandé, Charis seulement pour l'instant).
+
+## Charis : home/boutique/fiche produit/panier retravaillés en continu avec Ethan — 2026-08-26 (suite, même jour)
+
+Longue session de retouches, chacune déclenchée par un retour d'Ethan sur capture d'écran (même méthode que la session précédente) — home, boutique, fiche produit et panier tour à tour. Résumé par page, détail des fichiers dans le code :
+
+### Home (`TemplateCharis.tsx`, `charis/ProductGrid.tsx`)
+
+- **"Notre histoire" remontée avant le Catalogue** (ordre initial : Catalogue puis Histoire) — nav réordonné pareil.
+- **Tailles de police revues plusieurs fois** : titre "Notre histoire" et texte agrandis une première fois, puis tous les titres de section (Catalogue, Notre histoire, Collections, Horaires, Contact, Réseaux sociaux, Newsletter) harmonisés à `text-xl` (1.25rem) — certains venaient de modules partagés avec Hestia/Helios (`text-xs` codé en dur) : plutôt que de modifier ces modules, un override CSS ciblé (`sectionTitleSize`, sélecteur `[&>section>span:first-child]`) est appliqué localement depuis `TemplateCharis.tsx`, sans toucher aux fichiers des modules.
+- **Slider "mis en avant"/collections corrigé** : les tuiles avaient une largeur fixe en px, donc avec peu de produits elles tenaient toutes dans le conteneur et les flèches ne servaient à rien — passées en largeur `calc()` en fraction du conteneur pour garantir 3 tuiles visibles quelle que soit la largeur d'écran.
+- **Badge circulaire "Voir plus"** (texte tournant en boucle, SVG `textPath` + rotation CSS) à côté des sliders de collection — d'abord posé en flex-sibling du slider (ce qui réduisait la largeur du track et rendait les cartes plus petites que la grille simple), corrigé en position `absolute` hors flux pour ne pas consommer de largeur ; masqué en dessous du breakpoint `2xl` faute de marge externe pour déborder proprement.
+- **Nouveau titre "NOS COLLECTIONS PHARE"** avant la liste des collections ; bouton "Voir le catalogue" centré avec un trait sous le texte.
+- **Newsletter sortie de la grille partagée** (partageait une colonne avec Réseaux sociaux) et déplacée toujours juste avant le footer, en pleine largeur.
+- **Nouvelle section Horaires** (jours en entier — nouvelles clés `weekdayFull.*`, distinctes des `weekday.*` abrégés d'Hestia) : positionnée et repositionnée trois fois selon les retours d'Ethan — d'abord dans la grille de modules, puis mise en paire avec Maps (sous-grille dédiée pour qu'ils se répondent visuellement, même style de carte), puis finalement injectée **dans** `ProductGrid` (prop `afterFeatured`) entre les produits mis en avant/le bouton "voir le catalogue" et les aperçus par collection — Horaires/Maps n'ont donc plus d'existence en dehors du bloc Catalogue.
+- **Espacements augmentés** : `gap-16` → `gap-24` entre grandes sections, `gap-10` → `gap-16` à l'intérieur du bloc Catalogue.
+
+### Boutique (`charis/CataloguePage.tsx`)
+
+- **Largeur alignée** : `max-w-6xl` → `max-w-7xl`, comme la home et Hestia/Helios (qui utilisaient déjà `max-w-7xl` — la page boutique était donc l'anomalie, pas seulement par rapport à Charis).
+- **Chips de filtre par collection réintroduites** — le commentaire du fichier les décrivait déjà mais elles n'avaient jamais été branchées ("Tout" + une par collection, filtre une grille unique quand une collection précise est sélectionnée).
+- **Trait de séparation** entre les sections de collection quand "Tout" est sélectionné.
+
+### Fiche produit (`charis/ProductPage.tsx`)
+
+Chantier le plus dense de la session, empilé retour après retour :
+
+- **Fil d'Ariane** (Accueil / Catalogue / Collection / Produit) — remplace le lien "← Retour au site", collections chargées une seule fois et redescendues en prop (aussi utilisées par le slider "Nos autres produits", évite un fetch dupliqué).
+- **Zoom plein écran** au clic sur la grande photo — même patron que la lightbox du module Galerie (portail, flèches clavier, Échap, compteur), dupliqué plutôt qu'importé (comportement propre à cette page). Compteur repassé de `bg-white/10` (illisible sur photo claire) à `bg-black/70`.
+- **Vignettes plafonnées à 5** : au-delà, la 5ᵉ porte un badge `+N` qui ouvre directement le carrousel plein écran — un produit avec beaucoup de photos (pas de limite admin) étirait la colonne de vignettes bien au-delà du reste de la page.
+- **Sélecteur de quantité**, borné au stock de la taille sélectionnée.
+- **Guide des tailles** (modale, tableau générique XS→XL en cm — pas de donnée par produit côté backend, volontairement générique).
+- **Accordéon Livraison/Retours/Paiement sécurisé** (texte statique, mention Stripe) — `PurchaseInfo` (ex-`DeliveryReturns`).
+- **Badge "Plus que N en stock"** (seuil 5) : d'abord en `palette.accent` (invisible, se fondait dans le reste de la page), corrigé en couleur ambre fixe + point — un signal de rareté doit rester reconnaissable indépendamment de la couleur de marque du tenant. **Décision** : pas affiché sur les cards (grille/slider) — le stock y est agrégé par produit alors qu'il est réel par taille (afficherait "plus que 2" alors que seule une taille est basse), et l'esthétique éditoriale de Charis se prête mal à la messagerie d'urgence systématique (réservée en pratique à la fast-fashion).
+- **Section "Nos autres produits"** : réutilise `FeaturedSlider` (exporté depuis `ProductGrid.tsx`), jusqu'à 5 produits, priorise la même collection.
+- **Barre sticky mobile** "Ajouter au panier" (`sm:hidden`, apparaît via `IntersectionObserver` quand le bouton principal sort du viewport) — a nécessité de remonter le bouton panier flottant (`CartButton.tsx`, `bottom-6` → `bottom-24` en dessous de `sm`) pour ne pas se superposer.
+- **Avis clients** : résumé note moyenne + nombre total ajouté en tête (absent avant), liste plafonnée à 3 avec "Voir les N avis" pour dérouler le reste.
+- **Badge collection sur les images produit** (`ProductCard.tsx`) : déplacé du texte sous le nom vers une pastille sur la photo (coin haut-gauche, empilée avec "Rupture de stock" si les deux s'appliquent) — câblé partout où `ProductCard` est utilisé (home, boutique, produits liés).
+
+### Panier (`modules/catalogue/frontend/CartPage.tsx`, partagé par les 3 templates)
+
+- **Largeur alignée** : `max-w-5xl`/`max-w-2xl` → `max-w-7xl`, même anomalie que la boutique (les 3 templates utilisent déjà `max-w-7xl` pour leur contenu principal).
+- **État panier vide** : bouton "Voir le catalogue" ajouté (avant, juste un texte sans action).
+- **Miniature produit** ajoutée à chaque ligne du panier principal (seul le récapitulatif à droite en avait une).
+- **Rappel de confiance** sous "Payer par carte" (paiement sécurisé Stripe + délai de livraison estimé).
+
+### Admin — Collections réordonnables
+
+Demandé pour que l'ordre choisi en back-office se reflète sur le site : nouvel endpoint `PUT /api/t/{clientSiteId}/admin/catalogue/collections/reorder` (`CatalogueAdminEndpoints.cs`, même patron que le réordonnancement des photos produit — réécrit `SortOrder` d'après la position dans le tableau reçu). Pas de migration : `Collection.SortOrder` existait déjà. `CollectionsSection.tsx` (admin) gagne le glisser-déposer natif (même patron que les photos produit sur la fiche produit). Le site public triait déjà par `SortOrder` — rien à changer côté affichage.
+
+### Traductions
+
+Nombreuses clés ajoutées dans les 3 langues (fr/en/es) : `weekdayFull.*`, `catalogue.featuredCollections`, `catalogue.viewMore`, `catalogue.quantity`, `catalogue.sizeGuide*`, `catalogue.deliveryTitle/Text`, `catalogue.returnsTitle/Text`, `catalogue.securePaymentTitle/Text`, `catalogue.lowStock`, `catalogue.showAllReviews`, `catalogue.checkoutTrustNote`, `breadcrumb.home`.
+
+Testé : `tsc --noEmit` propre après chaque changement (relancé une bonne dizaine de fois au fil de la session) ; `dotnet build` vérifié sans erreur de compilation pour l'endpoint de réordonnancement des collections (la copie finale de l'exécutable a échoué faute de pouvoir écraser le binaire d'un `dotnet run` déjà démarré — pas une erreur de code, juste un verrou de fichier). Comme la session précédente, chaque retouche a été vérifiée par Ethan lui-même dans le navigateur, capture d'écran à l'appui, ce qui a permis plusieurs allers-retours rapides (taille des cartes de slider, position d'Horaires/Maps déplacée trois fois, contraste du badge stock faible). **Reste ouvert** : le contenu Livraison/Retours reste générique (texte statique identique pour tous les tenants) — candidat à devenir un champ éditable par établissement (même logique que les CGV) si le besoin se confirme ; pas de filtrage par collection sur l'URL de la boutique (le badge "Voir plus" et le fil d'Ariane renvoient donc vers la boutique complète, pas vers la collection précise).

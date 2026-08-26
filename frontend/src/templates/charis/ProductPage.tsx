@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { t, type Locale } from "@modules/multilingue/frontend/translations";
 import { CartProvider, useCart } from "@modules/catalogue/frontend/CartContext";
 // Cette page est montée seule par une route dédiée (App.tsx), pas nichée dans TemplateCharis — même
@@ -12,6 +13,7 @@ import { resolvePalette } from "../registry";
 import SiteFooter from "../SiteFooter";
 import SiteChrome from "./SiteChrome";
 import CartButton from "./CartButton";
+import { FeaturedSlider, type Product as SliderProduct } from "./ProductGrid";
 
 type ProductImage = { id: string; path: string };
 type ProductSize = { id: string; label: string; stock: number };
@@ -24,7 +26,10 @@ type Product = {
   stock: number;
   images: ProductImage[];
   sizes: ProductSize[];
+  collectionId: string | null;
 };
+
+type Collection = { id: string; name: string };
 
 type ProductReview = {
   id: string;
@@ -38,6 +43,22 @@ type ModulePalette = { accent: string; background: string; ink: string };
 
 const formatPrice = (value: number) =>
   value.toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
+
+// Seuil en dessous duquel on affiche "Plus que N en stock" — repère informel, pas une donnée
+// configurable (voir catalogue.lowStock).
+const LOW_STOCK_THRESHOLD = 5;
+
+// Nombre de vignettes affichées avant de replier le reste derrière un "+N" sur la dernière —
+// demandé par Ethan : un produit avec beaucoup de photos (pas de limite côté admin) rendait la
+// colonne de vignettes disproportionnée par rapport au reste de la page. Même patron qu'Instagram/
+// Airbnb : cliquer le "+N" ouvre directement le carrousel plein écran (déjà présent) pour parcourir
+// le reste, plutôt que d'étirer la mise en page.
+const MAX_THUMBNAILS = 5;
+
+// Nombre d'avis affichés avant de replier le reste derrière "Voir les N avis" — même logique que
+// MAX_THUMBNAILS : tous les avis sont déjà chargés en un seul appel, pas besoin de pagination
+// serveur, juste éviter d'étirer la page si un produit en accumule beaucoup.
+const REVIEWS_PREVIEW_COUNT = 3;
 
 // Cœur de la fiche produit Charis : la 1ʳᵉ photo est affichée par défaut, un slider des autres
 // photos permet de changer la photo principale — juxtaposé sur desktop (`lg:flex-row-reverse`,
@@ -59,7 +80,26 @@ function Gallery({
   locale: Locale;
 }) {
   const [active, setActive] = useState(0);
+  // Zoom plein écran au clic sur la grande photo — même patron que la lightbox de
+  // modules/galerie/frontend/GallerySection.tsx (portail, fermeture Échap, flèches prev/next),
+  // dupliqué ici plutôt qu'importé : comportement propre à cette page, pas au module Galerie.
+  const [zoomed, setZoomed] = useState(false);
   const main = images[active] ?? images[0];
+
+  const showPrevious = () => setActive((i) => (i - 1 + images.length) % images.length);
+  const showNext = () => setActive((i) => (i + 1) % images.length);
+
+  useEffect(() => {
+    if (!zoomed) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setZoomed(false);
+      if (e.key === "ArrowLeft") showPrevious();
+      if (e.key === "ArrowRight") showNext();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [zoomed, images.length]);
 
   if (!main) {
     return (
@@ -74,29 +114,184 @@ function Gallery({
 
   return (
     <div className="flex flex-col gap-3 lg:flex-row-reverse lg:gap-4">
-      <div className="aspect-[3/4] w-full overflow-hidden lg:flex-1">
+      <button
+        type="button"
+        onClick={() => setZoomed(true)}
+        aria-label={productName}
+        className="aspect-[3/4] w-full cursor-zoom-in overflow-hidden lg:flex-1"
+      >
         <img src={`${apiBaseUrl}${main.path}`} alt={productName} className="h-full w-full object-cover" />
-      </div>
+      </button>
+
+      {zoomed &&
+        createPortal(
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4" onClick={() => setZoomed(false)}>
+            <img
+              src={`${apiBaseUrl}${main.path}`}
+              alt={productName}
+              className="max-h-full max-w-full cursor-zoom-out rounded-button object-contain"
+              onClick={(e) => e.stopPropagation()}
+            />
+
+            {images.length > 1 && (
+              <>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    showPrevious();
+                  }}
+                  aria-label={t(locale, "gallery.previous")}
+                  className="absolute left-2 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-2xl leading-none text-white hover:bg-white/20 sm:left-4"
+                >
+                  ‹
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    showNext();
+                  }}
+                  aria-label={t(locale, "gallery.next")}
+                  className="absolute right-2 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-2xl leading-none text-white hover:bg-white/20 sm:right-4"
+                >
+                  ›
+                </button>
+                <span className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-pill bg-black/70 px-3 py-1 text-xs font-semibold text-white">
+                  {active + 1} / {images.length}
+                </span>
+              </>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setZoomed(false)}
+              aria-label={t(locale, "gallery.close")}
+              className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-2xl leading-none text-white hover:bg-white/20"
+            >
+              ×
+            </button>
+          </div>,
+          document.body
+        )}
+
       {images.length > 1 && (
         <div className="flex gap-3 overflow-x-auto pb-1 [scrollbar-width:none] lg:w-24 lg:flex-none lg:flex-col lg:overflow-x-visible lg:overflow-y-auto lg:pb-0 [&::-webkit-scrollbar]:hidden">
-          {images.map((img, index) => (
-            <button
-              key={img.id}
-              type="button"
-              onClick={() => setActive(index)}
-              aria-label={`${productName} — photo ${index + 1}`}
-              className="aspect-[3/4] w-16 shrink-0 overflow-hidden transition-opacity duration-150 lg:w-full"
-              style={{
-                outline: index === active ? `2px solid ${palette.ink}` : `1px solid ${palette.ink}22`,
-                outlineOffset: "-1px",
-                opacity: index === active ? 1 : 0.75,
-              }}
-            >
-              <img src={`${apiBaseUrl}${img.path}`} alt="" className="h-full w-full object-cover" />
-            </button>
-          ))}
+          {images.slice(0, MAX_THUMBNAILS).map((img, index) => {
+            const hiddenCount = images.length - MAX_THUMBNAILS;
+            const isMoreTile = index === MAX_THUMBNAILS - 1 && hiddenCount > 0;
+            return (
+              <button
+                key={img.id}
+                type="button"
+                onClick={() => {
+                  setActive(index);
+                  if (isMoreTile) setZoomed(true);
+                }}
+                aria-label={isMoreTile ? `${productName} — voir les ${images.length} photos` : `${productName} — photo ${index + 1}`}
+                className="relative aspect-[3/4] w-16 shrink-0 overflow-hidden transition-opacity duration-150 lg:w-full"
+                style={{
+                  outline: index === active ? `2px solid ${palette.ink}` : `1px solid ${palette.ink}22`,
+                  outlineOffset: "-1px",
+                  opacity: index === active ? 1 : 0.75,
+                }}
+              >
+                <img src={`${apiBaseUrl}${img.path}`} alt="" className="h-full w-full object-cover" />
+                {isMoreTile && (
+                  <span className="absolute inset-0 flex items-center justify-center bg-black/50 text-sm font-semibold text-white">
+                    +{hiddenCount}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
       )}
+    </div>
+  );
+}
+
+// Tableau générique de correspondance des tailles (S à XL, en cm) — pas de données par produit
+// côté backend, donc pas propre à un produit précis : sert de repère indicatif, comme sur la
+// plupart des sites de mode. Voir catalogue.sizeGuideNote (prévient que c'est indicatif).
+const SIZE_GUIDE_ROWS = [
+  { label: "XS", chest: "82–85", waist: "63–66", hips: "88–91" },
+  { label: "S", chest: "86–89", waist: "67–70", hips: "92–95" },
+  { label: "M", chest: "90–93", waist: "71–75", hips: "96–100" },
+  { label: "L", chest: "94–98", waist: "76–81", hips: "101–105" },
+  { label: "XL", chest: "99–104", waist: "82–88", hips: "106–111" },
+];
+
+function SizeGuideModal({ palette, locale, onClose }: { palette: ModulePalette; locale: Locale; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-card bg-white p-6" onClick={(e) => e.stopPropagation()}>
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-sm font-semibold uppercase tracking-[0.1em]" style={{ color: palette.ink }}>
+            {t(locale, "catalogue.sizeGuide")}
+          </h2>
+          <button type="button" onClick={onClose} aria-label={t(locale, "gallery.close")} className="text-xl leading-none" style={{ color: palette.ink }}>
+            ×
+          </button>
+        </div>
+        <table className="w-full border-collapse text-left text-sm" style={{ color: palette.ink }}>
+          <thead>
+            <tr className="border-b" style={{ borderColor: `${palette.ink}1A` }}>
+              <th className="py-2 font-semibold" />
+              <th className="py-2 font-semibold">{t(locale, "catalogue.sizeGuideChest")}</th>
+              <th className="py-2 font-semibold">{t(locale, "catalogue.sizeGuideWaist")}</th>
+              <th className="py-2 font-semibold">{t(locale, "catalogue.sizeGuideHips")}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {SIZE_GUIDE_ROWS.map((row) => (
+              <tr key={row.label} className="border-b" style={{ borderColor: `${palette.ink}0F` }}>
+                <td className="py-2 font-semibold">{row.label}</td>
+                <td className="py-2">{row.chest}</td>
+                <td className="py-2">{row.waist}</td>
+                <td className="py-2">{row.hips}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <p className="mt-3 text-xs" style={{ color: `${palette.ink}80` }}>
+          {t(locale, "catalogue.sizeGuideNote")}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function AccordionItem({ title, text, palette }: { title: string; text: string; palette: ModulePalette }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="border-b" style={{ borderColor: `${palette.ink}1A` }}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-center justify-between py-3 text-left text-sm font-semibold"
+        style={{ color: palette.ink }}
+      >
+        {title}
+        <span style={{ color: `${palette.ink}80` }}>{open ? "−" : "+"}</span>
+      </button>
+      {open && (
+        <p className="pb-3 text-sm leading-relaxed" style={{ color: `${palette.ink}99` }}>
+          {text}
+        </p>
+      )}
+    </div>
+  );
+}
+
+// Renommé (ex-DeliveryReturns) : regroupe maintenant aussi le paiement sécurisé (Stripe), demandé
+// par Ethan avec le même traitement visuel que livraison/retours.
+function PurchaseInfo({ palette, locale }: { palette: ModulePalette; locale: Locale }) {
+  return (
+    <div className="flex flex-col">
+      <AccordionItem title={t(locale, "catalogue.deliveryTitle")} text={t(locale, "catalogue.deliveryText")} palette={palette} />
+      <AccordionItem title={t(locale, "catalogue.returnsTitle")} text={t(locale, "catalogue.returnsText")} palette={palette} />
+      <AccordionItem title={t(locale, "catalogue.securePaymentTitle")} text={t(locale, "catalogue.securePaymentText")} palette={palette} />
     </div>
   );
 }
@@ -145,6 +340,7 @@ function Reviews({
   locale: Locale;
 }) {
   const [reviews, setReviews] = useState<ProductReview[] | null>(null);
+  const [showAllReviews, setShowAllReviews] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [authorName, setAuthorName] = useState("");
   const [rating, setRating] = useState(5);
@@ -169,11 +365,23 @@ function Reviews({
     setStatus(res.ok ? "sent" : "error");
   };
 
+  const average = reviews && reviews.length > 0 ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length : 0;
+
   return (
     <div className="flex flex-col gap-4 border-t pt-8" style={{ borderColor: `${palette.ink}1A` }}>
-      <h2 className="text-sm font-semibold uppercase tracking-[0.1em]" style={{ color: palette.ink }}>
-        {t(locale, "catalogue.reviews")}
-      </h2>
+      <div className="flex flex-wrap items-center gap-3">
+        <h2 className="text-sm font-semibold uppercase tracking-[0.1em]" style={{ color: palette.ink }}>
+          {t(locale, "catalogue.reviews")}
+        </h2>
+        {reviews && reviews.length > 0 && (
+          <span className="flex items-center gap-1.5 text-sm">
+            <Stars rating={average} />
+            <span style={{ color: `${palette.ink}99` }}>
+              {average.toFixed(1)} ({reviews.length} {t(locale, "catalogue.reviewsCount")})
+            </span>
+          </span>
+        )}
+      </div>
 
       {!reviews ? (
         <p className="text-sm" style={{ color: `${palette.ink}99` }}>
@@ -185,7 +393,7 @@ function Reviews({
         </p>
       ) : (
         <div className="flex flex-col gap-3">
-          {reviews.map((review) => (
+          {(showAllReviews ? reviews : reviews.slice(0, REVIEWS_PREVIEW_COUNT)).map((review) => (
             <div key={review.id} className="border-b pb-3 last:border-0" style={{ borderColor: `${palette.ink}1A` }}>
               <div className="flex items-center gap-2">
                 <span className="text-sm font-semibold" style={{ color: palette.ink }}>
@@ -198,6 +406,16 @@ function Reviews({
               </p>
             </div>
           ))}
+          {!showAllReviews && reviews.length > REVIEWS_PREVIEW_COUNT && (
+            <button
+              type="button"
+              onClick={() => setShowAllReviews(true)}
+              className="self-start text-sm font-medium underline underline-offset-2 hover:opacity-70"
+              style={{ color: palette.ink }}
+            >
+              {t(locale, "catalogue.showAllReviews", { count: String(reviews.length) })}
+            </button>
+          )}
         </div>
       )}
 
@@ -249,6 +467,53 @@ function Reviews({
   );
 }
 
+// Section "Nos autres produits" en bas de fiche — demandé par Ethan : slider de 3 tuiles visibles
+// (même composant que ProductGrid.tsx sur la home/boutique), jusqu'à 5 produits au total si le
+// catalogue en a assez. Priorise les produits de la même collection que celui affiché, complète avec
+// les autres tant qu'il en manque — jamais le produit courant.
+function RelatedProducts({
+  clientSiteId,
+  apiBaseUrl,
+  currentProductId,
+  currentCollectionId,
+  collectionsById,
+  palette,
+  locale,
+}: {
+  clientSiteId: string;
+  apiBaseUrl: string;
+  currentProductId: string;
+  currentCollectionId: string | null;
+  collectionsById: Record<string, string>;
+  palette: ModulePalette;
+  locale: Locale;
+}) {
+  const [related, setRelated] = useState<SliderProduct[] | null>(null);
+
+  useEffect(() => {
+    fetch(`${apiBaseUrl}/api/t/${clientSiteId}/catalogue/products`)
+      .then((res) => (res.ok ? res.json() : []))
+      .then((all: SliderProduct[]) => {
+        const others = all.filter((p) => p.id !== currentProductId);
+        const sameCollection = currentCollectionId ? others.filter((p) => p.collectionId === currentCollectionId) : [];
+        const rest = others.filter((p) => !sameCollection.includes(p));
+        setRelated([...sameCollection, ...rest].slice(0, 5));
+      })
+      .catch(() => setRelated([]));
+  }, [apiBaseUrl, clientSiteId, currentProductId, currentCollectionId]);
+
+  if (!related || related.length === 0) return null;
+
+  return (
+    <div className="flex flex-col gap-6 border-t pt-10" style={{ borderColor: `${palette.ink}1A` }}>
+      <span className="text-xl font-semibold uppercase tracking-[0.1em]" style={{ color: palette.accent }}>
+        {t(locale, "catalogue.otherProducts")}
+      </span>
+      <FeaturedSlider products={related} clientSiteId={clientSiteId} palette={palette} locale={locale} collectionsById={collectionsById} />
+    </div>
+  );
+}
+
 function ProductPageContent({
   clientSiteId,
   productId,
@@ -266,6 +531,16 @@ function ProductPageContent({
   const { addItem } = useCart();
   const [added, setAdded] = useState(false);
   const [selectedSize, setSelectedSize] = useState<ProductSize | null>(null);
+  const [quantity, setQuantity] = useState(1);
+  const [showSizeGuide, setShowSizeGuide] = useState(false);
+  // Barre d'ajout au panier sticky (mobile uniquement, voir plus bas) : visible dès que le bouton
+  // principal sort du viewport, via IntersectionObserver — pas de librairie de scroll-tracking.
+  const addToCartRef = useRef<HTMLButtonElement>(null);
+  const [showStickyBar, setShowStickyBar] = useState(false);
+  // Chargé ici (plutôt que dans RelatedProducts) et redescendu en prop : sert au fil d'Ariane
+  // (nom de la collection) ET au badge collection du slider "Nos autres produits" — évite un fetch
+  // dupliqué des collections pour la même page.
+  const [collectionsById, setCollectionsById] = useState<Record<string, string>>({});
 
   useEffect(() => {
     fetch(`${apiBaseUrl}/api/t/${clientSiteId}/catalogue/products/${productId}`)
@@ -273,6 +548,23 @@ function ProductPageContent({
       .then(setProduct)
       .catch(() => setProduct(null));
   }, [apiBaseUrl, clientSiteId, productId]);
+
+  useEffect(() => {
+    fetch(`${apiBaseUrl}/api/t/${clientSiteId}/catalogue/collections`)
+      .then((res) => (res.ok ? res.json() : []))
+      .then((collections: Collection[]) =>
+        setCollectionsById(collections.reduce<Record<string, string>>((acc, c) => ({ ...acc, [c.id]: c.name }), {}))
+      )
+      .catch(() => setCollectionsById({}));
+  }, [apiBaseUrl, clientSiteId]);
+
+  useEffect(() => {
+    const el = addToCartRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(([entry]) => setShowStickyBar(!entry.isIntersecting), { threshold: 0 });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [product]);
 
   if (product === undefined) return null;
 
@@ -291,12 +583,36 @@ function ProductPageContent({
   const inStock = hasSizes ? product.sizes.some((s) => s.stock > 0) : product.stock > 0;
   const canAddToCart = hasSizes ? Boolean(selectedSize && selectedSize.stock > 0) : inStock;
   const maxStock = hasSizes ? selectedSize?.stock ?? 0 : product.stock;
+  const collectionName = product.collectionId ? collectionsById[product.collectionId] : undefined;
+  const lowStock = maxStock > 0 && maxStock <= LOW_STOCK_THRESHOLD;
+
+  const handleAddToCart = () => {
+    addItem(product.id, product.name, product.price, maxStock, quantity, product.images[0]?.path, product.description, selectedSize?.label);
+    setAdded(true);
+    setQuantity(1);
+  };
 
   return (
-    <div className="mx-auto flex max-w-6xl flex-col gap-10">
-      <a href={`/t/${clientSiteId}`} className="self-start text-sm font-medium hover:opacity-70" style={{ color: `${palette.ink}99` }}>
-        {t(locale, "blog.backToSite")}
-      </a>
+    <div className="mx-auto flex max-w-7xl flex-col gap-10">
+      <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-1.5 text-sm" style={{ color: `${palette.ink}80` }}>
+        <a href={`/t/${clientSiteId}`} className="hover:opacity-70">
+          {t(locale, "breadcrumb.home")}
+        </a>
+        <span aria-hidden="true">/</span>
+        <a href={`/t/${clientSiteId}/boutique`} className="hover:opacity-70">
+          {t(locale, "nav.catalogue")}
+        </a>
+        {collectionName && (
+          <>
+            <span aria-hidden="true">/</span>
+            <span>{collectionName}</span>
+          </>
+        )}
+        <span aria-hidden="true">/</span>
+        <span className="font-medium" style={{ color: palette.ink }}>
+          {product.name}
+        </span>
+      </nav>
 
       <div className="grid grid-cols-1 gap-10 lg:grid-cols-2 lg:items-start">
         <Gallery images={product.images} productName={product.name} apiBaseUrl={apiBaseUrl} palette={palette} locale={locale} />
@@ -322,12 +638,32 @@ function ProductPageContent({
               {t(locale, "catalogue.outOfStock")}
             </span>
           )}
+          {inStock && lowStock && (
+            // Couleur fixe (ambre), pas palette.accent : un signal de rareté doit rester
+            // reconnaissable quel que soit l'accent choisi par le tenant — demandé par Ethan, le
+            // badge passait inaperçu en héritant de la couleur de marque (même traitement que
+            // !inStock ci-dessus, qui utilise déjà text-red-500 plutôt que palette.accent).
+            <span className="flex w-fit items-center gap-1.5 rounded-pill bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700">
+              <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+              {t(locale, "catalogue.lowStock", { count: String(maxStock) })}
+            </span>
+          )}
 
           {hasSizes && (
             <div className="flex flex-col gap-2">
-              <span className="text-xs font-semibold uppercase tracking-[0.08em]" style={{ color: `${palette.ink}99` }}>
-                {t(locale, "catalogue.size")}
-              </span>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold uppercase tracking-[0.08em]" style={{ color: `${palette.ink}99` }}>
+                  {t(locale, "catalogue.size")}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowSizeGuide(true)}
+                  className="text-xs font-medium underline underline-offset-2 hover:opacity-70"
+                  style={{ color: palette.ink }}
+                >
+                  {t(locale, "catalogue.sizeGuide")}
+                </button>
+              </div>
               <div className="flex flex-wrap gap-2">
                 {product.sizes.map((size) => {
                   const disabled = size.stock <= 0;
@@ -340,6 +676,7 @@ function ProductPageContent({
                       onClick={() => {
                         setSelectedSize(size);
                         setAdded(false);
+                        setQuantity(1);
                       }}
                       className={`rounded-button border px-4 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-30 ${
                         selected ? "text-white" : ""
@@ -358,31 +695,98 @@ function ProductPageContent({
             </div>
           )}
 
+          {inStock && (
+            <div className="flex flex-col gap-2">
+              <span className="text-xs font-semibold uppercase tracking-[0.08em]" style={{ color: `${palette.ink}99` }}>
+                {t(locale, "catalogue.quantity")}
+              </span>
+              <div className="flex w-fit items-center rounded-button border" style={{ borderColor: `${palette.ink}33` }}>
+                <button
+                  type="button"
+                  onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                  disabled={quantity <= 1}
+                  aria-label="-"
+                  className="flex h-10 w-10 items-center justify-center text-lg disabled:cursor-not-allowed disabled:opacity-30"
+                  style={{ color: palette.ink }}
+                >
+                  −
+                </button>
+                <span className="w-8 text-center text-sm font-medium" style={{ color: palette.ink }}>
+                  {quantity}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setQuantity((q) => Math.min(maxStock, q + 1))}
+                  disabled={quantity >= maxStock}
+                  aria-label="+"
+                  className="flex h-10 w-10 items-center justify-center text-lg disabled:cursor-not-allowed disabled:opacity-30"
+                  style={{ color: palette.ink }}
+                >
+                  +
+                </button>
+              </div>
+            </div>
+          )}
+
           <button
+            ref={addToCartRef}
             type="button"
             disabled={!canAddToCart}
-            onClick={() => {
-              addItem(
-                product.id,
-                product.name,
-                product.price,
-                maxStock,
-                1,
-                product.images[0]?.path,
-                product.description,
-                selectedSize?.label
-              );
-              setAdded(true);
-            }}
+            onClick={handleAddToCart}
             className="w-fit rounded-button px-6 py-3 text-sm font-semibold text-white transition-all duration-150 hover:opacity-90 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:active:scale-100"
             style={{ backgroundColor: palette.accent }}
           >
             {added ? t(locale, "catalogue.cart") : t(locale, "catalogue.addToCart")}
           </button>
 
+          <PurchaseInfo palette={palette} locale={locale} />
+
           <Reviews clientSiteId={clientSiteId} productId={productId} apiBaseUrl={apiBaseUrl} palette={palette} locale={locale} />
         </div>
       </div>
+
+      {showSizeGuide && <SizeGuideModal palette={palette} locale={locale} onClose={() => setShowSizeGuide(false)} />}
+
+      <RelatedProducts
+        clientSiteId={clientSiteId}
+        apiBaseUrl={apiBaseUrl}
+        currentProductId={product.id}
+        currentCollectionId={product.collectionId}
+        collectionsById={collectionsById}
+        palette={palette}
+        locale={locale}
+      />
+
+      {/* Barre sticky mobile (sm:hidden) : visible dès que le bouton "Ajouter au panier" principal
+          sort du viewport (voir l'IntersectionObserver plus haut) — la fiche est longue (avis,
+          produits liés), pas besoin de remonter tout en haut pour acheter. */}
+      {showStickyBar &&
+        inStock &&
+        createPortal(
+          <div
+            className="fixed inset-x-0 bottom-0 z-40 flex items-center justify-between gap-4 border-t bg-white px-4 py-3 shadow-soft sm:hidden"
+            style={{ borderColor: `${palette.ink}1A` }}
+          >
+            <div className="flex min-w-0 flex-col">
+              <span className="truncate text-sm font-medium" style={{ color: palette.ink }}>
+                {product.name}
+              </span>
+              <span className="text-sm font-semibold" style={{ color: palette.accent }}>
+                {formatPrice(product.price)}
+              </span>
+            </div>
+            <button
+              type="button"
+              disabled={!canAddToCart}
+              onClick={handleAddToCart}
+              className="shrink-0 rounded-button px-5 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+              style={{ backgroundColor: palette.accent }}
+            >
+              {added ? t(locale, "catalogue.cart") : t(locale, "catalogue.addToCart")}
+            </button>
+          </div>,
+          document.body
+        )}
     </div>
   );
 }
@@ -417,7 +821,7 @@ export default function ProductPage({ clientSiteId, productId, apiBaseUrl }: Pro
       palette={palette}
       footer={<SiteFooter content={content} palette={palette} modules={modules} locale={locale} dark />}
     >
-      <div className="mx-auto flex max-w-6xl flex-col gap-10 px-4 py-10 sm:px-8">
+      <div className="mx-auto flex max-w-7xl flex-col gap-10 px-4 py-10 sm:px-8">
         <CartProvider clientSiteId={clientSiteId}>
           <ProductPageContent
             clientSiteId={clientSiteId}

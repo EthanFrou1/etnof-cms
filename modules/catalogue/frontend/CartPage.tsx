@@ -197,18 +197,27 @@ function CartPageContent({
 
   if (items.length === 0) {
     return (
-      <div className="mx-auto flex max-w-2xl flex-col gap-8">
+      <div className="mx-auto flex max-w-7xl flex-col gap-8">
         <a href={`/t/${clientSiteId}`} className="self-start text-sm font-medium text-gray-text hover:text-navy">
           {t(locale, "blog.backToSite")}
         </a>
         <h1 className="text-3xl font-black text-navy">{t(locale, "catalogue.cartTitle")}</h1>
-        <p className="rounded-card bg-white p-8 text-gray-text shadow-card">{t(locale, "catalogue.cartEmpty")}</p>
+        <div className="flex flex-col items-start gap-4 rounded-card bg-white p-8 shadow-card">
+          <p className="text-gray-text">{t(locale, "catalogue.cartEmpty")}</p>
+          <a
+            href={`/t/${clientSiteId}/boutique`}
+            className="rounded-button px-5 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+            style={{ backgroundColor: accent }}
+          >
+            {t(locale, "catalogue.viewShop")}
+          </a>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-8">
+    <div className="mx-auto flex max-w-7xl flex-col gap-8">
       <a href={`/t/${clientSiteId}`} className="self-start text-sm font-medium text-gray-text hover:text-navy">
         {t(locale, "blog.backToSite")}
       </a>
@@ -219,15 +228,26 @@ function CartPageContent({
         <div className="flex flex-col gap-6 rounded-card bg-white p-8 shadow-card">
           <div className="flex flex-col gap-3">
             {items.map((item) => (
-              <div key={`${item.productId}-${item.size ?? ""}`} className="flex items-center justify-between gap-2 rounded-button border border-border-subtle p-3">
-                <div className="flex flex-col">
-                  <span className="text-sm font-semibold text-navy">
-                    {item.name}
-                    {item.size && <span className="font-normal text-gray-text"> — {item.size}</span>}
-                  </span>
-                  <span className="text-xs text-gray-text">
-                    {formatPrice(item.price)} {t(locale, "catalogue.perUnit")}
-                  </span>
+              <div key={`${item.productId}-${item.size ?? ""}`} className="flex items-center justify-between gap-3 rounded-button border border-border-subtle p-3">
+                <div className="flex items-center gap-3">
+                  <div className="h-14 w-14 shrink-0 overflow-hidden rounded-button bg-black/5">
+                    {item.imagePath ? (
+                      <img src={`${apiBaseUrl}${item.imagePath}`} alt={item.name} className="h-full w-full object-cover" />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-[9px] text-gray-text/50">
+                        {t(locale, "catalogue.noPhoto")}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-sm font-semibold text-navy">
+                      {item.name}
+                      {item.size && <span className="font-normal text-gray-text"> — {item.size}</span>}
+                    </span>
+                    <span className="text-xs text-gray-text">
+                      {formatPrice(item.price)} {t(locale, "catalogue.perUnit")}
+                    </span>
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
@@ -356,6 +376,7 @@ function CartPageContent({
               >
                 {status === "sending" ? t(locale, "catalogue.redirecting") : t(locale, "catalogue.payByCard")}
               </button>
+              <p className="text-center text-xs text-gray-text">{t(locale, "catalogue.checkoutTrustNote")}</p>
             </div>
           ) : (
             <p className="text-sm text-gray-text">{t(locale, "catalogue.paymentUnavailable")}</p>

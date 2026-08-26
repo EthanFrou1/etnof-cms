@@ -35,18 +35,28 @@ function CollectionRow({
   collection,
   products,
   expanded,
+  dragging,
   onToggleExpand,
   onRename,
   onDelete,
   onToggleProduct,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  onDragEnd,
 }: {
   collection: Collection;
   products: Product[];
   expanded: boolean;
+  dragging: boolean;
   onToggleExpand: () => void;
   onRename: (id: string, name: string) => void;
   onDelete: (collection: Collection) => void;
   onToggleProduct: (product: Product, collectionId: string | null) => void;
+  onDragStart: () => void;
+  onDragOver: (e: React.DragEvent) => void;
+  onDrop: (e: React.DragEvent) => void;
+  onDragEnd: () => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(collection.name);
@@ -60,8 +70,21 @@ function CollectionRow({
   };
 
   return (
-    <div className="flex flex-col gap-3 rounded-button bg-bg-page-start/60 p-4">
+    <div
+      draggable
+      onDragStart={onDragStart}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
+      onDragEnd={onDragEnd}
+      className={`flex flex-col gap-3 rounded-button bg-bg-page-start/60 p-4 ${dragging ? "opacity-40" : ""}`}
+    >
       <div className="flex items-center justify-between gap-3">
+        <span
+          className="cursor-grab select-none text-gray-text/60 active:cursor-grabbing"
+          title="Glisser pour réordonner"
+        >
+          ⠿
+        </span>
         {editing ? (
           <input
             className={inputClass}
@@ -127,6 +150,7 @@ export default function CollectionsSection({ clientSiteId, password }: Collectio
   const [creating, setCreating] = useState(false);
   const [toDelete, setToDelete] = useState<Collection | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [draggedId, setDraggedId] = useState<string | null>(null);
 
   const load = () =>
     adminFetch(API_BASE_URL, `/api/t/${clientSiteId}/admin/catalogue/collections`, password)
@@ -177,6 +201,22 @@ export default function CollectionsSection({ clientSiteId, password }: Collectio
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name }),
+    });
+  };
+
+  // Glisser-déposer natif (même patron que les photos produit, voir ProductDetailPage.tsx) :
+  // `collectionIds` est l'ordre complet voulu, le backend réécrit SortOrder d'après la position
+  // (voir CatalogueAdminEndpoints.cs, endpoint /collections/reorder).
+  const handleReorder = async (collectionIds: string[]) => {
+    setCollections((current) => {
+      if (!current) return current;
+      const byId = new Map(current.map((c) => [c.id, c]));
+      return collectionIds.map((id) => byId.get(id)!).filter(Boolean);
+    });
+    await adminFetch(API_BASE_URL, `/api/t/${clientSiteId}/admin/catalogue/collections/reorder`, password, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ collectionIds }),
     });
   };
 
@@ -233,10 +273,24 @@ export default function CollectionsSection({ clientSiteId, password }: Collectio
               collection={collection}
               products={products ?? []}
               expanded={expandedId === collection.id}
+              dragging={draggedId === collection.id}
               onToggleExpand={() => setExpandedId((current) => (current === collection.id ? null : collection.id))}
               onRename={handleRename}
               onDelete={setToDelete}
               onToggleProduct={handleToggleProduct}
+              onDragStart={() => setDraggedId(collection.id)}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault();
+                if (!draggedId || draggedId === collection.id) return;
+                const ids = collections.map((c) => c.id);
+                const from = ids.indexOf(draggedId);
+                const to = ids.indexOf(collection.id);
+                ids.splice(to, 0, ids.splice(from, 1)[0]);
+                setDraggedId(null);
+                handleReorder(ids);
+              }}
+              onDragEnd={() => setDraggedId(null)}
             />
           ))}
         </section>
