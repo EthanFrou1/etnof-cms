@@ -524,6 +524,10 @@ namespace Backend.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("StoryContent")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.HasKey("Id");
 
                     b.ToTable("SiteContents");
@@ -633,6 +637,27 @@ namespace Backend.Migrations
                     b.ToTable("BlogPosts");
                 });
 
+            modelBuilder.Entity("Modules.Catalogue.Collection", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ClientSiteId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Collections");
+                });
+
             modelBuilder.Entity("Modules.Catalogue.Customer", b =>
                 {
                     b.Property<Guid>("Id")
@@ -727,6 +752,9 @@ namespace Backend.Migrations
                     b.Property<int>("Quantity")
                         .HasColumnType("integer");
 
+                    b.Property<string>("SizeLabel")
+                        .HasColumnType("text");
+
                     b.Property<decimal>("UnitPrice")
                         .HasColumnType("numeric");
 
@@ -746,12 +774,18 @@ namespace Backend.Migrations
                     b.Property<Guid>("ClientSiteId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("CollectionId")
+                        .HasColumnType("uuid");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<bool>("Highlighted")
+                        .HasColumnType("boolean");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -823,6 +857,32 @@ namespace Backend.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("ProductReviews");
+                });
+
+            modelBuilder.Entity("Modules.Catalogue.ProductSize", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Label")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Stock")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProductId");
+
+                    b.ToTable("ProductSizes");
                 });
 
             modelBuilder.Entity("Modules.Contact.ContactMessage", b =>
@@ -1077,6 +1137,17 @@ namespace Backend.Migrations
                     b.Navigation("Product");
                 });
 
+            modelBuilder.Entity("Modules.Catalogue.ProductSize", b =>
+                {
+                    b.HasOne("Modules.Catalogue.Product", "Product")
+                        .WithMany("Sizes")
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Product");
+                });
+
             modelBuilder.Entity("Backend.SiteContent", b =>
                 {
                     b.Navigation("Offers");
@@ -1090,6 +1161,8 @@ namespace Backend.Migrations
             modelBuilder.Entity("Modules.Catalogue.Product", b =>
                 {
                     b.Navigation("Images");
+
+                    b.Navigation("Sizes");
                 });
 #pragma warning restore 612, 618
         }

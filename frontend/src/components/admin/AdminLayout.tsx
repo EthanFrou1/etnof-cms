@@ -11,6 +11,7 @@ import {
   IconDocument,
   IconEstablishment,
   IconClose,
+  IconCollections,
   IconExternalLink,
   IconGlobe,
   IconImage,
@@ -34,6 +35,7 @@ export type AdminSection =
   | "modules"
   | "messages"
   | "products"
+  | "collections"
   | "orders"
   | "customers"
   | "rdv"
@@ -48,7 +50,7 @@ export type AdminSection =
 // Produits/Commandes/Clients n'existent que via le module Catalogue (un client n'apparaît que
 // s'il a passé commande) — pas de module "customers" séparé, voir docs/04-catalogue-modules.md.
 // Exporté : AdminPage.tsx et CustomerDetailPage.tsx s'en servent pour bloquer l'accès direct par URL.
-export const CATALOGUE_SECTIONS: AdminSection[] = ["products", "orders", "customers"];
+export const CATALOGUE_SECTIONS: AdminSection[] = ["products", "collections", "orders", "customers"];
 
 // Même principe que CATALOGUE_SECTIONS, un seul écran ici (voir docs/12-plan-modules-restants.md).
 export const RDV_SECTIONS: AdminSection[] = ["rdv"];
@@ -88,6 +90,7 @@ const NAV_ITEMS: NavEntry[] = [
       leaf("modules", "Modules", IconModules),
       leaf("blog", "Blog", IconDocument),
       leaf("products", "Produits", IconProducts),
+      leaf("collections", "Collections", IconCollections),
       leaf("orders", "Commandes", IconOrders),
       leaf("customers", "Clients", IconCustomers),
       leaf("rdv", "Rendez-vous", IconClock),

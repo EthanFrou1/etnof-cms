@@ -30,6 +30,15 @@ export default function MapsSection({ address, apiKey, palette, locale }: MapsSe
       <div className="overflow-hidden rounded-card shadow-card">
         <iframe title="Carte" src={src} className="h-72 w-full border-0" loading="lazy" />
       </div>
+      <a
+        href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="self-start rounded-button px-5 py-2.5 font-semibold text-white transition-opacity hover:opacity-90"
+        style={{ backgroundColor: palette.accent }}
+      >
+        {t(locale, "maps.directions")}
+      </a>
     </section>
   );
 }

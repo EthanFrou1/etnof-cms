@@ -7,6 +7,7 @@ import { useLocale } from "../hooks/useLocale";
 import { useDocumentMeta } from "../hooks/useDocumentMeta";
 import TemplateHestia from "../templates/TemplateHestia";
 import TemplateHelios from "../templates/TemplateHelios";
+import TemplateCharis from "../templates/TemplateCharis";
 
 const CookieConsentBanner = lazy(() => import("@modules/analytics/frontend/CookieConsentBanner"));
 
@@ -33,7 +34,13 @@ export default function PublicSite({ clientSiteId }: PublicSiteProps) {
 
   return (
     <>
-      {templateId === "helios" ? <TemplateHelios {...props} /> : <TemplateHestia {...props} />}
+      {templateId === "helios" ? (
+        <TemplateHelios {...props} />
+      ) : templateId === "charis" ? (
+        <TemplateCharis {...props} />
+      ) : (
+        <TemplateHestia {...props} />
+      )}
       {modules?.analytics?.enabled && typeof measurementId === "string" && (
         <Suspense fallback={null}>
           <CookieConsentBanner clientSiteId={clientSiteId} measurementId={measurementId} locale={locale} />

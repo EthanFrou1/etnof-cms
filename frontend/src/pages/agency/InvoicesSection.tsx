@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { API_BASE_URL } from "../../config";
 import { StatusLegend } from "../../components/admin/StatusLegend";
+import Select from "../../components/admin/Select";
 import { adminFetch } from "../../hooks/useAdminSession";
 import {
   inputClass,
@@ -146,36 +147,25 @@ function InvoiceFormModal({
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
           <label className="flex flex-col gap-1 text-sm font-medium text-gray-text">
             Client
-            <select
+            <Select
               className={inputClass}
               value={form.billingClientId}
-              onChange={(e) => setForm({ ...form, billingClientId: e.target.value })}
-              required
-            >
-              <option value="" disabled>
-                — Choisir un client —
-              </option>
-              {clients.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
+              onChange={(billingClientId) => setForm({ ...form, billingClientId })}
+              options={[
+                { value: "", label: "— Choisir un client —" },
+                ...clients.map((c) => ({ value: c.id, label: c.name })),
+              ]}
+            />
           </label>
 
           <label className="flex flex-col gap-1 text-sm font-medium text-gray-text">
             Type de facture
-            <select
+            <Select
               className={inputClass}
               value={form.invoiceType}
-              onChange={(e) => setForm({ ...form, invoiceType: e.target.value })}
-            >
-              {INVOICE_TYPE_OPTIONS.map((o) => (
-                <option key={o.id} value={o.id}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
+              onChange={(invoiceType) => setForm({ ...form, invoiceType })}
+              options={INVOICE_TYPE_OPTIONS.map((o) => ({ value: o.id, label: o.label }))}
+            />
           </label>
 
           <div className="flex flex-col gap-2">
@@ -360,13 +350,14 @@ export default function InvoicesSection({ password }: { password: string }) {
       ) : (
         <>
           <div className="flex flex-wrap items-center gap-3">
-            <select className={inputClass} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}>
-              {INVOICE_STATUS_FILTERS.map((f) => (
-                <option key={f.value} value={f.value}>
-                  {f.label}
-                </option>
-              ))}
-            </select>
+            <div className="w-44 shrink-0">
+              <Select
+                className={inputClass}
+                value={statusFilter}
+                onChange={(v) => setStatusFilter(v as typeof statusFilter)}
+                options={INVOICE_STATUS_FILTERS.map((f) => ({ value: f.value, label: f.label }))}
+              />
+            </div>
             <StatusLegend items={INVOICE_STATUS_LEGEND} />
             <span className="text-sm text-gray-text">
               {rows.length} facture{rows.length > 1 ? "s" : ""}

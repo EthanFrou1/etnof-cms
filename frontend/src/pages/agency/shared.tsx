@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { API_BASE_URL } from "../../config";
 import { adminFetch } from "../../hooks/useAdminSession";
+import Select from "../../components/admin/Select";
 
 // Styles et types partagés entre les sections agence (facturation) — un seul endroit pour
 // éviter de dupliquer TariffPicker/QuoteLine entre Devis et Factures.
@@ -71,8 +72,8 @@ export function TariffPicker({ password, onPick }: { password: string; onPick: (
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const [kind, id] = e.target.value.split(":");
+  const handlePick = (raw: string) => {
+    const [kind, id] = raw.split(":");
     if (kind === "offer") {
       const offer = offers.find((o) => o.id === id);
       if (offer) onPick({ label: offer.name, quantity: 1, unitPrice: parsePriceToNumber(offer.price) });
@@ -80,35 +81,23 @@ export function TariffPicker({ password, onPick }: { password: string; onPick: (
       const mod = modules.find((m) => m.name === id);
       if (mod) onPick({ label: mod.displayName, quantity: 1, unitPrice: parsePriceToNumber(mod.price) });
     }
-    e.target.value = "";
   };
 
   if (offers.length === 0 && modules.length === 0) return null;
 
   return (
-    <select className={`${inputClass} text-sm`} defaultValue="" onChange={handleChange}>
-      <option value="" disabled>
-        + Ajouter depuis mes tarifs
-      </option>
-      {offers.length > 0 && (
-        <optgroup label="Formules">
-          {offers.map((o) => (
-            <option key={o.id} value={`offer:${o.id}`}>
-              {o.name} — {o.price}
-            </option>
-          ))}
-        </optgroup>
-      )}
-      {modules.length > 0 && (
-        <optgroup label="Modules">
-          {modules.map((m) => (
-            <option key={m.name} value={`module:${m.name}`}>
-              {m.displayName} — {m.price}
-            </option>
-          ))}
-        </optgroup>
-      )}
-    </select>
+    <div className="w-56 shrink-0">
+      <Select
+        className={`${inputClass} text-sm`}
+        value=""
+        onChange={handlePick}
+        options={[
+          { value: "", label: "+ Ajouter depuis mes tarifs" },
+          ...offers.map((o) => ({ value: `offer:${o.id}`, label: `${o.name} — ${o.price}`, group: "Formules" })),
+          ...modules.map((m) => ({ value: `module:${m.name}`, label: `${m.displayName} — ${m.price}`, group: "Modules" })),
+        ]}
+      />
+    </div>
   );
 }
 

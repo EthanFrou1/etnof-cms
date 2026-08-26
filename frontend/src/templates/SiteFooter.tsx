@@ -1,4 +1,5 @@
 import { lazy, Suspense } from "react";
+import { t, type Locale } from "@modules/multilingue/frontend/translations";
 import type { SiteContent } from "../hooks/useContent";
 import type { ModulesConfig } from "../hooks/useModules";
 
@@ -15,13 +16,16 @@ type SiteFooterProps = {
   // Facultatif : seul le module Réseaux sociaux en a besoin ici (icônes Facebook/Instagram dans le
   // pied de page) — undefined tant qu'un gabarit ne le passe pas, jamais bloquant pour le reste.
   modules?: ModulesConfig | null;
+  // Facultatif comme `modules` (même raison) — sert uniquement au libellé "Suivez-nous" au-dessus
+  // des icônes, retombe sur le français si un gabarit ne le passe pas encore.
+  locale?: Locale;
 };
 
 // Les horaires ne sont plus affichés ici : ils ont leur propre section dédiée sur la page (gardée
 // par le module "horaires", voir TemplateHestia.tsx) — le footer ne garde que les faits qui n'ont
 // pas de section propre (nom, adresse, téléphone, email). Plus de lien vers l'admin (retiré à la
 // demande d'Ethan) : le site public ne renvoie plus vers `/admin`.
-export default function SiteFooter({ content, palette, dark = false, modules }: SiteFooterProps) {
+export default function SiteFooter({ content, palette, dark = false, modules, locale }: SiteFooterProps) {
   const name = content?.establishmentName || content?.siteName;
   const hasContactInfo = Boolean(content?.address || content?.phone || content?.email);
   const socialConfig = modules?.["reseaux-sociaux"];
@@ -43,7 +47,10 @@ export default function SiteFooter({ content, palette, dark = false, modules }: 
           {content?.email && <span style={{ color: `${palette.background}B3` }}>{content.email}</span>}
           {showSocialLinks && (
             <Suspense fallback={null}>
-              <div className="mt-3">
+              <div className="mt-3 flex flex-col items-center gap-2">
+                <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: `${palette.background}80` }}>
+                  {t(locale, "footer.followUs")}
+                </span>
                 <SocialLinks
                   facebookUrl={typeof socialConfig?.facebookUrl === "string" ? socialConfig.facebookUrl : ""}
                   instagramUrl={typeof socialConfig?.instagramUrl === "string" ? socialConfig.instagramUrl : ""}
@@ -71,7 +78,10 @@ export default function SiteFooter({ content, palette, dark = false, modules }: 
       {content?.email && <span>{content.email}</span>}
       {showSocialLinks && (
         <Suspense fallback={null}>
-          <div className="mt-2">
+          <div className="mt-2 flex flex-col items-start gap-1.5">
+            <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: `${palette.ink}80` }}>
+              {t(locale, "footer.followUs")}
+            </span>
             <SocialLinks
               facebookUrl={typeof socialConfig?.facebookUrl === "string" ? socialConfig.facebookUrl : ""}
               instagramUrl={typeof socialConfig?.instagramUrl === "string" ? socialConfig.instagramUrl : ""}

@@ -42,14 +42,36 @@ public static class StripeModule
 
             foreach (var line in input.Items)
             {
-                var product = await db.Products.FirstOrDefaultAsync(p => p.ClientSiteId == clientSiteId && p.Id == line.ProductId);
+                var product = await db.Products
+                    .Include(p => p.Sizes)
+                    .FirstOrDefaultAsync(p => p.ClientSiteId == clientSiteId && p.Id == line.ProductId);
 
                 if (product is null)
                 {
                     return Results.BadRequest(new { error = "Produit introuvable." });
                 }
 
-                if (line.Quantity <= 0 || product.Stock < line.Quantity)
+                if (line.Quantity <= 0)
+                {
+                    return Results.BadRequest(new { error = $"Quantité invalide pour \"{product.Name}\"." });
+                }
+
+                // Dès qu'un produit a des tailles, le stock global (product.Stock) n'est plus la
+                // source de vérité pour la vente — voir ProductSize.cs. Une taille doit être précisée
+                // et son propre stock vérifié.
+                if (product.Sizes.Count > 0)
+                {
+                    var size = product.Sizes.FirstOrDefault(s => s.Label == line.Size);
+                    if (size is null)
+                    {
+                        return Results.BadRequest(new { error = $"Taille invalide pour \"{product.Name}\"." });
+                    }
+                    if (size.Stock < line.Quantity)
+                    {
+                        return Results.BadRequest(new { error = $"Stock insuffisant pour \"{product.Name}\" ({size.Label}, disponible : {size.Stock})." });
+                    }
+                }
+                else if (product.Stock < line.Quantity)
                 {
                     return Results.BadRequest(new { error = $"Stock insuffisant pour \"{product.Name}\" (disponible : {product.Stock})." });
                 }
@@ -61,7 +83,10 @@ public static class StripeModule
                     {
                         Currency = "eur",
                         UnitAmount = (long)Math.Round(product.Price * 100),
-                        ProductData = new SessionLineItemPriceDataProductDataOptions { Name = product.Name },
+                        ProductData = new SessionLineItemPriceDataProductDataOptions
+                        {
+                            Name = string.IsNullOrWhiteSpace(line.Size) ? product.Name : $"{product.Name} ({line.Size})",
+                        },
                     },
                 });
             }
@@ -196,7 +221,9 @@ public static class StripeModule
 
             foreach (var line in items)
             {
-                var product = await db.Products.FirstOrDefaultAsync(p => p.ClientSiteId == clientSiteId && p.Id == line.ProductId);
+                var product = await db.Products
+                    .Include(p => p.Sizes)
+                    .FirstOrDefaultAsync(p => p.ClientSiteId == clientSiteId && p.Id == line.ProductId);
                 if (product is null) continue;
 
                 // Le paiement est déjà encaissé à ce stade : on ne bloque jamais la création de la
@@ -204,7 +231,15 @@ public static class StripeModule
                 // exemplaire pendant que l'un finalise son paiement Stripe). Le stock est simplement
                 // ramené à 0 plutôt que rendu négatif ; un cas de survente doit être traité
                 // manuellement par le client (voir docs/12-plan-modules-restants.md).
-                product.Stock = Math.Max(0, product.Stock - line.Quantity);
+                var size = string.IsNullOrWhiteSpace(line.Size) ? null : product.Sizes.FirstOrDefault(s => s.Label == line.Size);
+                if (size is not null)
+                {
+                    size.Stock = Math.Max(0, size.Stock - line.Quantity);
+                }
+                else
+                {
+                    product.Stock = Math.Max(0, product.Stock - line.Quantity);
+                }
 
                 var itemTotal = product.Price * line.Quantity;
                 total += itemTotal;
@@ -217,6 +252,7 @@ public static class StripeModule
                     ProductName = product.Name,
                     UnitPrice = product.Price,
                     Quantity = line.Quantity,
+                    SizeLabel = size?.Label,
                 });
             }
 
@@ -272,4 +308,4 @@ public static class StripeModule
 }
 
 public record CheckoutInput(string CustomerName, string CustomerEmail, string? CustomerPhone, string? CustomerAddress, List<CheckoutItemInput> Items, string ReturnBaseUrl);
-public record CheckoutItemInput(Guid ProductId, int Quantity);
+public record CheckoutItemInput(Guid ProductId, int Quantity, string? Size);

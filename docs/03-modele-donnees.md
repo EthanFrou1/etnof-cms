@@ -43,6 +43,30 @@ Représente la config globale du site (une seule ligne en POC, car un déploieme
 | Stock | int | |
 | CreatedAt | datetime | |
 
+### Collection (module Catalogue, ajouté le 2026-08-25)
+| Champ | Type | Note |
+|---|---|---|
+| Id | Guid | |
+| ClientSiteId | Guid | |
+| Name | string | |
+| SortOrder | int | Ordre d'affichage des chips de filtre (page boutique de Charis) — assigné à la création comme `ProductImage.SortOrder` (max+1), pas de réordonnancement manuel en V1 |
+
+Regroupement simple des produits (0 ou 1 collection par produit, pas de tags multiples) — voir `docs/04-catalogue-modules.md`.
+
+### Product.CollectionId / Product.Highlighted (ajoutés le 2026-08-25)
+`Product` gagne `CollectionId` (`Guid?`, pas de navigation EF — même choix que `Offer.ProductId`/`OrderItem.ProductId` ci-dessous, pas de contrainte FK en base ; supprimer une collection met explicitement ce champ à `null` sur ses produits plutôt que de dépendre d'une cascade) et `Highlighted` (`bool`, défaut `false` — "mis en avant" sur la home, même nom que `PackageOffer.Highlighted`).
+
+### ProductSize (module Catalogue, ajouté le 2026-08-26)
+| Champ | Type | Note |
+|---|---|---|
+| Id | Guid | |
+| ProductId | Guid | FK vers Product, cascade delete (même pattern que `ProductImage`) |
+| Label | string | Libre (`S`/`M`/`L`, `38`/`40`...), pas une liste fermée |
+| Stock | int | Stock propre à cette taille |
+| SortOrder | int | Ordre d'affichage, assigné à la création (max+1) — pas de réordonnancement manuel en V1 |
+
+Facultatif et **optionnel par produit** (décision d'Ethan, `AskUserQuestion` : stock suivi par taille plutôt qu'informatif, et facultatif plutôt qu'obligatoire pour ne pas forcer une taille sur un produit qui n'en a pas besoin, ex. une bougie). Tant qu'un produit n'a aucune `ProductSize`, `Product.Stock` reste la seule source de vérité (comportement inchangé). Dès qu'au moins une taille existe, `Product.Stock` n'est **plus utilisé pour la vente** — chaque taille a son propre stock, vérifié/décrémenté par `StripeModule.cs` (voir `docs/04-catalogue-modules.md`) ; le champ reste visible mais désactivé dans l'admin (`ProductDetailPage.tsx`) pour ne pas laisser croire qu'il sert encore à quelque chose.
+
 ### ProductImage (module Catalogue)
 | Champ | Type | Note |
 |---|---|---|
@@ -86,6 +110,7 @@ Pas de navigation EF `Order.Customer` (évite le cycle de sérialisation JSON d�
 | ProductName | string | Copie du nom au moment de la commande |
 | UnitPrice | decimal | Copie du prix au moment de la commande |
 | Quantity | int | |
+| SizeLabel | string? | Ajouté le 2026-08-26 avec `ProductSize` — `null` pour un produit sans taille, sinon copie du `Label` choisi au moment de la commande (même logique snapshot que `ProductName`/`UnitPrice`, reste correct même si la taille est supprimée du produit ensuite) |
 
 ### ProductReview (module Catalogue, ajouté le 2026-08-06)
 | Champ | Type | Note |
@@ -137,6 +162,7 @@ Photos affichées dans le panneau résumé de la page "Établissement" (`Establi
 | ClientSiteId | Guid | |
 | SiteName | string | Page "Site internet", onglet "Contenu" |
 | Description | text | idem — HTML riche (TipTap, mode compact : gras/italique/lien seulement) depuis le 2026-08-07, affiché avec `dangerouslySetInnerHTML` sur le site public, nettoyé en texte brut pour la balise `<meta name="description">` |
+| StoryContent | text | Ajouté le 2026-08-26, onglet "Contenu" (même page que Description) — texte plus long ("Notre histoire"), distinct de `Description` qui reste le court texte d'accroche du hero. Affiché dans une section dédiée sur les templates qui la prennent en charge (Charis pour l'instant, voir `docs/10-templates.md`) accompagnée si possible de la 1ʳᵉ photo d'établissement ; section absente tant que ce champ est vide. Traductible comme `Description`/`SiteName` (module Multilingue) |
 | EstablishmentName / EstablishmentType | string | Page "Établissement", onglet "Informations" — remplissables via recherche Google Places |
 | Address | string | idem — Maps (`ModulesConfigJson.maps`) la lit ici, ne la stocke plus lui-même |
 | Phone / Email | string | idem — affichés publiquement |

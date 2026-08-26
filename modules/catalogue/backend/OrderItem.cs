@@ -11,4 +11,8 @@ public class OrderItem
     public string ProductName { get; set; } = string.Empty;
     public decimal UnitPrice { get; set; }
     public int Quantity { get; set; }
+
+    // Null pour un produit sans tailles (voir ProductSize.cs) — copié comme ProductName/UnitPrice,
+    // reste correct même si la taille est ensuite supprimée du produit.
+    public string? SizeLabel { get; set; }
 }

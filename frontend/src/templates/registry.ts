@@ -38,6 +38,17 @@ export const TEMPLATES: { id: TemplateId; label: string; description: string; pa
       { id: "couchant", label: "Couchant", accent: "#7C3AED", gradientEnd: "#F97316", background: "#FBF7FF", previewImage: "/template-previews/helios-couchant.png" },
     ],
   },
+  {
+    id: "charis",
+    label: "Charis",
+    description: "Épuré et éditorial — grille produits qui change de photo au survol, fiche produit dédiée avec slider. Pensé pour la vente de vêtements en ligne.",
+    previewImage: "/template-previews/charis-noir.png",
+    palettes: [
+      { id: "noir", label: "Noir", accent: "#111111", background: "#F6F6F4", previewImage: "/template-previews/charis-noir.png" },
+      { id: "sable", label: "Sable", accent: "#8A7458", background: "#F7F3EC", previewImage: "/template-previews/charis-sable.png" },
+      { id: "bordeaux", label: "Bordeaux", accent: "#6E1423", background: "#FBF6F5", previewImage: "/template-previews/charis-bordeaux.png" },
+    ],
+  },
 ];
 
 // Résout la palette effective d'un tenant : soit un des presets ci-dessus (`paletteId` connu), soit

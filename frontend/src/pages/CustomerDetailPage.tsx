@@ -10,6 +10,7 @@ type OrderItem = {
   productName: string;
   unitPrice: number;
   quantity: number;
+  sizeLabel: string | null;
 };
 
 type Order = {
@@ -178,6 +179,7 @@ function CustomerDetailContent({
                     <div key={item.id} className="flex justify-between text-sm text-gray-text">
                       <span>
                         {item.quantity} × {item.productName}
+                        {item.sizeLabel && ` (${item.sizeLabel})`}
                       </span>
                       <span>{formatPrice(item.unitPrice * item.quantity)}</span>
                     </div>

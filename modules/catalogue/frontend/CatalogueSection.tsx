@@ -11,6 +11,8 @@ type ProductImage = {
   path: string;
 };
 
+type ProductSize = { id: string; label: string; stock: number };
+
 type Product = {
   id: string;
   name: string;
@@ -18,8 +20,10 @@ type Product = {
   price: number;
   stock: number;
   images: ProductImage[];
+  sizes: ProductSize[];
   averageRating: number | null;
   reviewCount: number;
+  highlighted: boolean;
 };
 
 type ProductReview = {
@@ -39,6 +43,11 @@ type CatalogueSectionProps = {
   clientSiteId: string;
   palette: ModulePalette;
   locale?: Locale;
+  // Aperçu limité (utilisé sur la home d'Hestia/Helios, voir TemplateHestia.tsx/TemplateHelios.tsx)
+  // — au-delà, "Voir tous les produits" renvoie vers /t/{clientSiteId}/boutique (page dédiée, voir
+  // docs/10-templates.md). Sans cette prop (page boutique elle-même, CataloguePage.tsx) : tous les
+  // produits, pas de lien.
+  limit?: number;
 };
 
 const formatPrice = (value: number) =>
@@ -298,7 +307,11 @@ function ProductCard({
 }) {
   const { addItem } = useCart();
   const [showModal, setShowModal] = useState(false);
-  const inStock = product.stock > 0;
+  const [selectedSize, setSelectedSize] = useState<ProductSize | null>(null);
+  const hasSizes = product.sizes.length > 0;
+  const inStock = hasSizes ? product.sizes.some((s) => s.stock > 0) : product.stock > 0;
+  const canAddToCart = hasSizes ? Boolean(selectedSize && selectedSize.stock > 0) : inStock;
+  const maxStock = hasSizes ? selectedSize?.stock ?? 0 : product.stock;
   const thumbnail = product.images[0];
 
   return (
@@ -342,12 +355,36 @@ function ProductCard({
               {t(locale, "catalogue.outOfStock")}
             </span>
           )}
+          {hasSizes && (
+            <div className="flex flex-wrap gap-1.5">
+              {product.sizes.map((size) => {
+                const selected = selectedSize?.id === size.id;
+                return (
+                  <button
+                    key={size.id}
+                    type="button"
+                    disabled={size.stock <= 0}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedSize(size);
+                    }}
+                    className={`rounded-button border px-2.5 py-1 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-30 ${
+                      selected ? "border-transparent text-white" : "border-border-subtle text-gray-text hover:border-brand-mid"
+                    }`}
+                    style={selected ? { backgroundColor: palette.accent } : undefined}
+                  >
+                    {size.label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
           <button
             type="button"
-            disabled={!inStock}
+            disabled={!canAddToCart}
             onClick={(e) => {
               e.stopPropagation();
-              addItem(product.id, product.name, product.price, product.stock, 1, thumbnail?.path, product.description);
+              addItem(product.id, product.name, product.price, maxStock, 1, thumbnail?.path, product.description, selectedSize?.label);
             }}
             className="rounded-button px-3 py-1.5 text-sm font-semibold text-white transition-all duration-150 hover:opacity-90 active:scale-95 disabled:opacity-40 disabled:active:scale-100"
             style={{ backgroundColor: palette.accent }}
@@ -386,7 +423,7 @@ function CartButton({ clientSiteId, palette, locale }: { clientSiteId: string; p
   );
 }
 
-export default function CatalogueSection({ apiBaseUrl, clientSiteId, palette, locale }: CatalogueSectionProps) {
+export default function CatalogueSection({ apiBaseUrl, clientSiteId, palette, locale, limit }: CatalogueSectionProps) {
   const [products, setProducts] = useState<Product[]>([]);
 
   useEffect(() => {
@@ -402,6 +439,14 @@ export default function CatalogueSection({ apiBaseUrl, clientSiteId, palette, lo
 
   if (products.length === 0 && !hasCheckoutReturn) return null;
 
+  // Aperçu (`limit` fourni, voir CatalogueSectionProps) : les produits "mis en avant" passent en
+  // premier (tri stable, Array.prototype.sort le garantit) avant de tronquer — sinon ordre du
+  // backend inchangé (CreatedAt décroissant).
+  const visibleProducts = limit
+    ? [...products].sort((a, b) => Number(b.highlighted) - Number(a.highlighted)).slice(0, limit)
+    : products;
+  const hasMore = Boolean(limit) && products.length > limit!;
+
   return (
     <CartProvider clientSiteId={clientSiteId}>
       <CheckoutReturnBanner apiBaseUrl={apiBaseUrl} clientSiteId={clientSiteId} palette={palette} locale={locale} />
@@ -412,7 +457,7 @@ export default function CatalogueSection({ apiBaseUrl, clientSiteId, palette, lo
           {t(locale, "catalogue.label")}
         </span>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {products.map((product) => (
+          {visibleProducts.map((product) => (
             <ProductCard
               key={product.id}
               apiBaseUrl={apiBaseUrl}
@@ -423,6 +468,15 @@ export default function CatalogueSection({ apiBaseUrl, clientSiteId, palette, lo
             />
           ))}
         </div>
+        {hasMore && (
+          <a
+            href={`/t/${clientSiteId}/boutique`}
+            className="self-start text-sm font-semibold hover:opacity-80"
+            style={{ color: palette.accent }}
+          >
+            {t(locale, "catalogue.viewAllProducts")} →
+          </a>
+        )}
       </section>
       )}
       {products.length > 0 && <CartButton clientSiteId={clientSiteId} palette={palette} locale={locale} />}

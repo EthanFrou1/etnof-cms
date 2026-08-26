@@ -20,6 +20,7 @@ const ADMIN_SECTIONS: AdminSection[] = [
   "establishment",
   "modules",
   "products",
+  "collections",
   "orders",
   "customers",
   "rdv",
@@ -48,6 +49,8 @@ const AGENCY_SECTIONS: AgencySection[] = [
 const BlogPostPage = lazy(() => import("@modules/blog/frontend/BlogPostPage"));
 const CartPage = lazy(() => import("@modules/catalogue/frontend/CartPage"));
 const CustomPageView = lazy(() => import("@modules/pages/frontend/CustomPageView"));
+const CharisProductPage = lazy(() => import("./templates/charis/ProductPage"));
+const CataloguePage = lazy(() => import("./pages/CataloguePage"));
 
 function Redirect({ to }: { to: string }) {
   useEffect(() => {
@@ -132,6 +135,27 @@ function App() {
   // voir CgvPage.tsx.
   if (segments[0] === "t" && segments[1] && segments[2] === "cgv") {
     return <CgvPage clientSiteId={segments[1]} />;
+  }
+
+  // /t/{clientSiteId}/produits/{productId} — fiche produit dédiée (grande photo + slider), exclusive
+  // au template Charis, voir docs/10-templates.md
+  if (segments[0] === "t" && segments[1] && segments[2] === "produits" && segments[3]) {
+    return (
+      <Suspense fallback={null}>
+        <CharisProductPage clientSiteId={segments[1]} productId={segments[3]} apiBaseUrl={API_BASE_URL} />
+      </Suspense>
+    );
+  }
+
+  // /t/{clientSiteId}/boutique — page catalogue dédiée (tous les produits), riche avec filtre par
+  // collection sur Charis, simple sur Hestia/Helios — voir docs/10-templates.md et
+  // frontend/src/pages/CataloguePage.tsx (aiguilleur par template)
+  if (segments[0] === "t" && segments[1] && segments[2] === "boutique") {
+    return (
+      <Suspense fallback={null}>
+        <CataloguePage clientSiteId={segments[1]} />
+      </Suspense>
+    );
   }
 
   // /t/{clientSiteId}/panier — page panier du module Catalogue, identique pour tous les templates

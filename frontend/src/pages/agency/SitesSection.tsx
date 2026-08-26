@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { API_BASE_URL } from "../../config";
 import { adminFetch } from "../../hooks/useAdminSession";
-import { TEMPLATES } from "../../templates/registry";
+import { TEMPLATES, resolvePalette } from "../../templates/registry";
 import type { TemplateId } from "../../hooks/useTemplate";
 import { inputClass, type ModuleMeta } from "./shared";
 import { IconExternalLink } from "../../components/admin/icons";
 import ModuleThumbnail from "../../components/admin/ModuleThumbnail";
+import Select from "../../components/admin/Select";
 
 const STATUSES = ["En cours", "Livré", "En maintenance"];
 
@@ -26,6 +27,7 @@ type ClientSite = {
   status: string;
   modules: string[];
   templateId: TemplateId;
+  paletteId: string;
   createdAt: string;
 };
 
@@ -156,17 +158,12 @@ function SiteFormModal({
           </label>
           <label className="flex flex-col gap-1 text-sm font-medium text-gray-text">
             Statut
-            <select
+            <Select
               className={inputClass}
               value={form.status}
-              onChange={(e) => setForm({ ...form, status: e.target.value })}
-            >
-              {STATUSES.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
+              onChange={(status) => setForm({ ...form, status })}
+              options={STATUSES.map((s) => ({ value: s, label: s }))}
+            />
           </label>
 
           <label className="flex flex-col gap-1 text-sm font-medium text-gray-text">
@@ -183,17 +180,12 @@ function SiteFormModal({
 
           <label className="flex flex-col gap-1 text-sm font-medium text-gray-text">
             Template
-            <select
+            <Select
               className={inputClass}
               value={form.templateId}
-              onChange={(e) => setForm({ ...form, templateId: e.target.value as TemplateId })}
-            >
-              {TEMPLATES.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.label}
-                </option>
-              ))}
-            </select>
+              onChange={(templateId) => setForm({ ...form, templateId: templateId as TemplateId })}
+              options={TEMPLATES.map((t) => ({ value: t.id, label: t.label }))}
+            />
           </label>
 
           <fieldset className="flex flex-col gap-2">
@@ -248,10 +240,15 @@ function SiteFormModal({
   );
 }
 
+const templateLabel = (id: TemplateId) => TEMPLATES.find((t) => t.id === id)?.label ?? id;
+
 export default function SitesSection({ password }: { password: string }) {
   const [sites, setSites] = useState<ClientSite[] | null>(null);
   const [availableModules, setAvailableModules] = useState<ModuleMeta[]>([]);
   const [modal, setModal] = useState<"create" | ClientSite | null>(null);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [templateFilter, setTemplateFilter] = useState("");
 
   const load = () =>
     adminFetch(API_BASE_URL, "/api/admin/client-sites", password)
@@ -271,6 +268,14 @@ export default function SitesSection({ password }: { password: string }) {
     load();
   };
 
+  const filteredSites =
+    sites?.filter((site) => {
+      if (search.trim() && !site.name.toLowerCase().includes(search.trim().toLowerCase())) return false;
+      if (statusFilter && site.status !== statusFilter) return false;
+      if (templateFilter && site.templateId !== templateFilter) return false;
+      return true;
+    }) ?? null;
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -289,83 +294,141 @@ export default function SitesSection({ password }: { password: string }) {
         </button>
       </div>
 
-      <section className="rounded-card bg-white p-6 shadow-card">
-        {!sites ? (
-          <p className="text-gray-text">Chargement…</p>
-        ) : sites.length === 0 ? (
-          <p className="text-sm text-gray-text">Aucun site enregistré pour l'instant.</p>
-        ) : (
-          <ul className="flex flex-col gap-3">
-            {sites.map((site) => (
-              <li
-                key={site.id}
-                className="flex flex-col gap-1 rounded-button bg-bg-page-start/60 p-4"
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <span className="font-semibold text-navy">{site.name}</span>
-                  <span
-                    className={`shrink-0 rounded-pill px-2.5 py-1 text-xs font-semibold ${
-                      STATUS_STYLES[site.status] ?? "bg-border-subtle/40 text-gray-text"
-                    }`}
-                  >
-                    {site.status}
-                  </span>
+      <div className="flex flex-wrap items-center gap-3">
+        <input
+          className={`${inputClass} w-full sm:w-56`}
+          placeholder="Rechercher un client…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <div className="flex flex-wrap gap-1.5">
+          <button
+            type="button"
+            onClick={() => setStatusFilter("")}
+            className={`rounded-pill px-3 py-1.5 text-xs font-semibold transition-colors ${
+              statusFilter === "" ? "bg-navy text-white" : "bg-border-subtle/40 text-gray-text hover:bg-border-subtle/70"
+            }`}
+          >
+            Tous
+          </button>
+          {STATUSES.map((s) => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => setStatusFilter((current) => (current === s ? "" : s))}
+              className={`rounded-pill px-3 py-1.5 text-xs font-semibold transition-colors ${
+                statusFilter === s ? STATUS_STYLES[s] ?? "bg-navy text-white" : "bg-border-subtle/40 text-gray-text hover:bg-border-subtle/70"
+              }`}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+        <div className="w-52 shrink-0">
+          <Select
+            className={inputClass}
+            value={templateFilter}
+            onChange={setTemplateFilter}
+            options={[{ value: "", label: "Tous les templates" }, ...TEMPLATES.map((t) => ({ value: t.id, label: t.label }))]}
+          />
+        </div>
+      </div>
+
+      {!filteredSites ? (
+        <p className="text-gray-text">Chargement…</p>
+      ) : filteredSites.length === 0 ? (
+        <section className="rounded-card bg-white p-8 shadow-card">
+          <p className="text-sm text-gray-text">
+            {sites && sites.length > 0 ? "Aucun site ne correspond à ces filtres." : "Aucun site enregistré pour l'instant."}
+          </p>
+        </section>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {filteredSites.map((site) => {
+            const accent = resolvePalette(site.templateId, site.paletteId).accent;
+            return (
+              <article key={site.id} className="flex flex-col overflow-hidden rounded-card bg-white shadow-card">
+                <div className="h-2" style={{ backgroundColor: accent }} />
+                <div className="flex flex-1 flex-col gap-3 p-5">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <h2 className="font-bold text-navy">{site.name}</h2>
+                      <p className="text-xs text-gray-text">{site.siteType || "Type non renseigné"}</p>
+                    </div>
+                    <span
+                      className={`shrink-0 rounded-pill px-2.5 py-1 text-xs font-semibold ${
+                        STATUS_STYLES[site.status] ?? "bg-border-subtle/40 text-gray-text"
+                      }`}
+                    >
+                      {site.status}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 text-xs font-medium text-gray-text">
+                    <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: accent }} />
+                    Template {templateLabel(site.templateId)}
+                  </div>
+
+                  {site.modules.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {site.modules.map((m) => (
+                        <span key={m} className="rounded-pill bg-bg-page-start px-2 py-0.5 text-[11px] font-medium text-gray-text">
+                          {m}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {site.url && (
+                    <a href={site.url} target="_blank" rel="noreferrer" className="truncate text-sm text-brand-mid hover:underline">
+                      {site.url}
+                    </a>
+                  )}
+
+                  <div className="mt-auto flex flex-col gap-3 pt-2">
+                    <div className="flex flex-wrap gap-2">
+                      <a
+                        href={tenantSiteUrl(site.id)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-1.5 rounded-button border border-border-subtle bg-white px-3 py-1.5 text-xs font-medium text-gray-text hover:bg-bg-page-start hover:text-navy"
+                      >
+                        <IconExternalLink className="h-3.5 w-3.5" />
+                        Site (aperçu)
+                      </a>
+                      <a
+                        href={tenantAdminUrl(site.id)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-1.5 rounded-button border border-border-subtle bg-white px-3 py-1.5 text-xs font-medium text-gray-text hover:bg-bg-page-start hover:text-navy"
+                      >
+                        <IconExternalLink className="h-3.5 w-3.5" />
+                        Admin du client
+                      </a>
+                    </div>
+                    <div className="flex gap-3 text-sm">
+                      <button
+                        type="button"
+                        onClick={() => setModal(site)}
+                        className="font-medium text-brand-mid hover:text-brand-start"
+                      >
+                        Modifier
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(site.id)}
+                        className="font-medium text-red-500 hover:text-red-600"
+                      >
+                        Supprimer
+                      </button>
+                    </div>
+                  </div>
                 </div>
-                <div className="text-sm text-gray-text">
-                  {site.siteType || "Type non renseigné"} · template {site.templateId}
-                  {site.modules.length > 0 && ` · ${site.modules.join(", ")}`}
-                </div>
-                {site.url && (
-                  <a
-                    href={site.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-sm text-brand-mid hover:underline"
-                  >
-                    {site.url}
-                  </a>
-                )}
-                <div className="flex flex-wrap gap-2">
-                  <a
-                    href={tenantSiteUrl(site.id)}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-center gap-1.5 rounded-button border border-border-subtle bg-white px-3 py-1.5 text-xs font-medium text-gray-text hover:bg-bg-page-start hover:text-navy"
-                  >
-                    <IconExternalLink className="h-3.5 w-3.5" />
-                    Site (aperçu)
-                  </a>
-                  <a
-                    href={tenantAdminUrl(site.id)}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-center gap-1.5 rounded-button border border-border-subtle bg-white px-3 py-1.5 text-xs font-medium text-gray-text hover:bg-bg-page-start hover:text-navy"
-                  >
-                    <IconExternalLink className="h-3.5 w-3.5" />
-                    Admin du client
-                  </a>
-                </div>
-                <div className="mt-1 flex gap-3 text-sm">
-                  <button
-                    type="button"
-                    onClick={() => setModal(site)}
-                    className="font-medium text-brand-mid hover:text-brand-start"
-                  >
-                    Modifier
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(site.id)}
-                    className="font-medium text-red-500 hover:text-red-600"
-                  >
-                    Supprimer
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+              </article>
+            );
+          })}
+        </div>
+      )}
 
       {modal && (
         <SiteFormModal

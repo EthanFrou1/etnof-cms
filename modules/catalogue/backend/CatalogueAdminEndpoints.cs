@@ -22,6 +22,7 @@ public static class CatalogueAdminEndpoints
                 .Where(p => p.ClientSiteId == clientSiteId)
                 .OrderByDescending(p => p.CreatedAt)
                 .Include(p => p.Images.OrderBy(i => i.SortOrder))
+                .Include(p => p.Sizes.OrderBy(s => s.SortOrder))
                 .ToListAsync();
 
             return Results.Ok(products);
@@ -34,6 +35,7 @@ public static class CatalogueAdminEndpoints
             var product = await db.Products
                 .Where(p => p.ClientSiteId == clientSiteId && p.Id == id)
                 .Include(p => p.Images.OrderBy(i => i.SortOrder))
+                .Include(p => p.Sizes.OrderBy(s => s.SortOrder))
                 .FirstOrDefaultAsync();
 
             return product is null ? Results.NotFound() : Results.Ok(product);
@@ -69,6 +71,7 @@ public static class CatalogueAdminEndpoints
             // (ProductDetailPage.tsx remplace son state produit avec cette réponse).
             var product = await db.Products
                 .Include(p => p.Images.OrderBy(i => i.SortOrder))
+                .Include(p => p.Sizes.OrderBy(s => s.SortOrder))
                 .FirstOrDefaultAsync(p => p.ClientSiteId == clientSiteId && p.Id == id);
             if (product is null) return Results.NotFound();
 
@@ -76,6 +79,8 @@ public static class CatalogueAdminEndpoints
             product.Description = input.Description;
             product.Price = input.Price;
             product.Stock = input.Stock;
+            product.CollectionId = input.CollectionId;
+            product.Highlighted = input.Highlighted;
             await db.SaveChangesAsync();
 
             return Results.Ok(product);
@@ -96,6 +101,79 @@ public static class CatalogueAdminEndpoints
             }
 
             db.Products.Remove(product);
+            await db.SaveChangesAsync();
+
+            return Results.NoContent();
+        });
+
+        // Collections — regroupement simple des produits (0 ou 1 par produit, pas de tags multiples,
+        // voir docs/04-catalogue-modules.md). CRUD minimal, même pattern d'auth que le reste du fichier.
+        group.MapGet("/collections", async (Guid clientSiteId, HttpRequest req, IConfiguration config, AppDbContext db) =>
+        {
+            if (!await TenantAdminAuth.IsAuthorizedAsync(req, config, db, clientSiteId)) return Results.Unauthorized();
+
+            var collections = await db.Collections
+                .Where(c => c.ClientSiteId == clientSiteId)
+                .OrderBy(c => c.SortOrder)
+                .ToListAsync();
+
+            return Results.Ok(collections);
+        });
+
+        group.MapPost("/collections", async (Guid clientSiteId, CollectionInput input, HttpRequest req, IConfiguration config, AppDbContext db) =>
+        {
+            if (!await TenantAdminAuth.IsAuthorizedAsync(req, config, db, clientSiteId)) return Results.Unauthorized();
+
+            if (string.IsNullOrWhiteSpace(input.Name)) return Results.BadRequest(new { error = "Nom requis." });
+
+            var maxSortOrder = await db.Collections
+                .Where(c => c.ClientSiteId == clientSiteId)
+                .Select(c => (int?)c.SortOrder)
+                .MaxAsync() ?? -1;
+
+            var collection = new Collection
+            {
+                Id = Guid.NewGuid(),
+                ClientSiteId = clientSiteId,
+                Name = input.Name.Trim(),
+                SortOrder = maxSortOrder + 1,
+            };
+
+            db.Collections.Add(collection);
+            await db.SaveChangesAsync();
+
+            return Results.Created($"/api/t/{clientSiteId}/admin/catalogue/collections/{collection.Id}", collection);
+        });
+
+        group.MapPut("/collections/{id:guid}", async (Guid clientSiteId, Guid id, CollectionInput input, HttpRequest req, IConfiguration config, AppDbContext db) =>
+        {
+            if (!await TenantAdminAuth.IsAuthorizedAsync(req, config, db, clientSiteId)) return Results.Unauthorized();
+            if (string.IsNullOrWhiteSpace(input.Name)) return Results.BadRequest(new { error = "Nom requis." });
+
+            var collection = await db.Collections.FirstOrDefaultAsync(c => c.Id == id && c.ClientSiteId == clientSiteId);
+            if (collection is null) return Results.NotFound();
+
+            collection.Name = input.Name.Trim();
+            await db.SaveChangesAsync();
+
+            return Results.Ok(collection);
+        });
+
+        group.MapDelete("/collections/{id:guid}", async (Guid clientSiteId, Guid id, HttpRequest req, IConfiguration config, AppDbContext db) =>
+        {
+            if (!await TenantAdminAuth.IsAuthorizedAsync(req, config, db, clientSiteId)) return Results.Unauthorized();
+
+            var collection = await db.Collections.FirstOrDefaultAsync(c => c.Id == id && c.ClientSiteId == clientSiteId);
+            if (collection is null) return Results.NotFound();
+
+            // Détache les produits plutôt que de dépendre d'une cascade implicite (CollectionId n'est
+            // pas une FK stricte, voir Product.cs) — un produit rattaché ne doit jamais se retrouver
+            // avec un CollectionId pointant sur une collection supprimée.
+            await db.Products
+                .Where(p => p.ClientSiteId == clientSiteId && p.CollectionId == id)
+                .ExecuteUpdateAsync(setters => setters.SetProperty(p => p.CollectionId, (Guid?)null));
+
+            db.Collections.Remove(collection);
             await db.SaveChangesAsync();
 
             return Results.NoContent();
@@ -152,6 +230,36 @@ public static class CatalogueAdminEndpoints
             return Results.Created(image.Path, image);
         }).DisableAntiforgery();
 
+        // Réordonnancement par glisser-déposer (ProductDetailPage.tsx) : `imageIds` = l'ordre voulu,
+        // complet (toutes les photos du produit). SortOrder réécrit d'après la position dans le
+        // tableau plutôt que d'accepter des valeurs arbitraires — évite les doublons/trous côté client.
+        group.MapPut("/products/{id:guid}/images/reorder", async (Guid clientSiteId, Guid id, ReorderImagesInput input, HttpRequest req, IConfiguration config, AppDbContext db) =>
+        {
+            if (!await TenantAdminAuth.IsAuthorizedAsync(req, config, db, clientSiteId)) return Results.Unauthorized();
+
+            var images = await db.ProductImages
+                .Include(i => i.Product)
+                .Where(i => i.ProductId == id && i.Product!.ClientSiteId == clientSiteId)
+                .ToListAsync();
+            if (images.Count == 0) return Results.NotFound();
+
+            // Le nouvel ordre doit contenir exactement les mêmes photos que le produit — sinon on
+            // refuse plutôt que de réordonner partiellement (état incohérent).
+            var currentIds = images.Select(i => i.Id).ToHashSet();
+            if (input.ImageIds.Count != images.Count || !input.ImageIds.ToHashSet().SetEquals(currentIds))
+            {
+                return Results.BadRequest(new { error = "La liste doit contenir exactement les photos du produit." });
+            }
+
+            for (var index = 0; index < input.ImageIds.Count; index++)
+            {
+                images.First(i => i.Id == input.ImageIds[index]).SortOrder = index;
+            }
+            await db.SaveChangesAsync();
+
+            return Results.Ok(images.OrderBy(i => i.SortOrder));
+        });
+
         group.MapDelete("/images/{imageId:guid}", async (Guid clientSiteId, Guid imageId, HttpRequest req, IConfiguration config, AppDbContext db, IWebHostEnvironment env) =>
         {
             if (!await TenantAdminAuth.IsAuthorizedAsync(req, config, db, clientSiteId)) return Results.Unauthorized();
@@ -164,6 +272,68 @@ public static class CatalogueAdminEndpoints
 
             DeleteImageFile(env, image.Path);
             db.ProductImages.Remove(image);
+            await db.SaveChangesAsync();
+
+            return Results.NoContent();
+        });
+
+        // Tailles — facultatives (voir ProductSize.cs) : pas de réordonnancement en V1 (contrairement
+        // aux photos), juste ajout/modification du stock/suppression, dans l'ordre de création.
+        group.MapPost("/products/{id:guid}/sizes", async (Guid clientSiteId, Guid id, ProductSizeInput input, HttpRequest req, IConfiguration config, AppDbContext db) =>
+        {
+            if (!await TenantAdminAuth.IsAuthorizedAsync(req, config, db, clientSiteId)) return Results.Unauthorized();
+            if (string.IsNullOrWhiteSpace(input.Label)) return Results.BadRequest(new { error = "Taille requise." });
+
+            var product = await db.Products.FirstOrDefaultAsync(p => p.ClientSiteId == clientSiteId && p.Id == id);
+            if (product is null) return Results.NotFound();
+
+            var maxSortOrder = await db.ProductSizes
+                .Where(s => s.ProductId == id)
+                .Select(s => (int?)s.SortOrder)
+                .MaxAsync() ?? -1;
+
+            var size = new ProductSize
+            {
+                Id = Guid.NewGuid(),
+                ProductId = id,
+                Label = input.Label.Trim(),
+                Stock = Math.Max(0, input.Stock),
+                SortOrder = maxSortOrder + 1,
+            };
+
+            db.ProductSizes.Add(size);
+            await db.SaveChangesAsync();
+
+            return Results.Created($"/api/t/{clientSiteId}/admin/catalogue/sizes/{size.Id}", size);
+        });
+
+        group.MapPut("/sizes/{sizeId:guid}", async (Guid clientSiteId, Guid sizeId, ProductSizeInput input, HttpRequest req, IConfiguration config, AppDbContext db) =>
+        {
+            if (!await TenantAdminAuth.IsAuthorizedAsync(req, config, db, clientSiteId)) return Results.Unauthorized();
+            if (string.IsNullOrWhiteSpace(input.Label)) return Results.BadRequest(new { error = "Taille requise." });
+
+            var size = await db.ProductSizes
+                .Include(s => s.Product)
+                .FirstOrDefaultAsync(s => s.Id == sizeId && s.Product!.ClientSiteId == clientSiteId);
+            if (size is null) return Results.NotFound();
+
+            size.Label = input.Label.Trim();
+            size.Stock = Math.Max(0, input.Stock);
+            await db.SaveChangesAsync();
+
+            return Results.Ok(size);
+        });
+
+        group.MapDelete("/sizes/{sizeId:guid}", async (Guid clientSiteId, Guid sizeId, HttpRequest req, IConfiguration config, AppDbContext db) =>
+        {
+            if (!await TenantAdminAuth.IsAuthorizedAsync(req, config, db, clientSiteId)) return Results.Unauthorized();
+
+            var size = await db.ProductSizes
+                .Include(s => s.Product)
+                .FirstOrDefaultAsync(s => s.Id == sizeId && s.Product!.ClientSiteId == clientSiteId);
+            if (size is null) return Results.NotFound();
+
+            db.ProductSizes.Remove(size);
             await db.SaveChangesAsync();
 
             return Results.NoContent();
@@ -242,8 +412,15 @@ public static class CatalogueAdminEndpoints
             {
                 foreach (var item in order.Items)
                 {
-                    var product = await db.Products.FirstOrDefaultAsync(p => p.Id == item.ProductId);
-                    if (product is not null) product.Stock += item.Quantity;
+                    var product = await db.Products.Include(p => p.Sizes).FirstOrDefaultAsync(p => p.Id == item.ProductId);
+                    if (product is null) continue;
+
+                    // Restaure le stock de la taille commandée si elle existe encore (voir
+                    // ProductSize.cs) — sinon (taille supprimée depuis, ou produit sans taille) on
+                    // retombe sur le stock global du produit, même comportement qu'avant les tailles.
+                    var size = item.SizeLabel is null ? null : product.Sizes.FirstOrDefault(s => s.Label == item.SizeLabel);
+                    if (size is not null) size.Stock += item.Quantity;
+                    else product.Stock += item.Quantity;
                 }
             }
 
@@ -345,7 +522,10 @@ public static class CatalogueAdminEndpoints
     }
 }
 
-public record ProductInput(string Name, string Description, decimal Price, int Stock);
+public record ProductInput(string Name, string Description, decimal Price, int Stock, Guid? CollectionId, bool Highlighted);
+public record ReorderImagesInput(List<Guid> ImageIds);
+public record ProductSizeInput(string Label, int Stock);
+public record CollectionInput(string Name);
 public record OrderStatusInput(string Status);
 public record CustomerInput(string Name, string Email, string Phone, string Address, string Notes);
 public record SelectReviewInput(bool Selected);

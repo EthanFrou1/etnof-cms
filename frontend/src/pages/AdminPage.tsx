@@ -20,6 +20,7 @@ import EstablishmentSection from "./admin/EstablishmentSection";
 import ModulesSection from "./admin/ModulesSection";
 import MessagesSection from "./admin/MessagesSection";
 import ProductsSection from "./admin/ProductsSection";
+import CollectionsSection from "./admin/CollectionsSection";
 import OrdersSection from "./admin/OrdersSection";
 import CustomersSection from "./admin/CustomersSection";
 import RdvSection from "./admin/RdvSection";
@@ -81,6 +82,7 @@ export default function AdminPage({ clientSiteId, section }: AdminPageProps) {
           {section === "establishment" && <EstablishmentSection clientSiteId={clientSiteId} password={password} />}
           {section === "modules" && <ModulesSection clientSiteId={clientSiteId} password={password} />}
           {section === "products" && <ProductsSection clientSiteId={clientSiteId} password={password} />}
+          {section === "collections" && <CollectionsSection clientSiteId={clientSiteId} password={password} />}
           {section === "orders" && <OrdersSection clientSiteId={clientSiteId} password={password} />}
           {section === "customers" && <CustomersSection clientSiteId={clientSiteId} password={password} />}
           {section === "rdv" && <RdvSection clientSiteId={clientSiteId} password={password} />}

@@ -209,6 +209,7 @@ public static class AgencyDashboardEndpoints
         site.Status,
         Modules = GetAuthorizedModuleNames(site.ModulesConfigJson),
         site.TemplateId,
+        site.PaletteId,
         site.CreatedAt,
     };
 

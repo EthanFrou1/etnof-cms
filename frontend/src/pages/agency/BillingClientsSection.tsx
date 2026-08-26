@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { API_BASE_URL } from "../../config";
 import { adminFetch } from "../../hooks/useAdminSession";
 import { AddressAutocomplete, inputClass, type BillingClient, type ClientSiteOption } from "./shared";
+import Select from "../../components/admin/Select";
 
 const emptyBillingClientForm = {
   clientSiteId: "" as string,
@@ -133,18 +134,15 @@ function BillingClientFormModal({
           </label>
           <label className="flex flex-col gap-1 text-sm font-medium text-gray-text">
             Site client lié
-            <select
+            <Select
               className={inputClass}
               value={form.clientSiteId}
-              onChange={(e) => setForm({ ...form, clientSiteId: e.target.value })}
-            >
-              <option value="">— Pas de site lié (prospect / hors plateforme) —</option>
-              {clientSites.map((site) => (
-                <option key={site.id} value={site.id}>
-                  {site.name}
-                </option>
-              ))}
-            </select>
+              onChange={(clientSiteId) => setForm({ ...form, clientSiteId })}
+              options={[
+                { value: "", label: "— Pas de site lié (prospect / hors plateforme) —" },
+                ...clientSites.map((site) => ({ value: site.id, label: site.name })),
+              ]}
+            />
           </label>
           <label className="flex flex-col gap-1 text-sm font-medium text-gray-text">
             Notes

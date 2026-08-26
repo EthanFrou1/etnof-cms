@@ -96,7 +96,7 @@ export default function TemplateHelios({ clientSiteId, modules, content, palette
           <span className="text-lg font-extrabold text-white">{siteName}</span>
           <div className="hidden items-center gap-6 text-sm font-medium text-white/80 md:flex">
             {modules?.catalogue?.enabled && (
-              <a href="#catalogue" className="transition-colors duration-200 hover:text-white">
+              <a href={`/t/${clientSiteId}/boutique`} className="transition-colors duration-200 hover:text-white">
                 {t(locale, "nav.catalogue")}
               </a>
             )}
@@ -159,7 +159,7 @@ export default function TemplateHelios({ clientSiteId, modules, content, palette
             className="mx-auto mt-4 flex max-w-7xl flex-col gap-1 border-t border-white/10 pt-4 text-sm font-medium text-white/80 md:hidden"
           >
             {modules?.catalogue?.enabled && (
-              <a href="#catalogue" className="rounded-button px-2 py-2 transition-colors duration-200 hover:text-white">
+              <a href={`/t/${clientSiteId}/boutique`} className="rounded-button px-2 py-2 transition-colors duration-200 hover:text-white">
                 {t(locale, "nav.catalogue")}
               </a>
             )}
@@ -295,7 +295,7 @@ export default function TemplateHelios({ clientSiteId, modules, content, palette
           <div className="grid gap-8 sm:grid-cols-2">
             {modules?.catalogue?.enabled && (
               <div id="catalogue" className="sm:col-span-2">
-                <CatalogueSection apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} palette={modulePalette} locale={locale} />
+                <CatalogueSection apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} palette={modulePalette} locale={locale} limit={8} />
               </div>
             )}
             {modules?.galerie?.enabled && (
@@ -340,7 +340,7 @@ export default function TemplateHelios({ clientSiteId, modules, content, palette
           </Reveal>
         </Suspense>
 
-        <SiteFooter content={content} palette={modulePalette} modules={modules} />
+        <SiteFooter content={content} palette={modulePalette} modules={modules} locale={locale} />
       </div>
 
       {/* Bouton flottant hors du flux normal (persistant, pas une section qu'on scrolle) — voir

@@ -179,7 +179,7 @@ function CartPageContent({
         customerEmail,
         customerPhone,
         customerAddress,
-        items: items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
+        items: items.map((i) => ({ productId: i.productId, quantity: i.quantity, size: i.size })),
         returnBaseUrl: `${window.location.origin}/t/${clientSiteId}`,
       }),
     });
@@ -219,9 +219,12 @@ function CartPageContent({
         <div className="flex flex-col gap-6 rounded-card bg-white p-8 shadow-card">
           <div className="flex flex-col gap-3">
             {items.map((item) => (
-              <div key={item.productId} className="flex items-center justify-between gap-2 rounded-button border border-border-subtle p-3">
+              <div key={`${item.productId}-${item.size ?? ""}`} className="flex items-center justify-between gap-2 rounded-button border border-border-subtle p-3">
                 <div className="flex flex-col">
-                  <span className="text-sm font-semibold text-navy">{item.name}</span>
+                  <span className="text-sm font-semibold text-navy">
+                    {item.name}
+                    {item.size && <span className="font-normal text-gray-text"> — {item.size}</span>}
+                  </span>
                   <span className="text-xs text-gray-text">
                     {formatPrice(item.price)} {t(locale, "catalogue.perUnit")}
                   </span>
@@ -229,7 +232,7 @@ function CartPageContent({
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => updateQuantity(item.productId, item.quantity - 1)}
+                    onClick={() => updateQuantity(item.productId, item.quantity - 1, item.size)}
                     className="h-7 w-7 rounded-button border border-border-subtle text-sm"
                   >
                     −
@@ -237,7 +240,7 @@ function CartPageContent({
                   <span className="w-6 text-center text-sm">{item.quantity}</span>
                   <button
                     type="button"
-                    onClick={() => updateQuantity(item.productId, item.quantity + 1)}
+                    onClick={() => updateQuantity(item.productId, item.quantity + 1, item.size)}
                     disabled={item.quantity >= item.maxStock}
                     className="h-7 w-7 rounded-button border border-border-subtle text-sm disabled:opacity-40"
                   >
@@ -245,7 +248,7 @@ function CartPageContent({
                   </button>
                   <button
                     type="button"
-                    onClick={() => removeItem(item.productId)}
+                    onClick={() => removeItem(item.productId, item.size)}
                     className="text-xs text-red-500 hover:text-red-600"
                   >
                     {t(locale, "catalogue.remove")}
@@ -363,7 +366,7 @@ function CartPageContent({
           <span className="text-sm font-semibold text-navy">{t(locale, "catalogue.orderSummary")}</span>
           <div className="flex flex-col gap-4">
             {items.map((item) => (
-              <div key={item.productId} className="flex gap-3">
+              <div key={`${item.productId}-${item.size ?? ""}`} className="flex gap-3">
                 <div className="h-16 w-16 shrink-0 overflow-hidden rounded-button bg-black/5">
                   {item.imagePath ? (
                     <img src={`${apiBaseUrl}${item.imagePath}`} alt={item.name} className="h-full w-full object-cover" />
@@ -374,7 +377,10 @@ function CartPageContent({
                   )}
                 </div>
                 <div className="flex flex-1 flex-col gap-0.5">
-                  <span className="text-sm font-semibold text-navy">{item.name}</span>
+                  <span className="text-sm font-semibold text-navy">
+                    {item.name}
+                    {item.size && <span className="font-normal text-gray-text"> — {item.size}</span>}
+                  </span>
                   {item.description && (
                     <p className="line-clamp-2 text-xs text-gray-text">{item.description}</p>
                   )}

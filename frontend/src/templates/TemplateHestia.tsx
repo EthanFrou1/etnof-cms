@@ -267,7 +267,7 @@ export default function TemplateHestia({ clientSiteId, modules, content, palette
           </span>
           <div className="hidden items-center gap-5 text-sm font-medium md:flex" style={{ color: `${ink}99` }}>
             {modules?.catalogue?.enabled && (
-              <a href="#catalogue" style={{ color: "inherit" }} className="transition-opacity duration-200 hover:opacity-70">
+              <a href={`/t/${clientSiteId}/boutique`} style={{ color: "inherit" }} className="transition-opacity duration-200 hover:opacity-70">
                 {t(locale, "nav.catalogue")}
               </a>
             )}
@@ -330,7 +330,7 @@ export default function TemplateHestia({ clientSiteId, modules, content, palette
               style={{ backgroundColor: "#FFFFFF", color: `${ink}99` }}
             >
               {modules?.catalogue?.enabled && (
-                <a href="#catalogue" style={{ color: "inherit" }} className="rounded-button px-2 py-2 transition-opacity duration-200 hover:opacity-70">
+                <a href={`/t/${clientSiteId}/boutique`} style={{ color: "inherit" }} className="rounded-button px-2 py-2 transition-opacity duration-200 hover:opacity-70">
                   {t(locale, "nav.catalogue")}
                 </a>
               )}
@@ -491,7 +491,7 @@ export default function TemplateHestia({ clientSiteId, modules, content, palette
           <div className="flex flex-col gap-16">
             {modules?.catalogue?.enabled && (
               <div id="catalogue">
-                <CatalogueSection apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} palette={modulePalette} locale={locale} />
+                <CatalogueSection apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} palette={modulePalette} locale={locale} limit={8} />
               </div>
             )}
             {modules?.galerie?.enabled && (
@@ -536,7 +536,7 @@ export default function TemplateHestia({ clientSiteId, modules, content, palette
         </Suspense>
       </Band>
 
-      <SiteFooter content={content} palette={modulePalette} modules={modules} dark />
+      <SiteFooter content={content} palette={modulePalette} modules={modules} locale={locale} dark />
 
       {/* Bouton flottant hors du flux de bandes (persistant, pas une section qu'on scrolle) — voir
           modules/whatsapp/frontend/WhatsAppButton.tsx : pas de lien de nav ni d'ancre associée. */}

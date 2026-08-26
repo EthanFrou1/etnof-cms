@@ -5,6 +5,7 @@ import { adminFetch } from "../../hooks/useAdminSession";
 import { useModules } from "../../hooks/useModules";
 import { IconClock, IconMail, IconPhone, IconPin } from "../../components/admin/icons";
 import RichTextEditor from "../../components/admin/RichTextEditor";
+import PhoneInput from "../../components/admin/PhoneInput";
 
 type EstablishmentSectionProps = {
   clientSiteId: string;
@@ -547,6 +548,7 @@ export default function EstablishmentSection({ clientSiteId, password }: Establi
       body: JSON.stringify({
         siteName: content.siteName,
         description: content.description,
+        storyContent: content.storyContent,
         offers: content.offers.map(({ title, price, description, productId }) => ({
           title,
           price,
@@ -700,12 +702,9 @@ export default function EstablishmentSection({ clientSiteId, password }: Establi
                   </label>
                   <label className="text-sm font-medium text-gray-text">
                     Téléphone
-                    <input
-                      className={`mt-1 w-full ${inputClass}`}
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      placeholder="+33 1 23 45 67 89"
-                    />
+                    <div className="mt-1">
+                      <PhoneInput value={phone} onChange={setPhone} placeholder="1 23 45 67 89" />
+                    </div>
                   </label>
                   <label className="text-sm font-medium text-gray-text">
                     Adresse mail
@@ -739,12 +738,9 @@ export default function EstablishmentSection({ clientSiteId, password }: Establi
                   </label>
                   <label className="text-sm font-medium text-gray-text">
                     Téléphone du responsable
-                    <input
-                      className={`mt-1 w-full ${inputClass}`}
-                      value={managerPhone}
-                      onChange={(e) => setManagerPhone(e.target.value)}
-                      placeholder="+33 6 12 34 56 78"
-                    />
+                    <div className="mt-1">
+                      <PhoneInput value={managerPhone} onChange={setManagerPhone} placeholder="6 12 34 56 78" />
+                    </div>
                   </label>
                   <label className="text-sm font-medium text-gray-text">
                     Email du responsable

@@ -134,6 +134,15 @@ export function IconProducts({ className = base }: IconProps) {
   );
 }
 
+export function IconCollections({ className = base }: IconProps) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
+      <path d="M11.3 3.3a1 1 0 0 1 1.4 0l8 8a1 1 0 0 1 0 1.4l-7.3 7.3a1 1 0 0 1-1.4 0l-8-8a1 1 0 0 1-.3-.7V4.3a1 1 0 0 1 1-1H11a1 1 0 0 1 .3 0z" />
+      <circle cx="8" cy="8" r="1.5" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
 export function IconOrders({ className = base }: IconProps) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">

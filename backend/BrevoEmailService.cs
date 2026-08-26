@@ -308,7 +308,7 @@ public static class BrevoEmailService
 
         var lineRows = string.Join("", items.Select(item => $@"
                 <tr>
-                  <td style=""padding:10px 0;border-bottom:1px solid {border};font-size:13px;color:{navy};"">{WebUtility.HtmlEncode(item.ProductName)}</td>
+                  <td style=""padding:10px 0;border-bottom:1px solid {border};font-size:13px;color:{navy};"">{WebUtility.HtmlEncode(item.ProductName)}{(string.IsNullOrWhiteSpace(item.SizeLabel) ? "" : $" ({WebUtility.HtmlEncode(item.SizeLabel)})")}</td>
                   <td align=""right"" style=""padding:10px 0;border-bottom:1px solid {border};font-size:13px;color:{grayText};white-space:nowrap;"">{item.Quantity} × {item.UnitPrice:0.00} €</td>
                   <td align=""right"" style=""padding:10px 0 10px 12px;border-bottom:1px solid {border};font-size:13px;font-weight:700;color:{navy};white-space:nowrap;"">{(item.Quantity * item.UnitPrice):0.00} €</td>
                 </tr>"));

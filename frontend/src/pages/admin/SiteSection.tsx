@@ -132,13 +132,17 @@ function TemplateTab({
 function ContentTab({
   siteName,
   description,
+  storyContent,
   onSiteNameChange,
   onDescriptionChange,
+  onStoryContentChange,
 }: {
   siteName: string;
   description: string;
+  storyContent: string;
   onSiteNameChange: (value: string) => void;
   onDescriptionChange: (value: string) => void;
+  onStoryContentChange: (value: string) => void;
 }) {
   return (
     <section className="rounded-card bg-white p-8 shadow-card">
@@ -155,13 +159,25 @@ function ContentTab({
           Description
           <RichTextEditor value={description} onChange={onDescriptionChange} compact />
         </div>
+        <div className="flex flex-col gap-1 text-sm font-medium text-gray-text">
+          Notre histoire
+          <p className="text-xs font-normal text-gray-text/80">
+            Texte plus long affiché dans une section dédiée sur le site (pour l'instant : template
+            Charis uniquement) — utile pour rassurer le client sur ton activité. Laisse vide pour ne
+            pas afficher cette section.
+          </p>
+          <RichTextEditor value={storyContent} onChange={onStoryContentChange} compact />
+        </div>
       </div>
     </section>
   );
 }
 
 export default function SiteSection({ clientSiteId, password }: SiteSectionProps) {
-  const [activeTab, setActiveTab] = useState<TabId>("template");
+  // Permet un lien profond vers l'onglet Contenu (ex. raccourci "Ajouter une description du site"
+  // du tableau de bord, voir DashboardSection.tsx) sans routeur dédié : App.tsx ne lit que le path,
+  // le hash reste donc disponible pour ce genre de préférence d'affichage au chargement.
+  const [activeTab, setActiveTab] = useState<TabId>(() => (window.location.hash === "#content" ? "content" : "template"));
 
   const [templateId, setTemplateId] = useState<TemplateId | null>(null);
   const [draftTemplateId, setDraftTemplateId] = useState<TemplateId | null>(null);
@@ -176,6 +192,7 @@ export default function SiteSection({ clientSiteId, password }: SiteSectionProps
   const [content, setContent] = useState<SiteContent | null>(null);
   const [siteName, setSiteName] = useState("");
   const [description, setDescription] = useState("");
+  const [storyContent, setStoryContent] = useState("");
 
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
 
@@ -221,6 +238,7 @@ export default function SiteSection({ clientSiteId, password }: SiteSectionProps
         setContent(data);
         setSiteName(data.siteName);
         setDescription(data.description);
+        setStoryContent(data.storyContent);
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -244,7 +262,9 @@ export default function SiteSection({ clientSiteId, password }: SiteSectionProps
     draftPaletteId === "custom"
       ? paletteId !== "custom" || draftCustomAccent !== customAccent
       : draftPalettesAvailable.length > 0 && draftPaletteId !== paletteId;
-  const contentDirty = Boolean(content && (siteName !== content.siteName || description !== content.description));
+  const contentDirty = Boolean(
+    content && (siteName !== content.siteName || description !== content.description || storyContent !== content.storyContent)
+  );
   const isDirty = templateDirty || paletteDirty || contentDirty;
 
   const handleSave = async () => {
@@ -270,6 +290,7 @@ export default function SiteSection({ clientSiteId, password }: SiteSectionProps
           body: JSON.stringify({
             siteName,
             description,
+            storyContent,
             offers: content.offers.map(({ title, price, description, productId }) => ({
               title,
               price,
@@ -379,8 +400,10 @@ export default function SiteSection({ clientSiteId, password }: SiteSectionProps
         <ContentTab
           siteName={siteName}
           description={description}
+          storyContent={storyContent}
           onSiteNameChange={setSiteName}
           onDescriptionChange={setDescription}
+          onStoryContentChange={setStoryContent}
         />
       )}
     </div>

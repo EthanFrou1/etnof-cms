@@ -8,6 +8,9 @@ export type CartItem = {
   maxStock: number;
   imagePath?: string;
   description?: string;
+  // Facultatif — voir ProductSize.cs côté backend. Deux tailles du même produit forment deux
+  // lignes de panier distinctes (identité d'une ligne = productId + size, voir addItem ci-dessous).
+  size?: string;
 };
 
 type CartContextValue = {
@@ -19,10 +22,11 @@ type CartContextValue = {
     maxStock: number,
     quantity: number,
     imagePath?: string,
-    description?: string
+    description?: string,
+    size?: string
   ) => void;
-  updateQuantity: (productId: string, quantity: number) => void;
-  removeItem: (productId: string) => void;
+  updateQuantity: (productId: string, quantity: number, size?: string) => void;
+  removeItem: (productId: string, size?: string) => void;
   clear: () => void;
   total: number;
   itemCount: number;
@@ -51,27 +55,27 @@ export function CartProvider({ clientSiteId, children }: { clientSiteId: string;
     localStorage.setItem(storageKey(clientSiteId), JSON.stringify(items));
   }, [clientSiteId, items]);
 
-  const addItem: CartContextValue["addItem"] = (productId, name, price, maxStock, quantity, imagePath, description) => {
+  const addItem: CartContextValue["addItem"] = (productId, name, price, maxStock, quantity, imagePath, description, size) => {
     setItems((current) => {
-      const existing = current.find((i) => i.productId === productId);
+      const existing = current.find((i) => i.productId === productId && i.size === size);
       if (existing) {
         const nextQuantity = Math.min(existing.quantity + quantity, maxStock);
-        return current.map((i) => (i.productId === productId ? { ...i, quantity: nextQuantity } : i));
+        return current.map((i) => (i === existing ? { ...i, quantity: nextQuantity } : i));
       }
-      return [...current, { productId, name, price, maxStock, quantity: Math.min(quantity, maxStock), imagePath, description }];
+      return [...current, { productId, name, price, maxStock, quantity: Math.min(quantity, maxStock), imagePath, description, size }];
     });
   };
 
-  const updateQuantity: CartContextValue["updateQuantity"] = (productId, quantity) => {
+  const updateQuantity: CartContextValue["updateQuantity"] = (productId, quantity, size) => {
     setItems((current) =>
       quantity <= 0
-        ? current.filter((i) => i.productId !== productId)
-        : current.map((i) => (i.productId === productId ? { ...i, quantity: Math.min(quantity, i.maxStock) } : i))
+        ? current.filter((i) => !(i.productId === productId && i.size === size))
+        : current.map((i) => (i.productId === productId && i.size === size ? { ...i, quantity: Math.min(quantity, i.maxStock) } : i))
     );
   };
 
-  const removeItem: CartContextValue["removeItem"] = (productId) => {
-    setItems((current) => current.filter((i) => i.productId !== productId));
+  const removeItem: CartContextValue["removeItem"] = (productId, size) => {
+    setItems((current) => current.filter((i) => !(i.productId === productId && i.size === size)));
   };
 
   const clear = () => setItems([]);

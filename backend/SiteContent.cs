@@ -6,6 +6,12 @@ public class SiteContent
     public Guid ClientSiteId { get; set; }
     public string SiteName { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
+
+    // Texte plus long ("Notre histoire") affiché dans une section dédiée sur les templates qui la
+    // prennent en charge (Charis pour l'instant) — distinct de Description qui reste le court texte
+    // d'accroche du hero. Facultatif : la section ne s'affiche pas tant que ce champ est vide.
+    public string StoryContent { get; set; } = string.Empty;
+
     public List<Offer> Offers { get; set; } = new();
 
     // Infos factuelles de l'établissement (page "Établissement", distincte de "Contenu" qui reste
