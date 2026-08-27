@@ -1,69 +1,37 @@
 # Reprise de session — dernière mise à jour 2026-08-27
 
-Ce fichier résume où on en est pour reprendre rapidement. Le détail complet (technique, décisions, tests effectués) est dans `docs/05-roadmap-poc.md` (plusieurs sections datées du 2026-08-27, de "Formulaire de livraison du panier durci" à "Page de résultat de paiement dédiée") — ce fichier-ci n'en est qu'un résumé de reprise.
+Ce fichier résume où on en est pour reprendre rapidement. Le détail complet (technique, décisions, tests effectués) est dans `docs/05-roadmap-poc.md` (nombreuses sections datées du 2026-08-27, de "Tailles : réordonnancement + ajout à la création" à "Fix : PhoneInput n'insérait pas les espaces au fil de la frappe") — ce fichier-ci n'en est qu'un résumé de reprise.
 
 ## Commits
 
-Le travail de cette session n'est **pas encore commité** — branche `feature/admin-content-restructure` (même branche que la session précédente, PR toujours pas ouverte). Lien pour créer la PR une fois prêt : https://github.com/EthanFrou1/etnof-cms/pull/new/feature/admin-content-restructure. **Ne pas merger avant validation d'Ethan.**
+Le travail de cette session est **commité** (`2b3eab6`, "Boutique Charis, confirmations de suppression, demande de réassort et corrections de bugs") sur la branche `feature/admin-content-restructure` (même branche que les sessions précédentes), poussé sur `origin`. **`gh` (GitHub CLI) n'est pas installé sur cette machine** — la PR n'a donc pas pu être ouverte automatiquement. Lien pour l'ouvrir manuellement : https://github.com/EthanFrou1/etnof-cms/pull/new/feature/admin-content-restructure. **Ne pas merger avant validation d'Ethan.**
 
-## ⚠️ Backend déjà relancé pendant la session
+## ⚠️ Backend à redémarrer si tu reprends une session déjà en cours
 
-Une migration EF Core (`AddCustomerAddressFields`) a été créée **et appliquée** à la base locale pendant cette session, et le backend a été redémarré deux fois pour charger le nouveau code (l'ancien processus tournait avec un schéma `Customer` périmé après la migration). Si tu relances tout depuis zéro, rien à faire de spécial — juste `dotnet run` comme d'habitude, la migration est déjà dans l'historique EF.
-
-## ⚠️ Processus Stripe CLI en tâche de fond
-
-`stripe listen --forward-to http://localhost:5052/api/t/36d1b5f8-d5a4-493a-9ff3-d46616816adb/stripe/webhook` tourne en arrière-plan (lancé pendant cette session) — nécessaire pour que les webhooks Stripe (qui créent réellement la commande en base) arrivent jusqu'au backend local pendant les tests de paiement sur le tenant Atelier Lumen. À relancer manuellement (même commande) si le processus s'arrête (redémarrage machine, fermeture de session) ; le secret de webhook généré reste identique d'une fois à l'autre (lié à la session Stripe CLI, pas à l'URL), donc pas besoin de remettre à jour `/admin/{id}/stripe` après un redémarrage.
+Deux migrations EF Core créées **et appliquées** à la base locale pendant cette session (`AddEstablishmentDeliveryReturns`, `AddStockRequests`) — le backend a dû être redémarré en cours de session car le process resté actif depuis une session précédente tournait sur du code périmé (un nouvel endpoint renvoyait 404 alors que le code était correct). Si tu relances tout depuis zéro, rien à faire de spécial — juste `dotnet run` comme d'habitude, les migrations sont déjà dans l'historique EF. Si un process tourne déjà et qu'un comportement ne correspond pas au code, redémarre-le avant de chercher plus loin.
 
 ## Ce qui a été fait cette session (résumé — détail dans la doc citée en tête)
 
-**Partie 6 (même jour)** : page de résultat de paiement dédiée, demandée par Ethan après un premier test de paiement réel :
-- Nouvelle page `/t/{clientSiteId}/commande` (`CheckoutResultPage.tsx`) : succès (montant payé, mention email envoyé, bouton boutique) ou annulation (panier conservé, bouton retour panier). `CartPage.tsx` y redirige désormais (`returnBaseUrl`) au lieu de la home.
-- Vidage du panier au succès et email de confirmation (Brevo) existaient **déjà** avant cette session — vérifiés, pas réimplémentés.
-- Ancien bandeau `CheckoutReturnBanner` (affiché sur la home) retiré de `CatalogueSection.tsx` et `charis/ProductGrid.tsx`, plus jamais déclenché.
-- Test d'achat réel de bout en bout confirmé (carte de test Stripe, webhook via la CLI) : page de succès correcte, panier vidé, commande bien créée en base — voir doc datée pour le détail.
-
-**Partie 5 (même jour)** : Ethan bloqué pensant ne pas pouvoir copier les clés Stripe/Brevo sur `/admin/dashboard/paiement` (champs `type="password"`, copiables au clavier mais sans repère visuel). Nouveau composant `SecretField.tsx` (afficher/masquer + copier) appliqué aux 5 champs concernés (Stripe agence + tenant, Brevo). Clé Stripe de test de l'agence copiée sur le tenant Atelier Lumen pour permettre à Ethan de tester un vrai paiement en local ; Stripe CLI lancée pour le webhook (voir encadré ci-dessus).
-
-**Partie 4 (même jour)** : deux dernières retouches — plus d'espace entre les sections du panier (grille/récap → suggestions → footer, `gap-12` + `pb-20`) et un crédit "Site réalisé par etnof-web" ajouté au footer partagé (`SiteFooter.tsx`, `AGENCY_WEBSITE_URL` dans `config.ts`) — visible partout où ce footer s'affiche (les 3 templates), pas seulement sur le panier.
-
-**Partie 3 (même jour)** : retour immédiat d'Ethan sur la partie 2 — le slider "Vous pourriez aussi aimer" doit reprendre le vrai comportement à survol de la home (pas une grille neutre), et la page panier doit avoir un footer (absent jusqu'ici) :
-- Footer ajouté (réutilise `SiteFooter.tsx`, déjà partagé par les 3 templates) — sombre pleine largeur sur Hestia/Charis, clair sur Helios, comme sur la home de chaque tenant.
-- "Vous pourriez aussi aimer" reprend le vrai `FeaturedSlider` de la home **sur Charis uniquement** (survol qui change de photo, flèches) — Hestia/Helios gardent la grille simple, cohérent avec le fait que ce survol n'existe nulle part ailleurs pour eux.
-- La page panier n'est donc plus tout à fait "identique pour tous les templates" comme avant — ces deux sections précises reprennent maintenant les couleurs/comportements du template actif, le reste (formulaire, récap, icônes de paiement) reste neutre.
-
-**Partie 2** : suite à une discussion sur ce qui manque à la page panier vs. les grandes enseignes (Zara...), 3 ajouts choisis par Ethan (codes promo écartée, trop gros chantier) :
-- Bandeau nom/logo du site (au lieu d'un simple lien texte "← Retour au site")
-- Ligne "Livraison : Offerte" dans les deux récapitulatifs (avant : implicite, aucune mention)
-- Icônes de paiement (VISA/Mastercard/CB stylisées) + section "Vous pourriez aussi aimer" (jusqu'à 4 produits suggérés, hors panier)
-
-**Partie 1** : retouche du formulaire de livraison du panier (page ajoutée le 2026-07-31), à partir d'une capture d'écran d'Ethan :
-
-- **Adresse structurée** : `Customer.Address` (un seul champ) devient `AddressLine1`/`AddressLine2`/`PostalCode`/`City`/`Country` — comme Zara. CRM client, Stripe (checkout + webhook) mis à jour.
-- **Téléphone** : sélecteur de pays + validation (même composant `PhoneInput` que l'admin) au lieu d'un simple champ texte.
-- **Email** : validation par regex avec message d'erreur.
-- **Prénom/Nom** : deux champs sur la même ligne au lieu d'un seul "Nom".
-- **Remplissage automatique depuis Google** : cliquer une suggestion d'adresse remplit maintenant aussi code postal/ville/pays (nouvel endpoint `GET /google-places/address-details`), pas seulement le champ adresse comme avant.
-
-**Limites connues, signalées à Ethan mais non corrigées** (pas de demande de fix) :
-- La recherche Google utilisée est une recherche texte générale (lieux/commerces) — elle peut remonter un commerce proche plutôt que l'adresse exacte tapée. Basculer sur l'API "Address Autocomplete" dédiée serait un chantier à part.
-- `PhoneInput.tsx` (composant partagé avec l'admin, bug préexistant) n'insère pas les espaces en direct pendant la frappe du numéro — juste visuel, la validation fonctionne correctement.
+- **Boutique Charis filtrée par collection via l'URL** (`?collection=id`) — le lien "Voir plus" (home) et le fil d'Ariane (fiche produit) pointent maintenant vers la collection précise au lieu de la boutique complète.
+- **Livraison/Retours éditables par établissement** (`SiteContent.DeliveryContent`/`ReturnsContent`) : vides par défaut pour un nouveau tenant (section absente du site tant que non rempli — tous les commerces ne font pas de livraison), bouton "Utiliser une suggestion" dans l'admin pour guider le wording. Les tenants déjà existants ont été backfillés avec l'ancien texte générique qu'ils affichaient déjà.
+- **Tailles produit** : réordonnancement par glisser-déposer, ajout de tailles directement dans la modale de création du produit, bascule explicite "Taille unique"/"Plusieurs tailles" (avec confirmation avant de supprimer toutes les tailles), correction de l'aperçu produit qui affichait le stock global obsolète au lieu de la somme par taille.
+- **Confirmations de suppression généralisées** : audit complet de l'admin (`ConfirmModal`), retrofit sur 8 fichiers qui en manquaient — tailles, photos produit, avis, logo, photos établissement, galerie, devis, factures, clients de facturation, formules, et surtout la **suppression d'un site client entier** (message d'avertissement renforcé).
+- **Alerte "Stock faible" du tableau de bord** corrigée pour regarder le stock par taille (au lieu du champ global devenu obsolète dès qu'un produit a des tailles).
+- **Nouvelle fonctionnalité "Prévenez-moi quand disponible"** (`StockRequest`) : un client peut signaler son intérêt pour un produit/une taille en rupture (bouton + modale sur le site public), consultable et supprimable depuis la fiche produit admin. Pas d'email automatique au tenant (décision explicite d'Ethan, même principe que les messages de contact).
+- **Fix `RichTextEditor.tsx`** : ne se resynchronisait pas quand `value` changeait depuis l'extérieur (ex. bouton "Utiliser une suggestion") — TipTap n'utilise `content` qu'à l'initialisation.
+- **Fix `PhoneInput.tsx`** : n'insérait pas les espaces au fil de la frappe — `AsYouType` (formateur à état) recevait toute la chaîne d'un coup à chaque rendu au lieu d'être nourri caractère par caractère.
 
 ## État des tenants de test
 
 - **Historique** (`11111111-1111-1111-1111-111111111111`) : Hestia/Olivier, mot de passe `admin123`.
 - **Boulangerie Dupont** (`e5d113ff-a734-47e9-8aae-78dea8d6102a`) : Hestia/Argile.
-- **Atelier Lumen** (`36d1b5f8-d5a4-493a-9ff3-d46616816adb`) : Charis/Noir, mot de passe `admin123` — utilisé pour vérifier le nouveau formulaire de panier cette session. A maintenant une vraie configuration Stripe de test (clé secrète copiée depuis l'agence, webhook via Stripe CLI, voir encadré plus haut) : paiements réels en mode test possibles sur ce tenant.
+- **Atelier Lumen** (`36d1b5f8-d5a4-493a-9ff3-d46616816adb`) : Charis/Noir, mot de passe `admin123` — utilisé pour tester toutes les fonctionnalités de cette session. Contient une demande de réassort de test sur "Trench Long Beige" (taille XL, email `verif-restart@test.com`) laissée après un test de bout en bout du redémarrage backend — à supprimer depuis la fiche produit si tu veux repartir propre, sinon inoffensif.
 
 ## À vérifier / reste à faire
 
-- [ ] Vérifier toi-même dans le navigateur la page `/t/{id}/commande` (succès et annulation) — un achat réel de bout en bout (carte de test) a été confirmé par un agent CDP/Chrome headless côté Claude (page de succès, panier vidé, commande créée en base), mais pas encore vu par toi directement.
-- [ ] Footer/slider Charis (parties 2-3) non testés sur un tenant Helios faute d'en avoir un.
-- [ ] La PR a été ouverte cette session (voir lien ci-dessus) — reste à la relire et la merger quand tu es prêt.
-- [ ] Reporté des sessions précédentes, toujours vrai : remplacer les photos placeholder d'Atelier Lumen, décider Livraison/Retours par établissement, filtrage boutique par collection via l'URL, tailles/"Notre histoire" sur Hestia/Helios, vrais tarifs des modules à valider, poids des images de cards Modules.
-
-## ⚠️ Serveur frontend relancé avec npm au lieu de pnpm
-
-Pendant le test d'achat de bout en bout, le serveur frontend (`:5173`) s'est retrouvé arrêté et a été relancé avec `npm run dev` (au lieu de `pnpm dev`, l'outil utilisé partout ailleurs dans ce projet, voir `DEMARRAGE.md`) faute d'alternative sur le moment. Ça n'a rien cassé, mais si tu relances toi-même le frontend, utilise `pnpm dev` comme d'habitude pour rester cohérent.
+- [ ] Tout le travail de cette session reste **à confirmer visuellement par Ethan dans le navigateur** — voir les sections "Reste à vérifier par Ethan"/"À confirmer par Ethan" datées du 2026-08-27 dans `docs/05-roadmap-poc.md` pour la liste précise par fonctionnalité.
+- [ ] Ouvrir la PR manuellement (lien ci-dessus) une fois la vérification faite.
+- [ ] Reporté des sessions précédentes, toujours vrai : remplacer les photos placeholder d'Atelier Lumen, vrais tarifs des modules à valider, poids des images de cards Modules, "Notre histoire"/nav conditionnée sur Hestia/Helios (Charis seulement pour l'instant), guide des tailles générique (pas de mesures par produit — évoqué cette session, pas encore fait).
 
 ## Pour reprendre rapidement
 
