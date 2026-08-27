@@ -95,7 +95,11 @@ Facultatif et **optionnel par produit** (décision d'Ethan, `AskUserQuestion` : 
 | Name | string | |
 | Email | string | Recherché par égalité insensible à la casse au checkout (find-or-create) |
 | Phone | string | |
-| Address | string | |
+| AddressLine1 | string | Rue et numéro (ex-colonne unique `Address`, renommée le 2026-08-27 — voir `docs/05-roadmap-poc.md`) |
+| AddressLine2 | string | Complément (appartement, étage...), facultatif |
+| PostalCode | string | |
+| City | string | |
+| Country | string | Texte libre, défaut "France" |
 | Notes | string | Usage libre agence/client |
 | CreatedAt | datetime | |
 

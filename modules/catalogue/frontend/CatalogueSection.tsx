@@ -4,7 +4,7 @@ import { createPortal } from "react-dom";
 // dictionnaire i18n du module Multilingue plutôt que de dupliquer des chaînes ici — voir
 // modules/multilingue/frontend/translations.ts.
 import { t, type Locale } from "@modules/multilingue/frontend/translations";
-import { CartProvider, storageKey, useCart } from "./CartContext";
+import { CartProvider, useCart } from "./CartContext";
 
 type ProductImage = {
   id: string;
@@ -52,70 +52,6 @@ type CatalogueSectionProps = {
 
 const formatPrice = (value: number) =>
   value.toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
-
-// Affiche le résultat du paiement au retour de Stripe Checkout (?checkout=success|cancel dans
-// l'URL). Rendu en dehors de <CartProvider> et avant le "return null si aucun produit" plus bas :
-// un client peut revenir de Stripe après avoir acheté le dernier exemplaire d'un produit qui reste
-// affiché (juste en rupture de stock), mais on ne veut pas dépendre de cette hypothèse pour afficher
-// la confirmation — d'où la lecture directe du localStorage plutôt que du contexte React du panier.
-function CheckoutReturnBanner({
-  apiBaseUrl,
-  clientSiteId,
-  palette,
-  locale,
-}: {
-  apiBaseUrl: string;
-  clientSiteId: string;
-  palette: ModulePalette;
-  locale?: Locale;
-}) {
-  const [message, setMessage] = useState<string | null>(null);
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const checkout = params.get("checkout");
-    if (!checkout) return;
-
-    if (checkout === "success") {
-      localStorage.removeItem(storageKey(clientSiteId));
-      const sessionId = params.get("session_id");
-
-      if (sessionId) {
-        fetch(`${apiBaseUrl}/api/t/${clientSiteId}/stripe/session/${sessionId}`)
-          .then((res) => (res.ok ? (res.json() as Promise<{ status: string; amountTotal: number }>) : null))
-          .then((data) => {
-            setMessage(
-              data && data.status === "paid"
-                ? t(locale, "catalogue.paymentReceived", { price: formatPrice(data.amountTotal) })
-                : t(locale, "catalogue.orderRecorded")
-            );
-          })
-          .catch(() => setMessage(t(locale, "catalogue.orderRecorded")));
-      } else {
-        setMessage(t(locale, "catalogue.orderRecorded"));
-      }
-    } else if (checkout === "cancel") {
-      setMessage(t(locale, "catalogue.paymentCancelled"));
-    }
-
-    const url = new URL(window.location.href);
-    url.searchParams.delete("checkout");
-    url.searchParams.delete("session_id");
-    window.history.replaceState({}, "", url.toString());
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  if (!message) return null;
-
-  return (
-    <p
-      className="rounded-card px-5 py-4 text-sm font-semibold"
-      style={{ backgroundColor: `${palette.accent}18`, color: palette.ink }}
-    >
-      {message}
-    </p>
-  );
-}
 
 // Étoiles en lecture seule (note moyenne sur la card, avis déjà postés dans la modale) — voir
 // StarPicker plus bas pour la variante interactive du formulaire.
@@ -433,11 +369,7 @@ export default function CatalogueSection({ apiBaseUrl, clientSiteId, palette, lo
       .catch((err) => console.error("Erreur CatalogueSection :", err));
   }, [apiBaseUrl, clientSiteId]);
 
-  // Un client peut revenir de Stripe (?checkout=...) alors que la liste de produits n'a pas encore
-  // fini de charger, ou est vide — la bannière de confirmation doit s'afficher quoi qu'il arrive.
-  const hasCheckoutReturn = new URLSearchParams(window.location.search).has("checkout");
-
-  if (products.length === 0 && !hasCheckoutReturn) return null;
+  if (products.length === 0) return null;
 
   // Aperçu (`limit` fourni, voir CatalogueSectionProps) : les produits "mis en avant" passent en
   // premier (tri stable, Array.prototype.sort le garantit) avant de tronquer — sinon ordre du
@@ -449,9 +381,6 @@ export default function CatalogueSection({ apiBaseUrl, clientSiteId, palette, lo
 
   return (
     <CartProvider clientSiteId={clientSiteId}>
-      <CheckoutReturnBanner apiBaseUrl={apiBaseUrl} clientSiteId={clientSiteId} palette={palette} locale={locale} />
-
-      {products.length === 0 ? null : (
       <section className="flex flex-col gap-4">
         <span className="text-xs font-semibold uppercase tracking-[0.1em]" style={{ color: palette.accent }}>
           {t(locale, "catalogue.label")}
@@ -478,8 +407,7 @@ export default function CatalogueSection({ apiBaseUrl, clientSiteId, palette, lo
           </a>
         )}
       </section>
-      )}
-      {products.length > 0 && <CartButton clientSiteId={clientSiteId} palette={palette} locale={locale} />}
+      <CartButton clientSiteId={clientSiteId} palette={palette} locale={locale} />
     </CartProvider>
   );
 }

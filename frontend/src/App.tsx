@@ -48,6 +48,7 @@ const AGENCY_SECTIONS: AgencySection[] = [
 
 const BlogPostPage = lazy(() => import("@modules/blog/frontend/BlogPostPage"));
 const CartPage = lazy(() => import("@modules/catalogue/frontend/CartPage"));
+const CheckoutResultPage = lazy(() => import("@modules/catalogue/frontend/CheckoutResultPage"));
 const CustomPageView = lazy(() => import("@modules/pages/frontend/CustomPageView"));
 const CharisProductPage = lazy(() => import("./templates/charis/ProductPage"));
 const CataloguePage = lazy(() => import("./pages/CataloguePage"));
@@ -164,6 +165,17 @@ function App() {
     return (
       <Suspense fallback={null}>
         <CartPage clientSiteId={segments[1]} apiBaseUrl={API_BASE_URL} />
+      </Suspense>
+    );
+  }
+
+  // /t/{clientSiteId}/commande — page de retour de Stripe Checkout (succès/annulation), voir
+  // CheckoutResultPage.tsx. CartPage.tsx y pointe son `returnBaseUrl` ; remplace l'ancienne bannière
+  // affichée sur la home (retirée de CatalogueSection.tsx et charis/ProductGrid.tsx).
+  if (segments[0] === "t" && segments[1] && segments[2] === "commande") {
+    return (
+      <Suspense fallback={null}>
+        <CheckoutResultPage clientSiteId={segments[1]} apiBaseUrl={API_BASE_URL} />
       </Suspense>
     );
   }

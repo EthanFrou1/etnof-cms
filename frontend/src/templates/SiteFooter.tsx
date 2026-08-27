@@ -1,5 +1,6 @@
 import { lazy, Suspense } from "react";
 import { t, type Locale } from "@modules/multilingue/frontend/translations";
+import { AGENCY_WEBSITE_URL } from "../config";
 import type { SiteContent } from "../hooks/useContent";
 import type { ModulesConfig } from "../hooks/useModules";
 
@@ -58,6 +59,12 @@ export default function SiteFooter({ content, palette, dark = false, modules, lo
               </div>
             </Suspense>
           )}
+          <span className="mt-4 text-xs" style={{ color: `${palette.background}66` }}>
+            {t(locale, "footer.madeBy")}{" "}
+            <a href={AGENCY_WEBSITE_URL} target="_blank" rel="noreferrer" className="underline hover:no-underline">
+              etnof-web
+            </a>
+          </span>
         </div>
       </footer>
     );
@@ -89,6 +96,12 @@ export default function SiteFooter({ content, palette, dark = false, modules, lo
           </div>
         </Suspense>
       )}
+      <span className="mt-3 text-xs" style={{ color: `${palette.ink}66` }}>
+        {t(locale, "footer.madeBy")}{" "}
+        <a href={AGENCY_WEBSITE_URL} target="_blank" rel="noreferrer" className="underline hover:no-underline">
+          etnof-web
+        </a>
+      </span>
     </footer>
   );
 }

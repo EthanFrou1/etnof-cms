@@ -26,7 +26,11 @@ type Customer = {
   name: string;
   email: string;
   phone: string;
-  address: string;
+  addressLine1: string;
+  addressLine2: string;
+  postalCode: string;
+  city: string;
+  country: string;
   notes: string;
   createdAt: string;
 };
@@ -99,7 +103,11 @@ function CustomerDetailContent({
     form.name !== customer.name ||
     form.email !== customer.email ||
     form.phone !== customer.phone ||
-    form.address !== customer.address ||
+    form.addressLine1 !== customer.addressLine1 ||
+    form.addressLine2 !== customer.addressLine2 ||
+    form.postalCode !== customer.postalCode ||
+    form.city !== customer.city ||
+    form.country !== customer.country ||
     form.notes !== customer.notes;
 
   return (
@@ -133,7 +141,39 @@ function CustomerDetailContent({
           </label>
           <label className="flex flex-col gap-1 text-sm text-gray-text">
             Adresse
-            <input className={inputClass} value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
+            <input
+              className={inputClass}
+              value={form.addressLine1}
+              onChange={(e) => setForm({ ...form, addressLine1: e.target.value })}
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-sm text-gray-text">
+            Complément d'adresse
+            <input
+              className={inputClass}
+              value={form.addressLine2}
+              onChange={(e) => setForm({ ...form, addressLine2: e.target.value })}
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-sm text-gray-text">
+            Code postal
+            <input
+              className={inputClass}
+              value={form.postalCode}
+              onChange={(e) => setForm({ ...form, postalCode: e.target.value })}
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-sm text-gray-text">
+            Ville
+            <input className={inputClass} value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
+          </label>
+          <label className="flex flex-col gap-1 text-sm text-gray-text">
+            Pays
+            <input
+              className={inputClass}
+              value={form.country}
+              onChange={(e) => setForm({ ...form, country: e.target.value })}
+            />
           </label>
           <label className="flex flex-col gap-1 text-sm text-gray-text sm:col-span-2">
             Notes
