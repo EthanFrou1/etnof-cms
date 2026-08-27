@@ -6,6 +6,7 @@ import { useModules } from "../../hooks/useModules";
 import { IconClock, IconMail, IconPhone, IconPin } from "../../components/admin/icons";
 import RichTextEditor from "../../components/admin/RichTextEditor";
 import PhoneInput from "../../components/admin/PhoneInput";
+import ConfirmModal from "../../components/admin/ConfirmModal";
 
 type EstablishmentSectionProps = {
   clientSiteId: string;
@@ -35,11 +36,19 @@ type EstablishmentImage = {
 
 const WEEKDAYS = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"];
 
+// Wording de départ proposé au client pour Livraison/Retours (bouton "Utiliser cette suggestion"
+// dans l'onglet "Livraison & CGV") — jamais posé automatiquement (voir SiteContent.cs), juste une
+// aide pour ceux qui ne savent pas quoi écrire. Reprend le texte générique qu'affichait le site
+// avant que ces champs existent.
+const SUGGESTED_DELIVERY_HTML = "<p>Expédition sous 24 à 48h. Livraison estimée en 3 à 5 jours ouvrés.</p>";
+const SUGGESTED_RETURNS_HTML =
+  "<p>Retours gratuits sous 30 jours, article non porté et dans son emballage d'origine.</p>";
+
 const TABS = [
   { id: "info", label: "Informations" },
   { id: "photos", label: "Photos" },
   { id: "hours", label: "Horaires" },
-  { id: "cgv", label: "CGV" },
+  { id: "cgv", label: "Livraison & CGV" },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -157,8 +166,11 @@ function LogoUploader({
     onLogoChanged();
   };
 
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+
   const handleDelete = async () => {
     await adminFetch(API_BASE_URL, `/api/t/${clientSiteId}/admin/logo`, password, { method: "DELETE" });
+    setConfirmingDelete(false);
     onLogoChanged();
   };
 
@@ -175,11 +187,19 @@ function LogoUploader({
             <img src={`${API_BASE_URL}${logoUrl}`} alt="" className="h-20 w-20 rounded-button border border-border-subtle object-contain p-1" />
             <button
               type="button"
-              onClick={handleDelete}
+              onClick={() => setConfirmingDelete(true)}
               className="absolute -right-1.5 -top-1.5 h-5 w-5 rounded-full bg-red-500 text-xs text-white"
             >
               ×
             </button>
+            {confirmingDelete && (
+              <ConfirmModal
+                title="Supprimer le logo ?"
+                message="Le site public retombera sur le texte seul, sans logo."
+                onConfirm={handleDelete}
+                onCancel={() => setConfirmingDelete(false)}
+              />
+            )}
           </div>
         ) : (
           <label className="flex h-20 w-20 cursor-pointer items-center justify-center rounded-button border border-dashed border-border-subtle text-xs text-gray-text hover:border-brand-mid">
@@ -224,10 +244,13 @@ function PhotosTab({
     onImagesChanged();
   };
 
+  const [imageToDelete, setImageToDelete] = useState<EstablishmentImage | null>(null);
+
   const handleDelete = async (imageId: string) => {
     await adminFetch(API_BASE_URL, `/api/t/${clientSiteId}/admin/establishment/images/${imageId}`, password, {
       method: "DELETE",
     });
+    setImageToDelete(null);
     onImagesChanged();
   };
 
@@ -244,7 +267,7 @@ function PhotosTab({
             <img src={`${API_BASE_URL}${image.path}`} alt="" className="h-28 w-28 rounded-button object-cover" />
             <button
               type="button"
-              onClick={() => handleDelete(image.id)}
+              onClick={() => setImageToDelete(image)}
               className="absolute -right-1.5 -top-1.5 h-5 w-5 rounded-full bg-red-500 text-xs text-white"
             >
               ×
@@ -265,6 +288,15 @@ function PhotosTab({
           />
         </label>
       </div>
+
+      {imageToDelete && (
+        <ConfirmModal
+          title="Supprimer cette photo ?"
+          message="Cette action est définitive."
+          onConfirm={() => handleDelete(imageToDelete.id)}
+          onCancel={() => setImageToDelete(null)}
+        />
+      )}
     </section>
   );
 }
@@ -382,6 +414,8 @@ export default function EstablishmentSection({ clientSiteId, password }: Establi
   const [googlePlaceId, setGooglePlaceId] = useState("");
   const [googlePlaceName, setGooglePlaceName] = useState("");
   const [cgvContent, setCgvContent] = useState("");
+  const [deliveryContent, setDeliveryContent] = useState("");
+  const [returnsContent, setReturnsContent] = useState("");
   const [openingHours, setOpeningHours] = useState<DayHours[]>(WEEKDAYS.map(() => emptyDayHours()));
   const [images, setImages] = useState<EstablishmentImage[]>([]);
   const [importingPhotos, setImportingPhotos] = useState(false);
@@ -426,6 +460,8 @@ export default function EstablishmentSection({ clientSiteId, password }: Establi
         setGooglePlaceId(data.googlePlaceId);
         setGooglePlaceName(data.googlePlaceName);
         setCgvContent(data.cgvContent);
+        setDeliveryContent(data.deliveryContent);
+        setReturnsContent(data.returnsContent);
         setOpeningHours(normalizeHours(data.openingHours));
       });
     loadImages();
@@ -536,6 +572,8 @@ export default function EstablishmentSection({ clientSiteId, password }: Establi
         googlePlaceId !== content.googlePlaceId ||
         googlePlaceName !== content.googlePlaceName ||
         cgvContent !== content.cgvContent ||
+        deliveryContent !== content.deliveryContent ||
+        returnsContent !== content.returnsContent ||
         !hoursEqual(openingHours, normalizeHours(content.openingHours)))
   );
 
@@ -566,6 +604,8 @@ export default function EstablishmentSection({ clientSiteId, password }: Establi
         googlePlaceId,
         googlePlaceName,
         cgvContent,
+        deliveryContent,
+        returnsContent,
         openingHours,
       }),
     });
@@ -603,7 +643,7 @@ export default function EstablishmentSection({ clientSiteId, password }: Establi
         <div className="rounded-card border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
           <strong>CGV manquantes.</strong> La boutique en ligne est active mais aucune condition
           générale de vente n'est renseignée — le bouton de paiement reste désactivé sur le panier
-          public tant que l'onglet <button type="button" onClick={() => setActiveTab("cgv")} className="underline">CGV</button> n'est pas rempli.
+          public tant que l'onglet <button type="button" onClick={() => setActiveTab("cgv")} className="underline">Livraison & CGV</button> n'est pas rempli.
         </div>
       )}
 
@@ -770,16 +810,54 @@ export default function EstablishmentSection({ clientSiteId, password }: Establi
           {activeTab === "hours" && <HoursTab hours={openingHours} onChange={updateHour} />}
 
           {activeTab === "cgv" && (
-            <section className="rounded-card bg-white p-8 shadow-card">
-              <h2 className="mb-1 text-lg font-bold text-navy">Conditions générales de vente</h2>
-              <p className="mb-4 text-sm text-gray-text">
-                Affichées sur une page publique dédiée (<code>/cgv</code>) et liées depuis la case à
-                cocher du panier. Obligatoires dès que la boutique en ligne (Catalogue + Paiement
-                Stripe) est active — sans ce texte, le bouton de paiement reste désactivé pour tes
-                clients.
-              </p>
-              <RichTextEditor value={cgvContent} onChange={setCgvContent} />
-            </section>
+            <>
+              <section className="rounded-card bg-white p-8 shadow-card">
+                <div className="mb-1 flex items-center justify-between gap-3">
+                  <h2 className="text-lg font-bold text-navy">Livraison</h2>
+                  <button
+                    type="button"
+                    onClick={() => setDeliveryContent(SUGGESTED_DELIVERY_HTML)}
+                    className="shrink-0 rounded-button border border-border-subtle px-3 py-1 text-xs font-medium text-navy hover:bg-bg-page-start"
+                  >
+                    Utiliser une suggestion
+                  </button>
+                </div>
+                <p className="mb-4 text-sm text-gray-text">
+                  Affiché dans l'accordéon de la fiche produit — laisse vide si tu ne fais pas de
+                  livraison, la section n'apparaîtra alors pas sur le site. Le bouton ci-dessus propose
+                  un texte de départ si tu ne sais pas quoi écrire.
+                </p>
+                <RichTextEditor value={deliveryContent} onChange={setDeliveryContent} compact />
+              </section>
+
+              <section className="rounded-card bg-white p-8 shadow-card">
+                <div className="mb-1 flex items-center justify-between gap-3">
+                  <h2 className="text-lg font-bold text-navy">Retours</h2>
+                  <button
+                    type="button"
+                    onClick={() => setReturnsContent(SUGGESTED_RETURNS_HTML)}
+                    className="shrink-0 rounded-button border border-border-subtle px-3 py-1 text-xs font-medium text-navy hover:bg-bg-page-start"
+                  >
+                    Utiliser une suggestion
+                  </button>
+                </div>
+                <p className="mb-4 text-sm text-gray-text">
+                  Même principe que Livraison ci-dessus — laisse vide si tu n'acceptes pas les retours.
+                </p>
+                <RichTextEditor value={returnsContent} onChange={setReturnsContent} compact />
+              </section>
+
+              <section className="rounded-card bg-white p-8 shadow-card">
+                <h2 className="mb-1 text-lg font-bold text-navy">Conditions générales de vente</h2>
+                <p className="mb-4 text-sm text-gray-text">
+                  Affichées sur une page publique dédiée (<code>/cgv</code>) et liées depuis la case à
+                  cocher du panier. Obligatoires dès que la boutique en ligne (Catalogue + Paiement
+                  Stripe) est active — sans ce texte, le bouton de paiement reste désactivé pour tes
+                  clients.
+                </p>
+                <RichTextEditor value={cgvContent} onChange={setCgvContent} />
+              </section>
+            </>
           )}
         </div>
 

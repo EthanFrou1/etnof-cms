@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { API_BASE_URL } from "../../config";
 import { adminFetch } from "../../hooks/useAdminSession";
+import ConfirmModal from "../../components/admin/ConfirmModal";
 
 type GallerySectionProps = {
   clientSiteId: string;
@@ -19,6 +20,7 @@ export default function GallerySection({ clientSiteId, password }: GallerySectio
   const [images, setImages] = useState<GalleryImage[] | null>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [imageToDelete, setImageToDelete] = useState<GalleryImage | null>(null);
 
   const load = () =>
     adminFetch(API_BASE_URL, `/api/t/${clientSiteId}/admin/galerie/images`, password)
@@ -51,6 +53,7 @@ export default function GallerySection({ clientSiteId, password }: GallerySectio
     await adminFetch(API_BASE_URL, `/api/t/${clientSiteId}/admin/galerie/images/${imageId}`, password, {
       method: "DELETE",
     });
+    setImageToDelete(null);
     load();
   };
 
@@ -75,7 +78,7 @@ export default function GallerySection({ clientSiteId, password }: GallerySectio
                 <img src={`${API_BASE_URL}${image.path}`} alt="" className="h-32 w-32 rounded-button object-cover" />
                 <button
                   type="button"
-                  onClick={() => handleDelete(image.id)}
+                  onClick={() => setImageToDelete(image)}
                   className="absolute -right-1.5 -top-1.5 h-5 w-5 rounded-full bg-red-500 text-xs text-white"
                   aria-label="Supprimer la photo"
                 >
@@ -100,6 +103,15 @@ export default function GallerySection({ clientSiteId, password }: GallerySectio
           </div>
         )}
       </section>
+
+      {imageToDelete && (
+        <ConfirmModal
+          title="Supprimer cette photo ?"
+          message="Cette action est définitive."
+          onConfirm={() => handleDelete(imageToDelete.id)}
+          onCancel={() => setImageToDelete(null)}
+        />
+      )}
     </div>
   );
 }

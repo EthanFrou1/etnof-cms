@@ -122,8 +122,11 @@ export default function ProductCard({
                 <button
                   key={size.id}
                   type="button"
-                  disabled={disabled}
                   onClick={(e) => {
+                    // Épuisée : pas de preventDefault/stopPropagation, le clic remonte jusqu'à <a>
+                    // et navigue vers la fiche produit — seul endroit avec assez de place pour la
+                    // demande de réassort (StockRequestForm), inadapté à ce hover compact.
+                    if (disabled) return;
                     e.preventDefault();
                     e.stopPropagation();
                     addItem(product.id, product.name, product.price, size.stock, 1, primary?.path, product.description, size.label);

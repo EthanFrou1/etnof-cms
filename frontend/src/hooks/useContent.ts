@@ -40,6 +40,8 @@ export type SiteContent = {
   googlePlaceId: string;
   googlePlaceName: string;
   cgvContent: string;
+  deliveryContent: string;
+  returnsContent: string;
 };
 
 // `locale` optionnel (module Multilingue) — "fr" ou omis n'ajoute pas de paramètre, le backend

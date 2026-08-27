@@ -3,6 +3,7 @@ import { API_BASE_URL } from "../../config";
 import { adminFetch } from "../../hooks/useAdminSession";
 import { IconCheck } from "../../components/admin/icons";
 import { inputClass, type PackageOffer } from "./shared";
+import ConfirmModal from "../../components/admin/ConfirmModal";
 
 const emptyPackageOfferForm = { name: "", price: "", description: "", features: [] as string[], highlighted: false };
 
@@ -212,6 +213,7 @@ function OfferCard({ offer, onEdit, onDelete }: { offer: PackageOffer; onEdit: (
 export default function PackageOffersSection({ password }: { password: string }) {
   const [offers, setOffers] = useState<PackageOffer[] | null>(null);
   const [modal, setModal] = useState<"create" | PackageOffer | null>(null);
+  const [offerToDelete, setOfferToDelete] = useState<PackageOffer | null>(null);
 
   const load = () =>
     adminFetch(API_BASE_URL, "/api/admin/package-offers", password)
@@ -225,6 +227,7 @@ export default function PackageOffersSection({ password }: { password: string })
 
   const handleDelete = async (id: string) => {
     await adminFetch(API_BASE_URL, `/api/admin/package-offers/${id}`, password, { method: "DELETE" });
+    setOfferToDelete(null);
     load();
   };
 
@@ -256,7 +259,7 @@ export default function PackageOffersSection({ password }: { password: string })
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {offers.map((offer) => (
-            <OfferCard key={offer.id} offer={offer} onEdit={() => setModal(offer)} onDelete={() => handleDelete(offer.id)} />
+            <OfferCard key={offer.id} offer={offer} onEdit={() => setModal(offer)} onDelete={() => setOfferToDelete(offer)} />
           ))}
         </div>
       )}
@@ -267,6 +270,15 @@ export default function PackageOffersSection({ password }: { password: string })
           editing={modal === "create" ? null : modal}
           onClose={() => setModal(null)}
           onSaved={load}
+        />
+      )}
+
+      {offerToDelete && (
+        <ConfirmModal
+          title={`Supprimer la formule "${offerToDelete.name}" ?`}
+          message="Cette action est définitive."
+          onConfirm={() => handleDelete(offerToDelete.id)}
+          onCancel={() => setOfferToDelete(null)}
         />
       )}
     </div>

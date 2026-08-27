@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { API_BASE_URL } from "../../config";
 import { StatusLegend } from "../../components/admin/StatusLegend";
 import Select from "../../components/admin/Select";
+import ConfirmModal from "../../components/admin/ConfirmModal";
 import { adminFetch } from "../../hooks/useAdminSession";
 import {
   inputClass,
@@ -257,6 +258,7 @@ export default function InvoicesSection({ password }: { password: string }) {
   const [clients, setClients] = useState<BillingClient[]>([]);
   const [modal, setModal] = useState<"create" | InvoiceDetail | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [invoiceToDelete, setInvoiceToDelete] = useState<InvoiceListItem | null>(null);
   const [statusFilter, setStatusFilter] = useState<(typeof INVOICE_STATUS_FILTERS)[number]["value"]>("all");
 
   const load = () =>
@@ -296,6 +298,7 @@ export default function InvoicesSection({ password }: { password: string }) {
 
   const handleDelete = async (id: string) => {
     await adminFetch(API_BASE_URL, `/api/admin/invoices/${id}`, password, { method: "DELETE" });
+    setInvoiceToDelete(null);
     load();
   };
 
@@ -429,7 +432,7 @@ export default function InvoicesSection({ password }: { password: string }) {
                                 </button>
                                 <button
                                   type="button"
-                                  onClick={() => handleDelete(invoice.id)}
+                                  onClick={() => setInvoiceToDelete(invoice)}
                                   className="font-medium text-red-500 hover:text-red-600"
                                 >
                                   Supprimer
@@ -491,6 +494,15 @@ export default function InvoicesSection({ password }: { password: string }) {
           editing={modal === "create" ? null : modal}
           onClose={() => setModal(null)}
           onSaved={load}
+        />
+      )}
+
+      {invoiceToDelete && (
+        <ConfirmModal
+          title={`Supprimer cette facture brouillon (${invoiceToDelete.clientName}) ?`}
+          message="Cette action est définitive."
+          onConfirm={() => handleDelete(invoiceToDelete.id)}
+          onCancel={() => setInvoiceToDelete(null)}
         />
       )}
     </div>

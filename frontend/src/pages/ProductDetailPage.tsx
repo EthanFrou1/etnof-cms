@@ -5,6 +5,7 @@ import { useModules } from "../hooks/useModules";
 import AdminLoginScreen from "../components/admin/AdminLoginScreen";
 import AdminLayout from "../components/admin/AdminLayout";
 import Select from "../components/admin/Select";
+import ConfirmModal from "../components/admin/ConfirmModal";
 
 type ProductImage = {
   id: string;
@@ -66,14 +67,20 @@ function toForm(product: Product): ProductForm {
   };
 }
 
-function ProductPreview({ name, price, description, stock, images }: {
+// `sizes` : dès qu'il y en a, le champ "Stock" (global) n'est plus la vérité — l'aperçu doit
+// afficher la somme des stocks par taille, sinon il resterait bloqué sur l'ancienne valeur du champ
+// désactivé (bug repéré par Ethan : la preview affichait "Stock : 4" alors que les tailles réelles
+// totalisaient 6).
+function ProductPreview({ name, price, description, stock, images, sizes }: {
   name: string;
   price: string;
   description: string;
   stock: string;
   images: ProductImage[];
+  sizes: ProductSize[];
 }) {
   const cover = images[0];
+  const totalStock = sizes.length > 0 ? sizes.reduce((sum, s) => sum + s.stock, 0) : Number(stock) || 0;
 
   return (
     <aside className="flex h-fit flex-col overflow-hidden rounded-card bg-white shadow-card">
@@ -95,7 +102,10 @@ function ProductPreview({ name, price, description, stock, images }: {
           </span>
         </div>
         {description && <p className="text-sm leading-relaxed text-gray-text">{description}</p>}
-        <span className="text-xs font-semibold text-gray-text">Stock : {stock || 0}</span>
+        <span className="text-xs font-semibold text-gray-text">
+          Stock : {totalStock}
+          {sizes.length > 0 ? " (toutes tailles confondues)" : ""}
+        </span>
         {images.length > 1 && (
           <div className="mt-1 flex flex-wrap gap-2">
             {images.slice(1).map((img) => (
@@ -146,6 +156,7 @@ function Stars({ rating }: { rating: number }) {
 
 function ReviewsSection({ clientSiteId, productId, password }: { clientSiteId: string; productId: string; password: string }) {
   const [reviews, setReviews] = useState<ProductReview[] | null>(null);
+  const [reviewToDelete, setReviewToDelete] = useState<ProductReview | null>(null);
 
   const load = () =>
     adminFetch(API_BASE_URL, `/api/t/${clientSiteId}/admin/catalogue/products/${productId}/reviews`, password)
@@ -168,6 +179,7 @@ function ReviewsSection({ clientSiteId, productId, password }: { clientSiteId: s
 
   const handleDelete = async (id: string) => {
     await adminFetch(API_BASE_URL, `/api/t/${clientSiteId}/admin/catalogue/reviews/${id}`, password, { method: "DELETE" });
+    setReviewToDelete(null);
     load();
   };
 
@@ -202,13 +214,102 @@ function ReviewsSection({ clientSiteId, productId, password }: { clientSiteId: s
                   <ToggleSwitch checked={review.selected} onChange={(value) => toggleReview(review.id, value)} />
                   <span className="text-[11px] text-gray-text">{review.selected ? "Affiché" : "Masqué"}</span>
                 </div>
-                <button type="button" onClick={() => handleDelete(review.id)} className="text-xs text-red-500 hover:text-red-600">
+                <button type="button" onClick={() => setReviewToDelete(review)} className="text-xs text-red-500 hover:text-red-600">
                   Supprimer
                 </button>
               </div>
             </div>
           ))}
         </div>
+      )}
+
+      {reviewToDelete && (
+        <ConfirmModal
+          title={`Supprimer l'avis de "${reviewToDelete.authorName}" ?`}
+          message="Cette action est définitive."
+          onConfirm={() => handleDelete(reviewToDelete.id)}
+          onCancel={() => setReviewToDelete(null)}
+        />
+      )}
+    </section>
+  );
+}
+
+type StockRequest = {
+  id: string;
+  sizeLabel: string | null;
+  email: string;
+  createdAt: string;
+};
+
+// Demandes "prévenez-moi quand disponible" laissées par des visiteurs sur une taille ou le produit
+// entier en rupture (voir StockRequest.cs, StockRequestForm.tsx côté public) — même patron que
+// ReviewsSection ci-dessus (chargement/suppression), sans modération (rien à afficher publiquement).
+function StockRequestsSection({ clientSiteId, productId, password }: { clientSiteId: string; productId: string; password: string }) {
+  const [requests, setRequests] = useState<StockRequest[] | null>(null);
+  const [requestToDelete, setRequestToDelete] = useState<StockRequest | null>(null);
+
+  const load = () =>
+    adminFetch(API_BASE_URL, `/api/t/${clientSiteId}/admin/catalogue/products/${productId}/stock-requests`, password)
+      .then((res) => res.json())
+      .then(setRequests);
+
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleDelete = async (id: string) => {
+    await adminFetch(API_BASE_URL, `/api/t/${clientSiteId}/admin/catalogue/stock-requests/${id}`, password, { method: "DELETE" });
+    setRequestToDelete(null);
+    load();
+  };
+
+  if (requests && requests.length === 0) return null;
+
+  return (
+    <section className="rounded-card bg-white p-8 shadow-card">
+      <h2 className="mb-1 text-lg font-bold text-navy">Demandes de réassort</h2>
+      <p className="mb-4 text-sm text-gray-text">
+        Des visiteurs ont demandé à être prévenus quand ce produit (ou cette taille) sera de nouveau disponible.
+      </p>
+
+      {!requests ? (
+        <p className="text-sm text-gray-text">Chargement…</p>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {requests.map((request) => (
+            <div key={request.id} className="flex items-center justify-between gap-4 rounded-button bg-bg-page-start/60 p-3">
+              <div className="min-w-0">
+                <span className="font-medium text-navy">{request.email}</span>
+                {request.sizeLabel && (
+                  <span className="ml-2 rounded-pill bg-brand-mid/10 px-2 py-0.5 text-xs font-semibold text-brand-mid">
+                    Taille {request.sizeLabel}
+                  </span>
+                )}
+                <span className="ml-2 text-xs text-gray-text/70">
+                  {new Date(request.createdAt).toLocaleDateString("fr-FR")}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setRequestToDelete(request)}
+                className="shrink-0 text-xs text-red-500 hover:text-red-600"
+              >
+                Supprimer
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {requestToDelete && (
+        <ConfirmModal
+          title="Supprimer cette demande ?"
+          message="Cette action est définitive."
+          onConfirm={() => handleDelete(requestToDelete.id)}
+          onCancel={() => setRequestToDelete(null)}
+        />
       )}
     </section>
   );
@@ -294,20 +395,36 @@ function AiPromptSection({ name, description }: { name: string; description: str
 
 // Facultatif — voir ProductSize.cs côté backend. Dès qu'une taille existe, le stock global du
 // produit (champ "Stock" de la section Informations) n'est plus utilisé côté vente : chaque taille
-// a le sien. Pas de réordonnancement (contrairement aux photos) — ordre de création simple.
+// a le sien. Glisser-déposer pour réordonner, même patron que la section Photos ci-dessous.
 function SizesSection({
   sizes,
   onAdd,
   onUpdateStock,
   onDelete,
+  onReorder,
+  onDeleteAll,
 }: {
   sizes: ProductSize[];
   onAdd: (label: string, stock: number) => void;
   onUpdateStock: (size: ProductSize, stock: number) => void;
   onDelete: (sizeId: string) => void;
+  onReorder: (sizeIds: string[]) => void;
+  onDeleteAll: () => void;
 }) {
   const [label, setLabel] = useState("");
   const [stock, setStock] = useState("");
+  const [draggedSizeId, setDraggedSizeId] = useState<string | null>(null);
+  const [sizeToDelete, setSizeToDelete] = useState<ProductSize | null>(null);
+  const [confirmSwitchToSingle, setConfirmSwitchToSingle] = useState(false);
+  // Local, pas persisté en base : reflète `sizes.length > 0` par défaut, mais permet aussi de
+  // choisir "Plusieurs tailles" avant d'avoir ajouté la toute première (révèle le formulaire) — sans
+  // taille réellement créée, un rechargement retombe sur "Taille unique", ce qui reste cohérent
+  // puisque la vraie source de vérité est toujours la liste des tailles elle-même.
+  const [mode, setMode] = useState<"single" | "multiple">(sizes.length > 0 ? "multiple" : "single");
+
+  useEffect(() => {
+    setMode(sizes.length > 0 ? "multiple" : "single");
+  }, [sizes.length]);
 
   const handleAdd = () => {
     if (!label.trim()) return;
@@ -316,61 +433,128 @@ function SizesSection({
     setStock("");
   };
 
+  const handleSelectSingle = () => {
+    if (sizes.length > 0) setConfirmSwitchToSingle(true);
+    else setMode("single");
+  };
+
   return (
     <section className="rounded-card bg-white p-8 shadow-card">
       <h2 className="mb-1 text-lg font-bold text-navy">Tailles</h2>
       <p className="mb-4 text-sm text-gray-text">
-        Facultatif — dès qu'une taille est ajoutée, le client doit en choisir une pour acheter ce produit, et le
-        champ "Stock" ci-dessus n'est plus utilisé (chaque taille a le sien).
+        Facultatif — en "Plusieurs tailles", le client doit en choisir une pour acheter ce produit, et le champ
+        "Stock" ci-dessus n'est plus utilisé (chaque taille a le sien).
       </p>
 
-      {sizes.length > 0 && (
-        <div className="mb-4 flex flex-col gap-2">
-          {sizes.map((size) => (
-            <div key={size.id} className="flex items-center gap-3 rounded-button border border-border-subtle p-3">
-              <span className="w-16 shrink-0 font-medium text-navy">{size.label}</span>
-              <input
-                type="number"
-                min={0}
-                className={`${inputClass} w-24`}
-                value={size.stock}
-                onChange={(e) => onUpdateStock(size, Math.max(0, Number(e.target.value) || 0))}
-              />
-              <span className="text-xs text-gray-text">en stock</span>
-              <button type="button" onClick={() => onDelete(size.id)} className="ml-auto text-sm text-red-500 hover:text-red-600">
-                Supprimer
-              </button>
-            </div>
-          ))}
-        </div>
+      <div className="mb-4 flex gap-4">
+        <label className="flex items-center gap-2 text-sm font-medium text-navy">
+          <input type="radio" name="sizeMode" checked={mode === "single"} onChange={handleSelectSingle} />
+          Taille unique
+        </label>
+        <label className="flex items-center gap-2 text-sm font-medium text-navy">
+          <input type="radio" name="sizeMode" checked={mode === "multiple"} onChange={() => setMode("multiple")} />
+          Plusieurs tailles
+        </label>
+      </div>
+
+      {confirmSwitchToSingle && (
+        <ConfirmModal
+          title="Repasser en taille unique ?"
+          message={`Les ${sizes.length} taille(s) définie(s) seront supprimées et le stock repassera au champ "Stock" ci-dessus.`}
+          confirmLabel="Supprimer les tailles"
+          onConfirm={() => {
+            setConfirmSwitchToSingle(false);
+            onDeleteAll();
+          }}
+          onCancel={() => setConfirmSwitchToSingle(false)}
+        />
       )}
 
-      <div className="flex gap-2">
-        <input
-          className={`${inputClass} w-28`}
-          placeholder="Taille (ex. M)"
-          value={label}
-          onChange={(e) => setLabel(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleAdd()}
-        />
-        <input
-          className={`${inputClass} w-24`}
-          type="number"
-          min={0}
-          placeholder="Stock"
-          value={stock}
-          onChange={(e) => setStock(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleAdd()}
-        />
-        <button
-          type="button"
-          onClick={handleAdd}
-          disabled={!label.trim()}
-          className="rounded-button bg-brand-gradient px-4 py-2.5 font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          Ajouter
-        </button>
-      </div>
+      {mode === "single" ? (
+        <p className="text-sm text-gray-text/80">Le stock est géré via le champ "Stock" de la section Informations.</p>
+      ) : (
+        <>
+          {sizes.length > 0 && (
+            <div className="mb-4 flex flex-col gap-2">
+              {sizes.map((size) => (
+                <div
+                  key={size.id}
+                  draggable
+                  onDragStart={() => setDraggedSizeId(size.id)}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    if (!draggedSizeId || draggedSizeId === size.id) return;
+                    const ids = sizes.map((s) => s.id);
+                    const from = ids.indexOf(draggedSizeId);
+                    const to = ids.indexOf(size.id);
+                    ids.splice(to, 0, ids.splice(from, 1)[0]);
+                    setDraggedSizeId(null);
+                    onReorder(ids);
+                  }}
+                  onDragEnd={() => setDraggedSizeId(null)}
+                  title="Glisser pour réordonner"
+                  className={`flex cursor-grab items-center gap-3 rounded-button border border-border-subtle p-3 active:cursor-grabbing ${
+                    draggedSizeId === size.id ? "opacity-40" : ""
+                  }`}
+                >
+                  <span className="w-16 shrink-0 font-medium text-navy">{size.label}</span>
+                  <input
+                    type="number"
+                    min={0}
+                    className={`${inputClass} w-24`}
+                    value={size.stock}
+                    onChange={(e) => onUpdateStock(size, Math.max(0, Number(e.target.value) || 0))}
+                  />
+                  <span className="text-xs text-gray-text">en stock</span>
+                  <button type="button" onClick={() => setSizeToDelete(size)} className="ml-auto text-sm text-red-500 hover:text-red-600">
+                    Supprimer
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {sizeToDelete && (
+            <ConfirmModal
+              title={`Supprimer la taille "${sizeToDelete.label}" ?`}
+              message="Cette action est définitive."
+              onConfirm={() => {
+                onDelete(sizeToDelete.id);
+                setSizeToDelete(null);
+              }}
+              onCancel={() => setSizeToDelete(null)}
+            />
+          )}
+
+          <div className="flex gap-2">
+            <input
+              className={`${inputClass} w-28`}
+              placeholder="Taille (ex. M)"
+              value={label}
+              onChange={(e) => setLabel(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleAdd()}
+            />
+            <input
+              className={`${inputClass} w-24`}
+              type="number"
+              min={0}
+              placeholder="Stock"
+              value={stock}
+              onChange={(e) => setStock(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleAdd()}
+            />
+            <button
+              type="button"
+              onClick={handleAdd}
+              disabled={!label.trim()}
+              className="rounded-button bg-brand-gradient px-4 py-2.5 font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Ajouter
+            </button>
+          </div>
+        </>
+      )}
     </section>
   );
 }
@@ -389,6 +573,7 @@ function ProductDetailContent({
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [draggedImageId, setDraggedImageId] = useState<string | null>(null);
   const [collections, setCollections] = useState<Collection[]>([]);
+  const [imageToDelete, setImageToDelete] = useState<ProductImage | null>(null);
 
   const load = () =>
     adminFetch(API_BASE_URL, `/api/t/${clientSiteId}/admin/catalogue/products/${productId}`, password)
@@ -454,6 +639,7 @@ function ProductDetailContent({
     await adminFetch(API_BASE_URL, `/api/t/${clientSiteId}/admin/catalogue/images/${imageId}`, password, {
       method: "DELETE",
     });
+    setImageToDelete(null);
     load();
   };
 
@@ -493,6 +679,26 @@ function ProductDetailContent({
     await adminFetch(API_BASE_URL, `/api/t/${clientSiteId}/admin/catalogue/sizes/${sizeId}`, password, {
       method: "DELETE",
     });
+    load();
+  };
+
+  const handleReorderSizes = async (sizeIds: string[]) => {
+    await adminFetch(API_BASE_URL, `/api/t/${clientSiteId}/admin/catalogue/products/${productId}/sizes/reorder`, password, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sizeIds }),
+    });
+    load();
+  };
+
+  // "Repasser en taille unique" (SizesSection) : supprime toutes les tailles d'un coup plutôt que
+  // de faire cliquer "Supprimer" une par une — un seul rechargement à la fin.
+  const handleDeleteAllSizes = async () => {
+    await Promise.all(
+      (product?.sizes ?? []).map((size) =>
+        adminFetch(API_BASE_URL, `/api/t/${clientSiteId}/admin/catalogue/sizes/${size.id}`, password, { method: "DELETE" })
+      )
+    );
     load();
   };
 
@@ -589,6 +795,8 @@ function ProductDetailContent({
             onAdd={handleAddSize}
             onUpdateStock={handleUpdateSizeStock}
             onDelete={handleDeleteSize}
+            onReorder={handleReorderSizes}
+            onDeleteAll={handleDeleteAllSizes}
           />
 
           {product.images.length < 4 && <AiPromptSection name={form.name} description={form.description} />}
@@ -632,7 +840,7 @@ function ProductDetailContent({
                     />
                     <button
                       type="button"
-                      onClick={() => handleDeleteImage(image.id)}
+                      onClick={() => setImageToDelete(image)}
                       className="absolute -right-1.5 -top-1.5 h-5 w-5 rounded-full bg-red-500 text-xs text-white"
                     >
                       ×
@@ -666,6 +874,17 @@ function ProductDetailContent({
             </div>
           </section>
 
+          {imageToDelete && (
+            <ConfirmModal
+              title="Supprimer cette photo ?"
+              message="Cette action est définitive."
+              onConfirm={() => handleDeleteImage(imageToDelete.id)}
+              onCancel={() => setImageToDelete(null)}
+            />
+          )}
+
+          <StockRequestsSection clientSiteId={clientSiteId} productId={productId} password={password} />
+
           <ReviewsSection clientSiteId={clientSiteId} productId={productId} password={password} />
         </div>
 
@@ -675,6 +894,7 @@ function ProductDetailContent({
           description={form.description}
           stock={form.stock}
           images={product.images}
+          sizes={product.sizes}
         />
       </div>
     </div>

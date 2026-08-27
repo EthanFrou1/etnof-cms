@@ -3,6 +3,7 @@ import { API_BASE_URL } from "../../config";
 import { adminFetch } from "../../hooks/useAdminSession";
 import { AddressAutocomplete, inputClass, type BillingClient, type ClientSiteOption } from "./shared";
 import Select from "../../components/admin/Select";
+import ConfirmModal from "../../components/admin/ConfirmModal";
 
 const emptyBillingClientForm = {
   clientSiteId: "" as string,
@@ -180,6 +181,7 @@ export default function BillingClientsSection({ password }: { password: string }
   const [clients, setClients] = useState<BillingClient[] | null>(null);
   const [clientSites, setClientSites] = useState<ClientSiteOption[]>([]);
   const [modal, setModal] = useState<"create" | BillingClient | null>(null);
+  const [clientToDelete, setClientToDelete] = useState<BillingClient | null>(null);
 
   const load = () =>
     adminFetch(API_BASE_URL, "/api/admin/billing-clients", password)
@@ -196,6 +198,7 @@ export default function BillingClientsSection({ password }: { password: string }
 
   const handleDelete = async (id: string) => {
     await adminFetch(API_BASE_URL, `/api/admin/billing-clients/${id}`, password, { method: "DELETE" });
+    setClientToDelete(null);
     load();
   };
 
@@ -252,7 +255,7 @@ export default function BillingClientsSection({ password }: { password: string }
                   </button>
                   <button
                     type="button"
-                    onClick={() => handleDelete(client.id)}
+                    onClick={() => setClientToDelete(client)}
                     className="font-medium text-red-500 hover:text-red-600"
                   >
                     Supprimer
@@ -271,6 +274,15 @@ export default function BillingClientsSection({ password }: { password: string }
           editing={modal === "create" ? null : modal}
           onClose={() => setModal(null)}
           onSaved={load}
+        />
+      )}
+
+      {clientToDelete && (
+        <ConfirmModal
+          title={`Supprimer "${clientToDelete.name}" ?`}
+          message="Cette action est définitive."
+          onConfirm={() => handleDelete(clientToDelete.id)}
+          onCancel={() => setClientToDelete(null)}
         />
       )}
     </div>

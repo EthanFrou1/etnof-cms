@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { t, type Locale } from "@modules/multilingue/frontend/translations";
 import { CartProvider, useCart } from "@modules/catalogue/frontend/CartContext";
+import StockRequestForm from "@modules/catalogue/frontend/StockRequestForm";
 // Cette page est montée seule par une route dédiée (App.tsx), pas nichée dans TemplateCharis — même
 // principe que CartPage.tsx (modules/catalogue/frontend/) : rien ne lui fournit la palette du
 // tenant, elle la résout elle-même via les hooks déjà utilisés par les templates.
@@ -262,7 +263,10 @@ function SizeGuideModal({ palette, locale, onClose }: { palette: ModulePalette; 
   );
 }
 
-function AccordionItem({ title, text, palette }: { title: string; text: string; palette: ModulePalette }) {
+// `html` : Livraison/Retours viennent du RichTextEditor de l'admin (EstablishmentSection.tsx),
+// Paiement sécurisé reste un texte de traduction statique — les deux passent par la même
+// interpolation HTML, sans balise elle ne change rien à un texte brut.
+function AccordionItem({ title, html, palette }: { title: string; html: string; palette: ModulePalette }) {
   const [open, setOpen] = useState(false);
   return (
     <div className="border-b" style={{ borderColor: `${palette.ink}1A` }}>
@@ -276,22 +280,42 @@ function AccordionItem({ title, text, palette }: { title: string; text: string; 
         <span style={{ color: `${palette.ink}80` }}>{open ? "−" : "+"}</span>
       </button>
       {open && (
-        <p className="pb-3 text-sm leading-relaxed" style={{ color: `${palette.ink}99` }}>
-          {text}
-        </p>
+        <div
+          className="pb-3 text-sm leading-relaxed [&_a]:underline [&_p]:m-0"
+          style={{ color: `${palette.ink}99` }}
+          dangerouslySetInnerHTML={{ __html: html }}
+        />
       )}
     </div>
   );
 }
 
 // Renommé (ex-DeliveryReturns) : regroupe maintenant aussi le paiement sécurisé (Stripe), demandé
-// par Ethan avec le même traitement visuel que livraison/retours.
-function PurchaseInfo({ palette, locale }: { palette: ModulePalette; locale: Locale }) {
+// par Ethan avec le même traitement visuel que livraison/retours. Livraison/Retours sont éditables
+// par tenant (SiteContent.DeliveryContent/ReturnsContent, voir EstablishmentSection.tsx) — vides
+// par défaut (tous les commerces ne font pas de livraison/retours), section correspondante
+// simplement absente tant que le champ est vide plutôt qu'un accordéon qui s'ouvre sur du vide
+// (même logique que "Notre histoire", voir hasStory). "Paiement sécurisé" reste toujours affiché.
+function PurchaseInfo({
+  palette,
+  locale,
+  deliveryContent,
+  returnsContent,
+}: {
+  palette: ModulePalette;
+  locale: Locale;
+  deliveryContent: string;
+  returnsContent: string;
+}) {
   return (
     <div className="flex flex-col">
-      <AccordionItem title={t(locale, "catalogue.deliveryTitle")} text={t(locale, "catalogue.deliveryText")} palette={palette} />
-      <AccordionItem title={t(locale, "catalogue.returnsTitle")} text={t(locale, "catalogue.returnsText")} palette={palette} />
-      <AccordionItem title={t(locale, "catalogue.securePaymentTitle")} text={t(locale, "catalogue.securePaymentText")} palette={palette} />
+      {deliveryContent.trim() && (
+        <AccordionItem title={t(locale, "catalogue.deliveryTitle")} html={deliveryContent} palette={palette} />
+      )}
+      {returnsContent.trim() && (
+        <AccordionItem title={t(locale, "catalogue.returnsTitle")} html={returnsContent} palette={palette} />
+      )}
+      <AccordionItem title={t(locale, "catalogue.securePaymentTitle")} html={t(locale, "catalogue.securePaymentText")} palette={palette} />
     </div>
   );
 }
@@ -520,12 +544,16 @@ function ProductPageContent({
   apiBaseUrl,
   palette,
   locale,
+  deliveryContent,
+  returnsContent,
 }: {
   clientSiteId: string;
   productId: string;
   apiBaseUrl: string;
   palette: ModulePalette;
   locale: Locale;
+  deliveryContent: string;
+  returnsContent: string;
 }) {
   const [product, setProduct] = useState<Product | null | undefined>(undefined);
   const { addItem } = useCart();
@@ -583,6 +611,11 @@ function ProductPageContent({
   const inStock = hasSizes ? product.sizes.some((s) => s.stock > 0) : product.stock > 0;
   const canAddToCart = hasSizes ? Boolean(selectedSize && selectedSize.stock > 0) : inStock;
   const maxStock = hasSizes ? selectedSize?.stock ?? 0 : product.stock;
+  // Rupture "réelle" à signaler au tenant (StockRequestForm) : une taille précise épuisée si le
+  // client en a choisi une, sinon (aucune sélection) seulement si le produit est entièrement
+  // épuisé — ne pas afficher "prévenez-moi" simplement parce qu'aucune taille n'a encore été
+  // cliquée alors que d'autres restent disponibles.
+  const showStockRequest = hasSizes ? (selectedSize ? selectedSize.stock <= 0 : !inStock) : !inStock;
   const collectionName = product.collectionId ? collectionsById[product.collectionId] : undefined;
   const lowStock = maxStock > 0 && maxStock <= LOW_STOCK_THRESHOLD;
 
@@ -605,7 +638,9 @@ function ProductPageContent({
         {collectionName && (
           <>
             <span aria-hidden="true">/</span>
-            <span>{collectionName}</span>
+            <a href={`/t/${clientSiteId}/boutique?collection=${product.collectionId}`} className="hover:opacity-70">
+              {collectionName}
+            </a>
           </>
         )}
         <span aria-hidden="true">/</span>
@@ -672,15 +707,17 @@ function ProductPageContent({
                     <button
                       key={size.id}
                       type="button"
-                      disabled={disabled}
+                      // Reste cliquable même épuisée (pas de `disabled` natif) — permet au client de
+                      // choisir précisément la taille qui l'intéresse pour la demande de réassort
+                      // ci-dessous (StockRequestForm), plutôt qu'un bouton totalement inerte.
                       onClick={() => {
                         setSelectedSize(size);
                         setAdded(false);
                         setQuantity(1);
                       }}
-                      className={`rounded-button border px-4 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-30 ${
-                        selected ? "text-white" : ""
-                      }`}
+                      className={`rounded-button border px-4 py-2 text-sm font-medium transition-colors ${
+                        disabled ? "cursor-not-allowed opacity-30" : ""
+                      } ${selected ? "text-white" : ""}`}
                       style={
                         selected
                           ? { backgroundColor: palette.ink, borderColor: palette.ink }
@@ -739,7 +776,19 @@ function ProductPageContent({
             {added ? t(locale, "catalogue.cart") : t(locale, "catalogue.addToCart")}
           </button>
 
-          <PurchaseInfo palette={palette} locale={locale} />
+          {showStockRequest && (
+            <StockRequestForm
+              apiBaseUrl={apiBaseUrl}
+              clientSiteId={clientSiteId}
+              productId={product.id}
+              productName={product.name}
+              sizeLabel={hasSizes ? selectedSize?.label ?? null : null}
+              palette={palette}
+              locale={locale}
+            />
+          )}
+
+          <PurchaseInfo palette={palette} locale={locale} deliveryContent={deliveryContent} returnsContent={returnsContent} />
 
           <Reviews clientSiteId={clientSiteId} productId={productId} apiBaseUrl={apiBaseUrl} palette={palette} locale={locale} />
         </div>
@@ -829,6 +878,8 @@ export default function ProductPage({ clientSiteId, productId, apiBaseUrl }: Pro
             apiBaseUrl={apiBaseUrl}
             palette={palette}
             locale={locale}
+            deliveryContent={content?.deliveryContent ?? ""}
+            returnsContent={content?.returnsContent ?? ""}
           />
           <CartButton clientSiteId={clientSiteId} palette={palette} locale={locale} />
         </CartProvider>

@@ -131,7 +131,42 @@ public static class CatalogueModule
 
             return Results.Created($"/api/t/{clientSiteId}/catalogue/products/{productId}/reviews/{review.Id}", new { review.Id });
         });
+
+        // Demande de réassort — voir StockRequest.cs. `SizeLabel` doit correspondre à une taille
+        // existante du produit (rupture ciblée) ou être vide (rupture globale, produit sans tailles) ;
+        // pas de vérification que le produit/la taille est *réellement* en rupture au moment de la
+        // soumission (le stock a pu changer entre le chargement de la page et l'envoi) — inoffensif,
+        // ça reste juste une marque d'intérêt consultée manuellement par le tenant.
+        app.MapPost("/api/t/{clientSiteId:guid}/catalogue/products/{productId:guid}/stock-requests", async (
+            Guid clientSiteId, Guid productId, StockRequestInput input, AppDbContext db, ModuleRegistry registry) =>
+        {
+            if (!await registry.IsEnabledAsync(clientSiteId, Name)) return Results.NotFound();
+
+            var product = await db.Products.FirstOrDefaultAsync(p => p.ClientSiteId == clientSiteId && p.Id == productId);
+            if (product is null) return Results.NotFound();
+
+            if (string.IsNullOrWhiteSpace(input.Email))
+            {
+                return Results.BadRequest(new { error = "Email requis." });
+            }
+
+            var stockRequest = new StockRequest
+            {
+                Id = Guid.NewGuid(),
+                ClientSiteId = clientSiteId,
+                ProductId = productId,
+                ProductName = product.Name,
+                SizeLabel = string.IsNullOrWhiteSpace(input.SizeLabel) ? null : input.SizeLabel.Trim(),
+                Email = input.Email.Trim(),
+                CreatedAt = DateTime.UtcNow,
+            };
+            db.StockRequests.Add(stockRequest);
+            await db.SaveChangesAsync();
+
+            return Results.Created($"/api/t/{clientSiteId}/catalogue/products/{productId}/stock-requests/{stockRequest.Id}", new { stockRequest.Id });
+        });
     }
 }
 
 public record ProductReviewInput(string AuthorName, int Rating, string Comment);
+public record StockRequestInput(string Email, string? SizeLabel);

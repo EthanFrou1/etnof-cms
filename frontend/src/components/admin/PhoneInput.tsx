@@ -75,12 +75,35 @@ export default function PhoneInput({ value, onChange, placeholder }: PhoneInputP
     setRawDigits(parsed?.nationalNumber ?? value.replace(/\D/g, ""));
   }, [value]);
 
+  // `AsYouType` est un formateur à état, pensé pour être nourri caractère par caractère au fil de la
+  // frappe (voir doc libphonenumber-js) — c'est justement ce qui lui permet d'insérer les espaces
+  // au bon endroit à mesure que l'utilisateur tape. Recréer une instance et lui donner toute la
+  // chaîne d'un coup à chaque rendu (comme avant) désactive ce comportement incrémental : le numéro
+  // reste affiché sans espaces ("612345678" au lieu de "6 12 34 56 78", bug relevé par Ethan). On
+  // garde donc une instance persistante entre les rendus (ref) et ne lui donne que les caractères
+  // ajoutés depuis le dernier passage — sauf en cas de suppression/collage (la chaîne ne commence
+  // plus par ce qui a déjà été nourri), où l'on repart de zéro avec `reset()`.
+  const formatterRef = useRef({ country, instance: new AsYouType(country), fed: "" });
+
   const { display, isValid, international } = useMemo(() => {
-    const formatter = new AsYouType(country);
-    const display = formatter.input(rawDigits);
-    const number = formatter.getNumber();
+    let state = formatterRef.current;
+    if (state.country !== country) {
+      state = { country, instance: new AsYouType(country), fed: "" };
+    }
+
+    let formatted: string;
+    if (rawDigits.startsWith(state.fed)) {
+      formatted = state.instance.input(rawDigits.slice(state.fed.length));
+    } else {
+      state.instance.reset();
+      formatted = state.instance.input(rawDigits);
+    }
+
+    formatterRef.current = { ...state, fed: rawDigits };
+
+    const number = state.instance.getNumber();
     return {
-      display,
+      display: formatted,
       isValid: number?.isValid() ?? false,
       international: number?.formatInternational(),
     };
