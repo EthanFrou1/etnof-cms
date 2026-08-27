@@ -20,7 +20,7 @@ Une migration EF Core (`AddCustomerAddressFields`) a été créée **et appliqu�
 - Nouvelle page `/t/{clientSiteId}/commande` (`CheckoutResultPage.tsx`) : succès (montant payé, mention email envoyé, bouton boutique) ou annulation (panier conservé, bouton retour panier). `CartPage.tsx` y redirige désormais (`returnBaseUrl`) au lieu de la home.
 - Vidage du panier au succès et email de confirmation (Brevo) existaient **déjà** avant cette session — vérifiés, pas réimplémentés.
 - Ancien bandeau `CheckoutReturnBanner` (affiché sur la home) retiré de `CatalogueSection.tsx` et `charis/ProductGrid.tsx`, plus jamais déclenché.
-- Test d'achat réel de bout en bout lancé (carte de test Stripe, webhook via la CLI) pendant la session — voir doc datée pour le résultat.
+- Test d'achat réel de bout en bout confirmé (carte de test Stripe, webhook via la CLI) : page de succès correcte, panier vidé, commande bien créée en base — voir doc datée pour le détail.
 
 **Partie 5 (même jour)** : Ethan bloqué pensant ne pas pouvoir copier les clés Stripe/Brevo sur `/admin/dashboard/paiement` (champs `type="password"`, copiables au clavier mais sans repère visuel). Nouveau composant `SecretField.tsx` (afficher/masquer + copier) appliqué aux 5 champs concernés (Stripe agence + tenant, Brevo). Clé Stripe de test de l'agence copiée sur le tenant Atelier Lumen pour permettre à Ethan de tester un vrai paiement en local ; Stripe CLI lancée pour le webhook (voir encadré ci-dessus).
 
@@ -56,10 +56,14 @@ Une migration EF Core (`AddCustomerAddressFields`) a été créée **et appliqu�
 
 ## À vérifier / reste à faire
 
-- [ ] Vérifier toi-même dans le navigateur la page `/t/{id}/commande` (succès et annulation) — vérifiée par un agent CDP/Chrome headless côté Claude, pas encore par toi.
+- [ ] Vérifier toi-même dans le navigateur la page `/t/{id}/commande` (succès et annulation) — un achat réel de bout en bout (carte de test) a été confirmé par un agent CDP/Chrome headless côté Claude (page de succès, panier vidé, commande créée en base), mais pas encore vu par toi directement.
 - [ ] Footer/slider Charis (parties 2-3) non testés sur un tenant Helios faute d'en avoir un.
 - [ ] La PR a été ouverte cette session (voir lien ci-dessus) — reste à la relire et la merger quand tu es prêt.
 - [ ] Reporté des sessions précédentes, toujours vrai : remplacer les photos placeholder d'Atelier Lumen, décider Livraison/Retours par établissement, filtrage boutique par collection via l'URL, tailles/"Notre histoire" sur Hestia/Helios, vrais tarifs des modules à valider, poids des images de cards Modules.
+
+## ⚠️ Serveur frontend relancé avec npm au lieu de pnpm
+
+Pendant le test d'achat de bout en bout, le serveur frontend (`:5173`) s'est retrouvé arrêté et a été relancé avec `npm run dev` (au lieu de `pnpm dev`, l'outil utilisé partout ailleurs dans ce projet, voir `DEMARRAGE.md`) faute d'alternative sur le moment. Ça n'a rien cassé, mais si tu relances toi-même le frontend, utilise `pnpm dev` comme d'habitude pour rester cohérent.
 
 ## Pour reprendre rapidement
 

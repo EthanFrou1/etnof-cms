@@ -820,7 +820,7 @@ Demandé par Ethan après avoir testé un vrai paiement : une vraie page de succ
 - **Nettoyage** : l'ancien `CheckoutReturnBanner` (et son détecteur `hasCheckoutReturn`) retiré de `CatalogueSection.tsx` (Hestia/Helios) et de `charis/ProductGrid.tsx` (Charis) — il ne se déclenchera plus jamais, Stripe ne redirige plus vers la home. Imports/consts devenus inutiles (`storageKey`, `formatPrice` dans ProductGrid.tsx) retirés au passage (`noUnusedLocals` activé sur ce projet, voir `tsconfig.json`).
 - Nouvelles clés de traduction (fr/en/es) : `catalogue.orderConfirmationEmailNote`, `catalogue.backToCart`.
 
-Testé : `tsc --noEmit` propre (y compris détection des imports devenus inutiles). Test d'achat réel de bout en bout lancé via CDP/Chrome headless en s'appuyant sur la configuration Stripe de test posée juste avant (carte de test `4242 4242 4242 4242`, webhook forwardé par la Stripe CLI) — résultat à reporter ici une fois confirmé.
+Testé : `tsc --noEmit` propre (y compris détection des imports devenus inutiles). Test d'achat réel de bout en bout confirmé via CDP/Chrome headless, en s'appuyant sur la configuration Stripe de test posée juste avant : ajout au panier → formulaire → vraie page `checkout.stripe.com` (bon produit, bon montant) → carte de test `4242 4242 4242 4242` acceptée → redirection sur `/commande?checkout=success&session_id=...` avec le bon montant affiché → panier vidé (`localStorage` + `/panier` repasse à l'état vide) → commande bien créée en base par le webhook (forwardé par la Stripe CLI), avec le bon email/nom/article/montant/`stripeSessionId`. Aucune erreur console à aucune étape.
 
 ---
 
