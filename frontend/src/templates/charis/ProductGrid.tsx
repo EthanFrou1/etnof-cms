@@ -1,76 +1,13 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { API_BASE_URL } from "../../config";
 import { t, type Locale } from "@modules/multilingue/frontend/translations";
-import { CartProvider, storageKey } from "@modules/catalogue/frontend/CartContext";
+import { CartProvider } from "@modules/catalogue/frontend/CartContext";
 import ProductCard, { type Product as CardProduct, type ModulePalette } from "./ProductCard";
 import CartButton from "./CartButton";
 
 // Exporté pour ProductPage.tsx (section "Nos autres produits") — même forme de produit réutilisée
 // pour un slider de produits liés, en dehors du contexte "collection" de ce fichier.
 export type Product = CardProduct & { highlighted: boolean; collectionId: string | null };
-
-const formatPrice = (value: number) =>
-  value.toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
-
-// Même mécanisme que CheckoutReturnBanner dans modules/catalogue/frontend/CatalogueSection.tsx —
-// dupliqué ici (pas importé) : ce bloc Catalogue est exclusif au template Charis (voir
-// docs/10-templates.md), qui n'utilise plus CatalogueSection.
-function CheckoutReturnBanner({
-  clientSiteId,
-  palette,
-  locale,
-}: {
-  clientSiteId: string;
-  palette: ModulePalette;
-  locale?: Locale;
-}) {
-  const [message, setMessage] = useState<string | null>(null);
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const checkout = params.get("checkout");
-    if (!checkout) return;
-
-    if (checkout === "success") {
-      localStorage.removeItem(storageKey(clientSiteId));
-      const sessionId = params.get("session_id");
-
-      if (sessionId) {
-        fetch(`${API_BASE_URL}/api/t/${clientSiteId}/stripe/session/${sessionId}`)
-          .then((res) => (res.ok ? (res.json() as Promise<{ status: string; amountTotal: number }>) : null))
-          .then((data) => {
-            setMessage(
-              data && data.status === "paid"
-                ? t(locale, "catalogue.paymentReceived", { price: formatPrice(data.amountTotal) })
-                : t(locale, "catalogue.orderRecorded")
-            );
-          })
-          .catch(() => setMessage(t(locale, "catalogue.orderRecorded")));
-      } else {
-        setMessage(t(locale, "catalogue.orderRecorded"));
-      }
-    } else if (checkout === "cancel") {
-      setMessage(t(locale, "catalogue.paymentCancelled"));
-    }
-
-    const url = new URL(window.location.href);
-    url.searchParams.delete("checkout");
-    url.searchParams.delete("session_id");
-    window.history.replaceState({}, "", url.toString());
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  if (!message) return null;
-
-  return (
-    <p
-      className="rounded-card px-5 py-4 text-sm font-semibold"
-      style={{ backgroundColor: `${palette.accent}18`, color: palette.ink }}
-    >
-      {message}
-    </p>
-  );
-}
 
 // Badge circulaire "voir plus" à texte tournant (SVG textPath + rotation CSS lente), affiché à côté
 // du slider d'une collection — demandé par Ethan pour habiller le slider plutôt que de le laisser nu
@@ -271,8 +208,6 @@ export default function ProductGrid({ clientSiteId, palette, locale, afterFeatur
   return (
     <CartProvider clientSiteId={clientSiteId}>
       <div className="flex flex-col gap-16">
-        <CheckoutReturnBanner clientSiteId={clientSiteId} palette={palette} locale={locale} />
-
         {highlighted.length > SLIDER_THRESHOLD ? (
           <FeaturedSlider
             products={highlighted}

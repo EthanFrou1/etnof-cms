@@ -40,6 +40,53 @@ public static class GooglePlacesEndpoints
             return await SearchAsync(query, config, httpFactory);
         }).RequireRateLimiting("public-places");
 
+        // Appelé quand le client clique une suggestion du champ "Adresse de livraison" (voir
+        // CartPage.tsx) : la recherche ci-dessus ne renvoie qu'une adresse formatée en un seul bloc
+        // (`formatted_address`), pas les composants structurés (rue/code postal/ville/pays) dont a
+        // besoin le nouveau formulaire de livraison. Un second appel, ciblé sur le lieu choisi, est
+        // nécessaire pour les obtenir — Google ne les expose pas depuis la recherche texte. Mêmes
+        // gardes que /search (module Catalogue + rate-limiting), pas d'auth (public par nature).
+        app.MapGet("/api/t/{clientSiteId:guid}/google-places/address-details", async (
+            Guid clientSiteId, string placeId, IConfiguration config, ModuleRegistry registry, IHttpClientFactory httpFactory) =>
+        {
+            if (!await registry.IsEnabledAsync(clientSiteId, "catalogue")) return Results.NotFound();
+
+            var apiKey = config["GooglePlaces:ApiKey"];
+            if (string.IsNullOrWhiteSpace(apiKey))
+            {
+                return Results.Json(new { error = "Recherche Google indisponible (clé non configurée)." }, statusCode: 503);
+            }
+
+            var client = httpFactory.CreateClient();
+            // "address_component" (singulier) est le nom du champ à demander dans l'API Places
+            // (Legacy) — la réponse, elle, le renvoie au pluriel ("address_components"). Particularité
+            // documentée de cette API, pas une faute de frappe.
+            var url = $"https://maps.googleapis.com/maps/api/place/details/json?place_id={Uri.EscapeDataString(placeId)}&fields=address_component&language=fr&key={apiKey}";
+            using var response = await client.GetAsync(url);
+            using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+            var root = doc.RootElement;
+
+            if (root.GetProperty("status").GetString() != "OK")
+            {
+                return Results.Json(new { error = "Adresse introuvable." }, statusCode: 502);
+            }
+
+            var components = root.GetProperty("result").GetProperty("address_components");
+            var streetNumber = ComponentLongName(components, "street_number");
+            var route = ComponentLongName(components, "route");
+            var city = ComponentLongName(components, "locality");
+            if (string.IsNullOrWhiteSpace(city)) city = ComponentLongName(components, "postal_town");
+            if (string.IsNullOrWhiteSpace(city)) city = ComponentLongName(components, "administrative_area_level_2");
+
+            return Results.Ok(new
+            {
+                AddressLine1 = string.Join(" ", new[] { streetNumber, route }.Where(s => !string.IsNullOrWhiteSpace(s))),
+                PostalCode = ComponentLongName(components, "postal_code"),
+                City = city,
+                Country = ComponentLongName(components, "country"),
+            });
+        }).RequireRateLimiting("public-places");
+
         app.MapGet("/api/t/{clientSiteId:guid}/admin/google-places/details", async (
             Guid clientSiteId, string placeId, HttpRequest req, IConfiguration config, AppDbContext db, IHttpClientFactory httpFactory) =>
         {
@@ -245,6 +292,21 @@ public static class GooglePlacesEndpoints
         }
 
         return result;
+    }
+
+    // Cherche le premier composant d'adresse dont un des "types" Google correspond, renvoie son
+    // long_name ("" si absent) — un lieu donné n'a jamais deux composants du même type.
+    private static string ComponentLongName(JsonElement components, string type)
+    {
+        foreach (var component in components.EnumerateArray())
+        {
+            var types = component.GetProperty("types").EnumerateArray().Select(t => t.GetString());
+            if (types.Contains(type))
+            {
+                return component.GetProperty("long_name").GetString() ?? "";
+            }
+        }
+        return "";
     }
 
     // Google renvoie l'heure en "HHmm" (4 chiffres, ex. "0900") — reformatée en "HH:mm" pour

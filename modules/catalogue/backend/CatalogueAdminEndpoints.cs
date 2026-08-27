@@ -470,7 +470,11 @@ public static class CatalogueAdminEndpoints
                     c.Name,
                     c.Email,
                     c.Phone,
-                    c.Address,
+                    c.AddressLine1,
+                    c.AddressLine2,
+                    c.PostalCode,
+                    c.City,
+                    c.Country,
                     c.Notes,
                     c.CreatedAt,
                     OrderCount = db.Orders.Count(o => o.CustomerId == c.Id),
@@ -509,7 +513,11 @@ public static class CatalogueAdminEndpoints
                 Name = input.Name,
                 Email = input.Email,
                 Phone = input.Phone,
-                Address = input.Address,
+                AddressLine1 = input.AddressLine1,
+                AddressLine2 = input.AddressLine2,
+                PostalCode = input.PostalCode,
+                City = input.City,
+                Country = input.Country,
                 Notes = input.Notes,
                 CreatedAt = DateTime.UtcNow,
             };
@@ -530,7 +538,11 @@ public static class CatalogueAdminEndpoints
             customer.Name = input.Name;
             customer.Email = input.Email;
             customer.Phone = input.Phone;
-            customer.Address = input.Address;
+            customer.AddressLine1 = input.AddressLine1;
+            customer.AddressLine2 = input.AddressLine2;
+            customer.PostalCode = input.PostalCode;
+            customer.City = input.City;
+            customer.Country = input.Country;
             customer.Notes = input.Notes;
             await db.SaveChangesAsync();
 
@@ -554,5 +566,5 @@ public record ProductSizeInput(string Label, int Stock);
 public record CollectionInput(string Name);
 public record ReorderCollectionsInput(List<Guid> CollectionIds);
 public record OrderStatusInput(string Status);
-public record CustomerInput(string Name, string Email, string Phone, string Address, string Notes);
+public record CustomerInput(string Name, string Email, string Phone, string AddressLine1, string AddressLine2, string PostalCode, string City, string Country, string Notes);
 public record SelectReviewInput(bool Selected);

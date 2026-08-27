@@ -8,7 +8,7 @@ const inputClass =
 // Pays courants pour une clientèle française/francophone — pas la liste complète des ~240 pays
 // gérés par libphonenumber-js, pour garder le sélecteur simple à parcourir (voir "rester simple",
 // CLAUDE.md). Le drapeau est généré depuis le code pays (ISO 3166-1 alpha-2), pas une image.
-const COUNTRIES: { code: CountryCode; name: string }[] = [
+export const COUNTRIES: { code: CountryCode; name: string }[] = [
   { code: "FR", name: "France" },
   { code: "BE", name: "Belgique" },
   { code: "CH", name: "Suisse" },

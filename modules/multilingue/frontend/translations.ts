@@ -101,6 +101,7 @@ const fr: Dict = {
   "cookies.refuse": "Refuser",
 
   "footer.followUs": "Suivez-nous",
+  "footer.madeBy": "Site réalisé par",
 
   "social.title": "Suivez-nous",
   "social.description": "Retrouvez toutes nos actualités et nouveautés sur nos réseaux sociaux.",
@@ -120,10 +121,16 @@ const fr: Dict = {
   "catalogue.remove": "Retirer",
   "catalogue.total": "Total",
   "catalogue.perUnit": "/ unité",
-  "catalogue.namePlaceholder": "Nom",
+  "catalogue.firstNamePlaceholder": "Prénom",
+  "catalogue.lastNamePlaceholder": "Nom",
   "catalogue.emailPlaceholder": "Email",
+  "catalogue.emailInvalid": "Adresse email invalide",
   "catalogue.phonePlaceholder": "Téléphone",
-  "catalogue.addressPlaceholder": "Adresse de livraison",
+  "catalogue.addressPlaceholder": "Adresse",
+  "catalogue.addressLine2Placeholder": "Complément d'adresse (optionnel)",
+  "catalogue.postalCodePlaceholder": "Code postal",
+  "catalogue.cityPlaceholder": "Ville",
+  "catalogue.countryLabel": "Pays",
   "catalogue.cartTitle": "Mon panier",
   "catalogue.payByCard": "Payer par carte",
   "catalogue.redirecting": "Redirection…",
@@ -169,6 +176,12 @@ const fr: Dict = {
   "catalogue.lowStock": "Plus que {count} en stock",
   "catalogue.showAllReviews": "Voir les {count} avis",
   "catalogue.checkoutTrustNote": "Paiement sécurisé via Stripe · Livraison estimée en 3 à 5 jours ouvrés",
+  "catalogue.orderConfirmationEmailNote": "Un email de confirmation vous a été envoyé.",
+  "catalogue.backToCart": "Retourner au panier",
+  "catalogue.shippingLabel": "Livraison",
+  "catalogue.shippingFree": "Offerte",
+  "catalogue.youMayAlsoLike": "Vous pourriez aussi aimer",
+  "catalogue.viewProduct": "Voir le produit",
 };
 
 const en: Dict = {
@@ -260,6 +273,7 @@ const en: Dict = {
   "cookies.refuse": "Decline",
 
   "footer.followUs": "Follow us",
+  "footer.madeBy": "Site made by",
 
   "social.title": "Follow us",
   "social.description": "Follow our latest news and new arrivals on social media.",
@@ -279,10 +293,16 @@ const en: Dict = {
   "catalogue.remove": "Remove",
   "catalogue.total": "Total",
   "catalogue.perUnit": "/ unit",
-  "catalogue.namePlaceholder": "Name",
+  "catalogue.firstNamePlaceholder": "First name",
+  "catalogue.lastNamePlaceholder": "Last name",
   "catalogue.emailPlaceholder": "Email",
+  "catalogue.emailInvalid": "Invalid email address",
   "catalogue.phonePlaceholder": "Phone",
-  "catalogue.addressPlaceholder": "Delivery address",
+  "catalogue.addressPlaceholder": "Address",
+  "catalogue.addressLine2Placeholder": "Apartment, suite, etc. (optional)",
+  "catalogue.postalCodePlaceholder": "Postal code",
+  "catalogue.cityPlaceholder": "City",
+  "catalogue.countryLabel": "Country",
   "catalogue.cartTitle": "My cart",
   "catalogue.payByCard": "Pay by card",
   "catalogue.redirecting": "Redirecting…",
@@ -328,6 +348,12 @@ const en: Dict = {
   "catalogue.lowStock": "Only {count} left in stock",
   "catalogue.showAllReviews": "See all {count} reviews",
   "catalogue.checkoutTrustNote": "Secure payment via Stripe · Estimated delivery in 3 to 5 business days",
+  "catalogue.orderConfirmationEmailNote": "A confirmation email has been sent to you.",
+  "catalogue.backToCart": "Back to cart",
+  "catalogue.shippingLabel": "Shipping",
+  "catalogue.shippingFree": "Free",
+  "catalogue.youMayAlsoLike": "You may also like",
+  "catalogue.viewProduct": "View product",
 };
 
 const es: Dict = {
@@ -419,6 +445,7 @@ const es: Dict = {
   "cookies.refuse": "Rechazar",
 
   "footer.followUs": "Síguenos",
+  "footer.madeBy": "Sitio creado por",
 
   "social.title": "Síguenos",
   "social.description": "Descubre todas nuestras novedades en nuestras redes sociales.",
@@ -438,10 +465,16 @@ const es: Dict = {
   "catalogue.remove": "Quitar",
   "catalogue.total": "Total",
   "catalogue.perUnit": "/ unidad",
-  "catalogue.namePlaceholder": "Nombre",
+  "catalogue.firstNamePlaceholder": "Nombre",
+  "catalogue.lastNamePlaceholder": "Apellidos",
   "catalogue.emailPlaceholder": "Email",
+  "catalogue.emailInvalid": "Correo electrónico no válido",
   "catalogue.phonePlaceholder": "Teléfono",
-  "catalogue.addressPlaceholder": "Dirección de entrega",
+  "catalogue.addressPlaceholder": "Dirección",
+  "catalogue.addressLine2Placeholder": "Piso, puerta, etc. (opcional)",
+  "catalogue.postalCodePlaceholder": "Código postal",
+  "catalogue.cityPlaceholder": "Ciudad",
+  "catalogue.countryLabel": "País",
   "catalogue.cartTitle": "Mi carrito",
   "catalogue.payByCard": "Pagar con tarjeta",
   "catalogue.redirecting": "Redirigiendo…",
@@ -487,6 +520,12 @@ const es: Dict = {
   "catalogue.lowStock": "Solo quedan {count} en stock",
   "catalogue.showAllReviews": "Ver las {count} opiniones",
   "catalogue.checkoutTrustNote": "Pago seguro con Stripe · Entrega estimada en 3 a 5 días laborables",
+  "catalogue.orderConfirmationEmailNote": "Te hemos enviado un email de confirmación.",
+  "catalogue.backToCart": "Volver al carrito",
+  "catalogue.shippingLabel": "Envío",
+  "catalogue.shippingFree": "Gratis",
+  "catalogue.youMayAlsoLike": "También te puede gustar",
+  "catalogue.viewProduct": "Ver producto",
 };
 
 const UI_STRINGS: Record<Locale, Dict> = { fr, en, es };

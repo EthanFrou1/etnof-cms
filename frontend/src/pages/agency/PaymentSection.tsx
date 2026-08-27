@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { API_BASE_URL } from "../../config";
 import { adminFetch } from "../../hooks/useAdminSession";
+import SecretField from "../../components/SecretField";
 import { formatPrice, stripeInputClass } from "./shared";
 
 type StripeAgencySettings = { secretKey: string; webhookSecret: string };
@@ -77,25 +78,21 @@ function StripePaymentPanel({ password }: { password: string }) {
 
         <label className="flex flex-col gap-1 text-sm font-medium text-gray-text">
           Clé secrète (Développeurs → Clés API)
-          <input
+          <SecretField
             className={stripeInputClass}
-            type="password"
             value={secretKey}
-            onChange={(e) => setSecretKey(e.target.value)}
+            onChange={setSecretKey}
             placeholder="sk_live_… ou sk_test_…"
-            autoComplete="off"
           />
         </label>
 
         <label className="flex flex-col gap-1 text-sm font-medium text-gray-text">
           Secret de signature du webhook
-          <input
+          <SecretField
             className={stripeInputClass}
-            type="password"
             value={webhookSecret}
-            onChange={(e) => setWebhookSecret(e.target.value)}
+            onChange={setWebhookSecret}
             placeholder="whsec_…"
-            autoComplete="off"
           />
         </label>
 
@@ -181,13 +178,11 @@ function EmailConfirmationPanel({ password }: { password: string }) {
 
         <label className="flex flex-col gap-1 text-sm font-medium text-gray-text">
           Clé API Brevo
-          <input
+          <SecretField
             className={stripeInputClass}
-            type="password"
             value={brevoApiKey}
-            onChange={(e) => setBrevoApiKey(e.target.value)}
+            onChange={setBrevoApiKey}
             placeholder="xkeysib-…"
-            autoComplete="off"
           />
         </label>
       </section>

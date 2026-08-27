@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { API_BASE_URL } from "../../config";
 import { adminFetch } from "../../hooks/useAdminSession";
+import SecretField from "../../components/SecretField";
 
 type StripeSectionProps = {
   clientSiteId: string;
@@ -80,25 +81,21 @@ export default function StripeSection({ clientSiteId, password }: StripeSectionP
 
         <label className="flex flex-col gap-1 text-sm font-medium text-gray-text">
           Clé secrète (Développeurs → Clés API)
-          <input
+          <SecretField
             className={inputClass}
-            type="password"
             value={secretKey}
-            onChange={(e) => setSecretKey(e.target.value)}
+            onChange={setSecretKey}
             placeholder="sk_live_… ou sk_test_… pour essayer sans encaisser réellement"
-            autoComplete="off"
           />
         </label>
 
         <label className="flex flex-col gap-1 text-sm font-medium text-gray-text">
           Secret de signature du webhook
-          <input
+          <SecretField
             className={inputClass}
-            type="password"
             value={webhookSecret}
-            onChange={(e) => setWebhookSecret(e.target.value)}
+            onChange={setWebhookSecret}
             placeholder="whsec_…"
-            autoComplete="off"
           />
         </label>
 

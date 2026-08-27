@@ -112,7 +112,11 @@ public static class StripeModule
                     ["customerName"] = input.CustomerName,
                     ["customerEmail"] = input.CustomerEmail,
                     ["customerPhone"] = input.CustomerPhone ?? "",
-                    ["customerAddress"] = input.CustomerAddress ?? "",
+                    ["customerAddressLine1"] = input.CustomerAddressLine1 ?? "",
+                    ["customerAddressLine2"] = input.CustomerAddressLine2 ?? "",
+                    ["customerPostalCode"] = input.CustomerPostalCode ?? "",
+                    ["customerCity"] = input.CustomerCity ?? "",
+                    ["customerCountry"] = input.CustomerCountry ?? "",
                     ["cart"] = cartJson,
                 },
             };
@@ -183,7 +187,11 @@ public static class StripeModule
             var email = (metadata.GetValueOrDefault("customerEmail") ?? session.CustomerDetails?.Email ?? "").Trim();
             var name = metadata.GetValueOrDefault("customerName") ?? session.CustomerDetails?.Name ?? "";
             var phone = metadata.GetValueOrDefault("customerPhone") ?? "";
-            var address = metadata.GetValueOrDefault("customerAddress") ?? "";
+            var addressLine1 = metadata.GetValueOrDefault("customerAddressLine1") ?? "";
+            var addressLine2 = metadata.GetValueOrDefault("customerAddressLine2") ?? "";
+            var postalCode = metadata.GetValueOrDefault("customerPostalCode") ?? "";
+            var city = metadata.GetValueOrDefault("customerCity") ?? "";
+            var country = metadata.GetValueOrDefault("customerCountry") ?? "";
 
             await using var transaction = await db.Database.BeginTransactionAsync();
 
@@ -199,7 +207,11 @@ public static class StripeModule
                     Name = name,
                     Email = email,
                     Phone = phone,
-                    Address = address,
+                    AddressLine1 = addressLine1,
+                    AddressLine2 = addressLine2,
+                    PostalCode = postalCode,
+                    City = city,
+                    Country = country,
                     CreatedAt = DateTime.UtcNow,
                 };
                 db.Customers.Add(customer);
@@ -307,5 +319,15 @@ public static class StripeModule
     }
 }
 
-public record CheckoutInput(string CustomerName, string CustomerEmail, string? CustomerPhone, string? CustomerAddress, List<CheckoutItemInput> Items, string ReturnBaseUrl);
+public record CheckoutInput(
+    string CustomerName,
+    string CustomerEmail,
+    string? CustomerPhone,
+    string? CustomerAddressLine1,
+    string? CustomerAddressLine2,
+    string? CustomerPostalCode,
+    string? CustomerCity,
+    string? CustomerCountry,
+    List<CheckoutItemInput> Items,
+    string ReturnBaseUrl);
 public record CheckoutItemInput(Guid ProductId, int Quantity, string? Size);

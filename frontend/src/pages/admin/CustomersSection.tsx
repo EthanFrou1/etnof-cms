@@ -20,7 +20,17 @@ type CustomersSectionProps = {
 const inputClass =
   "rounded-button border border-border-subtle bg-white px-3 py-2 text-navy placeholder:text-gray-text/60 focus:border-brand-mid focus:outline-none focus:ring-2 focus:ring-brand-mid/20";
 
-const emptyForm = { name: "", email: "", phone: "", address: "", notes: "" };
+const emptyForm = {
+  name: "",
+  email: "",
+  phone: "",
+  addressLine1: "",
+  addressLine2: "",
+  postalCode: "",
+  city: "",
+  country: "France",
+  notes: "",
+};
 
 const formatPrice = (value: number) => value.toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
 
@@ -97,8 +107,46 @@ function AddCustomerModal({
             <input
               className={inputClass}
               placeholder="Adresse"
-              value={form.address}
-              onChange={(e) => setForm({ ...form, address: e.target.value })}
+              value={form.addressLine1}
+              onChange={(e) => setForm({ ...form, addressLine1: e.target.value })}
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-sm font-medium text-gray-text">
+            Complément d'adresse
+            <input
+              className={inputClass}
+              placeholder="Complément d'adresse"
+              value={form.addressLine2}
+              onChange={(e) => setForm({ ...form, addressLine2: e.target.value })}
+            />
+          </label>
+          <div className="grid grid-cols-2 gap-3">
+            <label className="flex flex-col gap-1 text-sm font-medium text-gray-text">
+              Code postal
+              <input
+                className={inputClass}
+                placeholder="Code postal"
+                value={form.postalCode}
+                onChange={(e) => setForm({ ...form, postalCode: e.target.value })}
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-sm font-medium text-gray-text">
+              Ville
+              <input
+                className={inputClass}
+                placeholder="Ville"
+                value={form.city}
+                onChange={(e) => setForm({ ...form, city: e.target.value })}
+              />
+            </label>
+          </div>
+          <label className="flex flex-col gap-1 text-sm font-medium text-gray-text">
+            Pays
+            <input
+              className={inputClass}
+              placeholder="Pays"
+              value={form.country}
+              onChange={(e) => setForm({ ...form, country: e.target.value })}
             />
           </label>
           <label className="flex flex-col gap-1 text-sm font-medium text-gray-text">
