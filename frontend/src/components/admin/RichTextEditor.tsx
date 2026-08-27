@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 
@@ -47,6 +47,19 @@ export default function RichTextEditor({ value, onChange, compact = false }: Ric
     content: value,
     onUpdate: ({ editor }) => onChange(editor.getHTML()),
   });
+
+  // `content` de useEditor ne sert qu'à l'initialisation — un changement de `value` venu de
+  // l'extérieur (ex. bouton "Utiliser une suggestion" d'EstablishmentSection.tsx, ou un rechargement
+  // de `content` après enregistrement) ne se répercute pas tout seul dans l'éditeur sans ce
+  // useEffect. Comparé à editor.getHTML() pour ne pas interrompre la frappe normale : onUpdate
+  // ci-dessus est la source de vérité pendant que l'utilisateur tape, ce useEffect ne doit resynchroniser
+  // que lorsque `value` a changé pour une autre raison.
+  useEffect(() => {
+    if (!editor) return;
+    if (value !== editor.getHTML()) {
+      editor.commands.setContent(value);
+    }
+  }, [editor, value]);
 
   if (!editor) return null;
 

@@ -28,10 +28,19 @@ type Order = {
   createdAt: string;
 };
 
+type ProductSize = {
+  label: string;
+  stock: number;
+};
+
 type Product = {
   id: string;
   name: string;
   stock: number;
+  // Dès qu'un produit a des tailles, `stock` (global) n'est plus jamais décrémenté (voir
+  // ProductSize.cs) — l'alerte Stock faible doit regarder ce tableau plutôt que ce champ devenu
+  // obsolète pour ces produits.
+  sizes: ProductSize[];
 };
 
 type Booking = {
@@ -191,20 +200,37 @@ function UpcomingAppointmentsCard({ clientSiteId, bookings }: { clientSiteId: st
   );
 }
 
-function LowStockAlert({ clientSiteId, products }: { clientSiteId: string; products: Product[] }) {
+// `lowSizes` : vide pour un produit sans taille (on retombe alors sur `product.stock`) — pour un
+// produit à tailles, ne liste que les tailles réellement basses plutôt que toutes, pour rester lisible.
+type LowStockEntry = { product: Product; lowSizes: ProductSize[] };
+
+function LowStockAlert({ clientSiteId, entries }: { clientSiteId: string; entries: LowStockEntry[] }) {
   return (
     <section className="rounded-card border border-amber-200 bg-amber-50 p-6 shadow-card">
       <h2 className="mb-4 text-lg font-bold text-navy">Stock faible</h2>
       <div className="flex flex-col gap-2">
-        {products.map((p) => (
+        {entries.map(({ product, lowSizes }) => (
           <a
-            key={p.id}
-            href={`/admin/${clientSiteId}/products/${p.id}`}
+            key={product.id}
+            href={`/admin/${clientSiteId}/products/${product.id}`}
             className="flex items-center justify-between gap-2 rounded-button px-2 py-1.5 text-sm hover:bg-amber-100"
           >
-            <span className="font-medium text-navy">{p.name}</span>
-            <span className="whitespace-nowrap rounded-pill bg-amber-200 px-2.5 py-1 text-xs font-semibold text-amber-800">
-              Stock : {p.stock}
+            <span className="font-medium text-navy">{product.name}</span>
+            <span className="flex flex-wrap justify-end gap-1.5">
+              {lowSizes.length > 0 ? (
+                lowSizes.map((s) => (
+                  <span
+                    key={s.label}
+                    className="whitespace-nowrap rounded-pill bg-amber-200 px-2.5 py-1 text-xs font-semibold text-amber-800"
+                  >
+                    {s.label} : {s.stock}
+                  </span>
+                ))
+              ) : (
+                <span className="whitespace-nowrap rounded-pill bg-amber-200 px-2.5 py-1 text-xs font-semibold text-amber-800">
+                  Stock : {product.stock}
+                </span>
+              )}
             </span>
           </a>
         ))}
@@ -273,7 +299,14 @@ export default function DashboardSection({ clientSiteId, password }: DashboardSe
 
   const enabledModuleCount = modules ? Object.values(modules).filter((m) => m.enabled).length : 0;
   const templateLabel = TEMPLATES.find((t) => t.id === templateId)?.label ?? "…";
-  const lowStockProducts = (products ?? []).filter((p) => p.stock <= LOW_STOCK_THRESHOLD).sort((a, b) => a.stock - b.stock);
+  const lowStockEntries: LowStockEntry[] = (products ?? [])
+    .map((product) => ({ product, lowSizes: product.sizes.filter((s) => s.stock <= LOW_STOCK_THRESHOLD) }))
+    .filter(({ product, lowSizes }) => (product.sizes.length > 0 ? lowSizes.length > 0 : product.stock <= LOW_STOCK_THRESHOLD))
+    .sort((a, b) => {
+      const worst = (entry: LowStockEntry) =>
+        entry.product.sizes.length > 0 ? Math.min(...entry.lowSizes.map((s) => s.stock)) : entry.product.stock;
+      return worst(a) - worst(b);
+    });
 
   // Uniquement calculée une fois les données nécessaires chargées — sinon les 4 étapes
   // apparaîtraient toutes "à faire" pendant une fraction de seconde au premier rendu.
@@ -314,8 +347,8 @@ export default function DashboardSection({ clientSiteId, password }: DashboardSe
         <StatTile label="Mise en page" value={templateLabel} />
       </div>
 
-      {catalogueEnabled && lowStockProducts.length > 0 && (
-        <LowStockAlert clientSiteId={clientSiteId} products={lowStockProducts} />
+      {catalogueEnabled && lowStockEntries.length > 0 && (
+        <LowStockAlert clientSiteId={clientSiteId} entries={lowStockEntries} />
       )}
 
       {catalogueEnabled || rdvEnabled ? (

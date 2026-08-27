@@ -303,8 +303,8 @@ public static class CatalogueAdminEndpoints
             return Results.NoContent();
         });
 
-        // Tailles — facultatives (voir ProductSize.cs) : pas de réordonnancement en V1 (contrairement
-        // aux photos), juste ajout/modification du stock/suppression, dans l'ordre de création.
+        // Tailles — facultatives (voir ProductSize.cs) : ajout/modification du stock/suppression,
+        // plus réordonnancement manuel (même patron que /images/reorder et /collections/reorder).
         group.MapPost("/products/{id:guid}/sizes", async (Guid clientSiteId, Guid id, ProductSizeInput input, HttpRequest req, IConfiguration config, AppDbContext db) =>
         {
             if (!await TenantAdminAuth.IsAuthorizedAsync(req, config, db, clientSiteId)) return Results.Unauthorized();
@@ -331,6 +331,33 @@ public static class CatalogueAdminEndpoints
             await db.SaveChangesAsync();
 
             return Results.Created($"/api/t/{clientSiteId}/admin/catalogue/sizes/{size.Id}", size);
+        });
+
+        // `sizeIds` = l'ordre voulu, complet (toutes les tailles du produit) — SortOrder réécrit
+        // d'après la position dans le tableau, même logique que le réordonnancement des photos.
+        group.MapPut("/products/{id:guid}/sizes/reorder", async (Guid clientSiteId, Guid id, ReorderSizesInput input, HttpRequest req, IConfiguration config, AppDbContext db) =>
+        {
+            if (!await TenantAdminAuth.IsAuthorizedAsync(req, config, db, clientSiteId)) return Results.Unauthorized();
+
+            var sizes = await db.ProductSizes
+                .Include(s => s.Product)
+                .Where(s => s.ProductId == id && s.Product!.ClientSiteId == clientSiteId)
+                .ToListAsync();
+            if (sizes.Count == 0) return Results.NotFound();
+
+            var currentIds = sizes.Select(s => s.Id).ToHashSet();
+            if (input.SizeIds.Count != sizes.Count || !input.SizeIds.ToHashSet().SetEquals(currentIds))
+            {
+                return Results.BadRequest(new { error = "La liste doit contenir exactement les tailles du produit." });
+            }
+
+            for (var index = 0; index < input.SizeIds.Count; index++)
+            {
+                sizes.First(s => s.Id == input.SizeIds[index]).SortOrder = index;
+            }
+            await db.SaveChangesAsync();
+
+            return Results.Ok(sizes.OrderBy(s => s.SortOrder));
         });
 
         group.MapPut("/sizes/{sizeId:guid}", async (Guid clientSiteId, Guid sizeId, ProductSizeInput input, HttpRequest req, IConfiguration config, AppDbContext db) =>
@@ -399,6 +426,32 @@ public static class CatalogueAdminEndpoints
             if (review is null) return Results.NotFound();
 
             db.ProductReviews.Remove(review);
+            await db.SaveChangesAsync();
+            return Results.NoContent();
+        });
+
+        // Demandes de réassort reçues pour ce produit (voir StockRequest.cs) — consultées depuis la
+        // fiche produit, même patron que les avis (GET .../products/{productId}/reviews ci-dessus).
+        group.MapGet("/products/{productId:guid}/stock-requests", async (Guid clientSiteId, Guid productId, HttpRequest req, IConfiguration config, AppDbContext db) =>
+        {
+            if (!await TenantAdminAuth.IsAuthorizedAsync(req, config, db, clientSiteId)) return Results.Unauthorized();
+
+            var requests = await db.StockRequests
+                .Where(r => r.ClientSiteId == clientSiteId && r.ProductId == productId)
+                .OrderByDescending(r => r.CreatedAt)
+                .ToListAsync();
+
+            return Results.Ok(requests);
+        });
+
+        group.MapDelete("/stock-requests/{id:guid}", async (Guid clientSiteId, Guid id, HttpRequest req, IConfiguration config, AppDbContext db) =>
+        {
+            if (!await TenantAdminAuth.IsAuthorizedAsync(req, config, db, clientSiteId)) return Results.Unauthorized();
+
+            var request = await db.StockRequests.FirstOrDefaultAsync(r => r.Id == id && r.ClientSiteId == clientSiteId);
+            if (request is null) return Results.NotFound();
+
+            db.StockRequests.Remove(request);
             await db.SaveChangesAsync();
             return Results.NoContent();
         });
@@ -563,6 +616,7 @@ public static class CatalogueAdminEndpoints
 public record ProductInput(string Name, string Description, decimal Price, int Stock, Guid? CollectionId, bool Highlighted);
 public record ReorderImagesInput(List<Guid> ImageIds);
 public record ProductSizeInput(string Label, int Stock);
+public record ReorderSizesInput(List<Guid> SizeIds);
 public record CollectionInput(string Name);
 public record ReorderCollectionsInput(List<Guid> CollectionIds);
 public record OrderStatusInput(string Status);

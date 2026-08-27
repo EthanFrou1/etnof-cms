@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { API_BASE_URL } from "../../config";
 import { StatusLegend } from "../../components/admin/StatusLegend";
 import Select from "../../components/admin/Select";
+import ConfirmModal from "../../components/admin/ConfirmModal";
 import { adminFetch } from "../../hooks/useAdminSession";
 import {
   inputClass,
@@ -281,6 +282,7 @@ export default function QuotesSection({ password }: { password: string }) {
   const [modal, setModal] = useState<"create" | QuoteDetail | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<(typeof QUOTE_STATUS_FILTERS)[number]["value"]>("all");
+  const [quoteToDelete, setQuoteToDelete] = useState<QuoteListItem | null>(null);
 
   const load = () =>
     adminFetch(API_BASE_URL, "/api/admin/quotes", password)
@@ -308,6 +310,7 @@ export default function QuotesSection({ password }: { password: string }) {
 
   const handleDelete = async (id: string) => {
     await adminFetch(API_BASE_URL, `/api/admin/quotes/${id}`, password, { method: "DELETE" });
+    setQuoteToDelete(null);
     load();
   };
 
@@ -433,7 +436,7 @@ export default function QuotesSection({ password }: { password: string }) {
                                 </button>
                                 <button
                                   type="button"
-                                  onClick={() => handleDelete(quote.id)}
+                                  onClick={() => setQuoteToDelete(quote)}
                                   className="font-medium text-red-500 hover:text-red-600"
                                 >
                                   Supprimer
@@ -480,6 +483,15 @@ export default function QuotesSection({ password }: { password: string }) {
           editing={modal === "create" ? null : modal}
           onClose={() => setModal(null)}
           onSaved={load}
+        />
+      )}
+
+      {quoteToDelete && (
+        <ConfirmModal
+          title={`Supprimer le devis "${quoteToDelete.number}" ?`}
+          message="Cette action est définitive."
+          onConfirm={() => handleDelete(quoteToDelete.id)}
+          onCancel={() => setQuoteToDelete(null)}
         />
       )}
     </div>

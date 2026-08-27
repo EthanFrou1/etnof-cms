@@ -820,7 +820,79 @@ Demandé par Ethan après avoir testé un vrai paiement : une vraie page de succ
 - **Nettoyage** : l'ancien `CheckoutReturnBanner` (et son détecteur `hasCheckoutReturn`) retiré de `CatalogueSection.tsx` (Hestia/Helios) et de `charis/ProductGrid.tsx` (Charis) — il ne se déclenchera plus jamais, Stripe ne redirige plus vers la home. Imports/consts devenus inutiles (`storageKey`, `formatPrice` dans ProductGrid.tsx) retirés au passage (`noUnusedLocals` activé sur ce projet, voir `tsconfig.json`).
 - Nouvelles clés de traduction (fr/en/es) : `catalogue.orderConfirmationEmailNote`, `catalogue.backToCart`.
 
-Testé : `tsc --noEmit` propre (y compris détection des imports devenus inutiles). Test d'achat réel de bout en bout lancé via CDP/Chrome headless en s'appuyant sur la configuration Stripe de test posée juste avant (carte de test `4242 4242 4242 4242`, webhook forwardé par la Stripe CLI) — résultat à reporter ici une fois confirmé.
+Testé : `tsc --noEmit` propre (y compris détection des imports devenus inutiles). Test d'achat réel de bout en bout confirmé via CDP/Chrome headless, en s'appuyant sur la configuration Stripe de test posée juste avant : ajout au panier → formulaire → vraie page `checkout.stripe.com` (bon produit, bon montant) → carte de test `4242 4242 4242 4242` acceptée → redirection sur `/commande?checkout=success&session_id=...` avec le bon montant affiché → panier vidé (`localStorage` + `/panier` repasse à l'état vide) → commande bien créée en base par le webhook (forwardé par la Stripe CLI), avec le bon email/nom/article/montant/`stripeSessionId`. Aucune erreur console à aucune étape.
+
+## Tailles : réordonnancement + ajout à la création — 2026-08-27 (même jour)
+
+Suite du système de tailles (session du 2026-08-26) : les deux limites notées comme "portée limitée à cette itération" sont levées, à la demande d'Ethan. Détail complet dans `docs/04-catalogue-modules.md`, section datée du 2026-08-27 :
+
+- Réordonnancement des tailles par glisser-déposer sur la fiche produit (`PUT /admin/catalogue/products/{id}/sizes/reorder`, même patron que le réordonnancement des photos/collections).
+- Tailles ajoutables directement dans la modale "Ajouter un produit" (avant, seulement possible après coup depuis la fiche produit une fois créée).
+
+Testé : `dotnet build -c Release`/`tsc -b` propres. **Reste à vérifier par Ethan dans le navigateur** : glisser-déposer d'une taille, ajout de tailles à la création d'un produit.
+
+## Boutique Charis : filtrage par collection via l'URL — 2026-08-27 (même jour)
+
+Suite du chantier tailles : le lien "Voir plus" d'une collection sur la home et le fil d'Ariane d'une fiche produit renvoyaient vers la boutique complète au lieu de la collection précise (chips de filtre déjà branchées côté boutique, mais rien ne les pré-sélectionnait depuis un lien externe). Détail complet dans `docs/10-templates.md`, section datée du 2026-08-27 :
+
+- La boutique Charis lit `?collection={id}` dans l'URL au chargement, et met à jour l'URL (sans rechargement) quand un chip est cliqué — les liens vers une collection deviennent partageables.
+- Le badge "Voir plus" (home) et le nom de collection dans le fil d'Ariane (fiche produit) pointent désormais vers cette URL filtrée.
+
+Testé : `tsc -b` propre. **Reste à vérifier par Ethan dans le navigateur** : clic sur "Voir plus" depuis la home, clic sur le nom de collection dans le fil d'Ariane, URL copiée/rouverte après un filtre.
+
+## Livraison/Retours éditables par établissement — 2026-08-27 (même jour)
+
+Dernier point ouvert de la liste du jour : le texte Livraison/Retours de l'accordéon fiche produit (Charis) était générique et identique pour tous les tenants. Discussion préalable avec Ethan sur la façon d'aider les clients à gérer ça facilement — décision : pas un système de règles de livraison structuré (zones/frais/etc., hors scope pour l'instant, cf. CLAUDE.md règle 7), juste deux champs texte, **pré-remplis avec le texte générique existant** plutôt que vides, pour qu'aucun client n'ait à rédiger quoi que ce soit s'il n'a pas de politique différente.
+
+- **`SiteContent` gagne `DeliveryContent`/`ReturnsContent`** (migration `AddEstablishmentDeliveryReturns`, `defaultValue` = le texte générique déjà affiché à tous avant ce changement — backfill immédiat des tenants existants, vérifié après application : le tenant historique porte bien le texte par défaut sur les deux colonnes). "Paiement sécurisé" reste statique (mentionne Stripe, ne varie pas d'un tenant à l'autre) — seulement 2 champs, pas 3.
+- **Admin** (`EstablishmentSection.tsx`) : les deux champs rejoignent l'onglet CGV (renommé "Livraison & CGV"), édités via le même `RichTextEditor` compact que Description/Notre histoire. Contrairement aux CGV, aucun blocage/avertissement si vidé — c'est de l'info commerciale, pas une obligation légale.
+- **Site public** (`charis/ProductPage.tsx`) : `PurchaseInfo`/`AccordionItem` lisent désormais `content.deliveryContent`/`content.returnsContent` (rendu HTML, même pattern que Description/CGV) au lieu des textes de traduction statiques `catalogue.deliveryText`/`returnsText` — ces deux clés, devenues inutilisées, retirées des 3 langues (`translations.ts`). Les titres (`deliveryTitle`/`returnsTitle`) restent traduits normalement.
+
+Testé : `dotnet build -c Release`/`tsc -b` propres, migration appliquée (`dotnet ef database update`, backfill confirmé par `curl` sur le tenant historique). **Le `dotnet run` de dev tournait encore sur l'ancien code pendant la session — à redémarrer pour charger ces changements avant de tester dans le navigateur.**
+
+**Retour immédiat d'Ethan (capture d'écran de la fiche produit)**, revirement sur la logique par défaut :
+
+- **Section absente si vide plutôt que texte générique forcé** : tous les commerces ne font pas de livraison/retours (ex. un salon de coiffure) — `SiteContent.DeliveryContent`/`ReturnsContent` valent désormais `""` pour tout nouveau tenant (au lieu du texte générique en dur), et `PurchaseInfo` (`charis/ProductPage.tsx`) n'affiche l'accordéon Livraison/Retours que si le champ correspondant n'est pas vide — même logique que "Notre histoire" (`hasStory`). Les tenants déjà backfillés par la migration ci-dessus gardent leur texte (pas de régression, ils l'affichaient déjà avant ce chantier).
+- **Bouton "Utiliser une suggestion"** à côté de chaque champ (`EstablishmentSection.tsx`) : remplit l'éditeur avec un texte de départ (repris de l'ancien générique) pour guider le client qui ne sait pas quoi écrire, sans jamais le poser automatiquement.
+
+Testé : `dotnet build -c Release`/`tsc -b` propres. **Reste à vérifier par Ethan dans le navigateur** (après redémarrage du backend) : sur un tenant sans texte Livraison/Retours, les deux sections n'apparaissent plus sur la fiche produit ; clic sur "Utiliser une suggestion" remplit bien l'éditeur ; le tenant historique (backfillé) continue d'afficher ses sections normalement.
+
+## RichTextEditor ne se resynchronisait pas depuis l'extérieur + alerte Stock faible ignorait les tailles — 2026-08-27 (même jour)
+
+Deux bugs remontés par Ethan en testant les changements précédents :
+
+- **`RichTextEditor.tsx`** : le bouton "Utiliser une suggestion" (Livraison/Retours) mettait bien à jour l'état React mais l'éditeur affiché ne changeait pas — `useEditor` de TipTap n'utilise `content` qu'à l'initialisation, il ne se resynchronise pas tout seul quand la prop `value` change depuis l'extérieur (un `onChange` déclenché par autre chose que la frappe dans l'éditeur lui-même). Fix : `useEffect` qui appelle `editor.commands.setContent(value)` quand `value` diffère de `editor.getHTML()` — ne se déclenche pas pendant la frappe normale (l'état ne change alors qu'après coup, via `onUpdate`, donc déjà synchronisé). Composant partagé (Description, Notre histoire, CGV, Livraison, Retours) : bénéficie à tous les champs qui pourraient un jour être modifiés par du code plutôt que par la frappe.
+- **Alerte "Stock faible" du tableau de bord** (`DashboardSection.tsx`) : trouvée en répondant à une question d'Ethan sur la gestion des stocks — elle filtrait sur `Product.Stock`, qui n'est plus jamais décrémenté dès qu'un produit a des tailles (voir `ProductSize.cs`), donc l'alerte ne reflétait pas la vraie disponibilité pour un tenant type Atelier Lumen. Fix : pour un produit à tailles, l'alerte regarde chaque taille individuellement et n'affiche que celles sous le seuil (ex. "S : 1 · M : 2"), plutôt que le stock global obsolète — même philosophie que la décision du 2026-08-26 de ne pas afficher un stock agrégé trompeur sur les cards produit.
+
+Testé : `tsc -b` propre. Pas de vérification visuelle dans cet environnement — **à confirmer par Ethan** : le bouton "Utiliser une suggestion" remplit maintenant l'éditeur visuellement ; sur un tenant avec des tailles en stock faible, l'alerte du tableau de bord liste bien les tailles concernées au lieu d'un stock global à 0.
+
+## Demande de réassort ("Prévenez-moi") sur un produit/taille en rupture — 2026-08-27 (même jour)
+
+Nouvelle fonctionnalité demandée par Ethan : un client bloqué par une rupture (produit entier ou une taille précise) peut maintenant laisser son email pour être recontacté, sans email automatique au tenant (consultée dans son admin, même principe que les messages de contact — 2 décisions tranchées avec Ethan avant de coder). Détail complet dans `docs/04-catalogue-modules.md`, section datée du 2026-08-27 :
+
+- Nouvelle entité `StockRequest` + migration `AddStockRequests`, endpoint public de soumission, endpoints admin de consultation/suppression.
+- Formulaire "Prévenez-moi" partagé (`StockRequestForm.tsx`) entre Charis et Hestia/Helios, affiché sur une taille précise épuisée (désormais sélectionnable même à 0 en stock) ou sur un produit entièrement épuisé.
+- Nouvelle section "Demandes de réassort" sur la fiche produit admin, suppression avec confirmation.
+
+Testé : `dotnet build -c Release`/`tsc -b` propres, migration appliquée. **Backend de dev à redémarrer** pour charger les nouveaux endpoints. **Reste à vérifier par Ethan dans le navigateur** : sélection d'une taille épuisée → formulaire "Prévenez-moi" → soumission → apparition dans l'admin du produit.
+
+## Fix : PhoneInput n'insérait pas les espaces au fil de la frappe — 2026-08-27 (même jour)
+
+Bug connu depuis la session du panier (2026-08-27, plus haut), jamais corrigé jusqu'ici. Cause confirmée : `AsYouType` (libphonenumber-js) est un formateur à état pensé pour être nourri caractère par caractère — le composant recréait une instance et lui donnait toute la chaîne accumulée d'un coup à chaque rendu, ce qui désactive son insertion d'espaces au fil de la frappe.
+
+- **`PhoneInput.tsx`** : instance `AsYouType` désormais persistante entre les rendus (`useRef`), nourrie uniquement des caractères ajoutés depuis le dernier rendu (frappe normale) — sauf en cas de suppression/collage (la chaîne ne commence plus par ce qui a déjà été nourri), où le formateur repart de zéro (`reset()` + réinjection complète). Recréé aussi si le pays change (gabarit de formatage différent).
+- Composant partagé, utilisé sur `EstablishmentSection.tsx` (téléphone établissement + responsable) et `CartPage.tsx` (téléphone livraison) — bénéficie aux deux sans changement supplémentaire.
+
+Testé : `tsc -b` propre. Pas de vérification visuelle dans cet environnement — **à confirmer par Ethan** : taper un numéro dans un des deux champs (panier ou Établissement) doit maintenant afficher les espaces au fur et à mesure ("6 12 34 56 78"), y compris après un backspace en plein milieu du numéro.
+
+## StockRequestForm passé en modale — 2026-08-27 (même jour)
+
+Retour immédiat d'Ethan sur capture d'écran : le lien discret "Prévenez-moi quand disponible" (texte souligné révélant un mini-formulaire en place) passait inaperçu, en particulier dans l'espace compact d'une card produit.
+
+- **`StockRequestForm.tsx`** : le déclencheur devient un vrai bouton bordé (même style que "Laisser un avis") ; le clic ouvre une modale (portail vers `document.body`, même patron que `ProductReviewModal`/`ConfirmModal`) rappelant le produit et la taille concernée, avec le champ email et l'envoi.
+- Gagne une prop `productName` (déjà disponible aux deux call sites, `charis/ProductPage.tsx` et `CatalogueSection.tsx`) pour l'afficher dans la modale.
+
+Testé : `tsc -b` propre. **À confirmer par Ethan dans le navigateur** : sélectionner une taille épuisée ouvre maintenant un bouton nettement visible, qui ouvre la modale au clic.
 
 ---
 

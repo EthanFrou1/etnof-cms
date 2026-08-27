@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 // modules/multilingue/frontend/translations.ts.
 import { t, type Locale } from "@modules/multilingue/frontend/translations";
 import { CartProvider, useCart } from "./CartContext";
+import StockRequestForm from "./StockRequestForm";
 
 type ProductImage = {
   id: string;
@@ -249,6 +250,9 @@ function ProductCard({
   const canAddToCart = hasSizes ? Boolean(selectedSize && selectedSize.stock > 0) : inStock;
   const maxStock = hasSizes ? selectedSize?.stock ?? 0 : product.stock;
   const thumbnail = product.images[0];
+  // Voir ProductPage.tsx (Charis) pour la même logique : une taille précise épuisée si choisie,
+  // sinon seulement si le produit est entièrement épuisé (pas juste "aucune taille cliquée").
+  const showStockRequest = hasSizes ? (selectedSize ? selectedSize.stock <= 0 : !inStock) : !inStock;
 
   return (
     <>
@@ -295,18 +299,20 @@ function ProductCard({
             <div className="flex flex-wrap gap-1.5">
               {product.sizes.map((size) => {
                 const selected = selectedSize?.id === size.id;
+                const disabled = size.stock <= 0;
                 return (
                   <button
                     key={size.id}
                     type="button"
-                    disabled={size.stock <= 0}
+                    // Pas de `disabled` natif : reste cliquable même épuisée pour permettre une
+                    // demande de réassort ciblée (StockRequestForm ci-dessous), voir ProductPage.tsx.
                     onClick={(e) => {
                       e.stopPropagation();
                       setSelectedSize(size);
                     }}
-                    className={`rounded-button border px-2.5 py-1 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-30 ${
-                      selected ? "border-transparent text-white" : "border-border-subtle text-gray-text hover:border-brand-mid"
-                    }`}
+                    className={`rounded-button border px-2.5 py-1 text-xs font-medium transition-colors ${
+                      disabled ? "cursor-not-allowed opacity-30" : ""
+                    } ${selected ? "border-transparent text-white" : "border-border-subtle text-gray-text hover:border-brand-mid"}`}
                     style={selected ? { backgroundColor: palette.accent } : undefined}
                   >
                     {size.label}
@@ -327,6 +333,18 @@ function ProductCard({
           >
             {t(locale, "catalogue.addToCart")}
           </button>
+
+          {showStockRequest && (
+            <StockRequestForm
+              apiBaseUrl={apiBaseUrl}
+              clientSiteId={clientSiteId}
+              productId={product.id}
+              productName={product.name}
+              sizeLabel={hasSizes ? selectedSize?.label ?? null : null}
+              palette={palette}
+              locale={locale}
+            />
+          )}
         </div>
       </div>
 

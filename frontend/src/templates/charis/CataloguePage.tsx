@@ -34,8 +34,23 @@ function CatalogueContent({
   const [products, setProducts] = useState<Product[] | null>(null);
   const [collections, setCollections] = useState<Collection[]>([]);
   // null = chip "Tout" (pas de filtre) — demandé par Ethan pour retrouver les chips de filtre par
-  // collection annoncées dans le commentaire d'origine mais jamais branchées.
-  const [activeCollectionId, setActiveCollectionId] = useState<string | null>(null);
+  // collection annoncées dans le commentaire d'origine mais jamais branchées. Initialisé depuis
+  // `?collection=` (lien "Voir plus" d'une collection sur la home, fil d'Ariane d'une fiche produit)
+  // pour arriver directement filtré au lieu de la boutique complète.
+  const [activeCollectionId, setActiveCollectionId] = useState<string | null>(
+    () => new URLSearchParams(window.location.search).get("collection")
+  );
+
+  // Sélectionner un chip met à jour l'URL (sans recharger la page) — routage maison, cf.
+  // CLAUDE.md règle 5 : pas de librairie de routing, juste history.replaceState comme ailleurs
+  // dans le projet (window.location.pathname).
+  const selectCollection = (collectionId: string | null) => {
+    setActiveCollectionId(collectionId);
+    const url = new URL(window.location.href);
+    if (collectionId) url.searchParams.set("collection", collectionId);
+    else url.searchParams.delete("collection");
+    window.history.replaceState(null, "", url);
+  };
 
   useEffect(() => {
     fetch(`${apiBaseUrl}/api/t/${clientSiteId}/catalogue/products`)
@@ -80,7 +95,7 @@ function CatalogueContent({
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
-            onClick={() => setActiveCollectionId(null)}
+            onClick={() => selectCollection(null)}
             className="rounded-pill border px-4 py-2 text-sm font-medium transition-colors duration-200"
             style={
               activeCollectionId === null
@@ -94,7 +109,7 @@ function CatalogueContent({
             <button
               key={collection.id}
               type="button"
-              onClick={() => setActiveCollectionId(collection.id)}
+              onClick={() => selectCollection(collection.id)}
               className="rounded-pill border px-4 py-2 text-sm font-medium transition-colors duration-200"
               style={
                 activeCollectionId === collection.id

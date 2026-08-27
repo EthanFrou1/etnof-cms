@@ -42,12 +42,26 @@ type AddProductModalProps = {
   onCreated: () => void;
 };
 
+type PendingSize = { label: string; stock: string };
+
 function AddProductModal({ clientSiteId, password, onClose, onCreated }: AddProductModalProps) {
   const [form, setForm] = useState(emptyForm);
   const [photos, setPhotos] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
+  const [sizes, setSizes] = useState<PendingSize[]>([]);
+  const [sizeLabel, setSizeLabel] = useState("");
+  const [sizeStock, setSizeStock] = useState("");
   const [status, setStatus] = useState<"idle" | "saving" | "success" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
+
+  const addSize = () => {
+    if (!sizeLabel.trim()) return;
+    setSizes((current) => [...current, { label: sizeLabel.trim(), stock: sizeStock }]);
+    setSizeLabel("");
+    setSizeStock("");
+  };
+
+  const removeSize = (index: number) => setSizes((current) => current.filter((_, i) => i !== index));
 
   useEffect(() => {
     const urls = photos.map((file) => URL.createObjectURL(file));
@@ -97,6 +111,25 @@ function AddProductModal({ clientSiteId, password, onClose, onCreated }: AddProd
       if (!imgRes.ok) {
         setStatus("error");
         setError("Le produit a été créé, mais une photo n'a pas pu être envoyée.");
+        onCreated();
+        return;
+      }
+    }
+
+    for (const size of sizes) {
+      const sizeRes = await adminFetch(
+        API_BASE_URL,
+        `/api/t/${clientSiteId}/admin/catalogue/products/${product.id}/sizes`,
+        password,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ label: size.label, stock: Number(size.stock) || 0 }),
+        }
+      );
+      if (!sizeRes.ok) {
+        setStatus("error");
+        setError("Le produit a été créé, mais une taille n'a pas pu être enregistrée.");
         onCreated();
         return;
       }
@@ -188,6 +221,53 @@ function AddProductModal({ clientSiteId, password, onClose, onCreated }: AddProd
                 }}
               />
             </label>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <span className="text-sm font-medium text-gray-text">Tailles (facultatif)</span>
+            {sizes.length > 0 && (
+              <div className="flex flex-col gap-2">
+                {sizes.map((size, index) => (
+                  <div key={index} className="flex items-center gap-3 rounded-button border border-border-subtle p-2">
+                    <span className="w-16 shrink-0 font-medium text-navy">{size.label}</span>
+                    <span className="text-xs text-gray-text">{size.stock || 0} en stock</span>
+                    <button
+                      type="button"
+                      onClick={() => removeSize(index)}
+                      className="ml-auto text-sm text-red-500 hover:text-red-600"
+                    >
+                      Supprimer
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="flex gap-2">
+              <input
+                className={`${inputClass} w-24`}
+                placeholder="Taille (ex. M)"
+                value={sizeLabel}
+                onChange={(e) => setSizeLabel(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addSize())}
+              />
+              <input
+                className={`${inputClass} w-20`}
+                type="number"
+                min={0}
+                placeholder="Stock"
+                value={sizeStock}
+                onChange={(e) => setSizeStock(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addSize())}
+              />
+              <button
+                type="button"
+                onClick={addSize}
+                disabled={!sizeLabel.trim()}
+                className="rounded-button border border-border-subtle px-3 py-2 text-sm font-semibold text-navy hover:bg-bg-page-start disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Ajouter
+              </button>
+            </div>
           </div>
 
           {status === "error" && error && <p className="text-red-500">{error}</p>}

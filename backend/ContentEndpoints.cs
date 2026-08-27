@@ -72,6 +72,8 @@ public static class ContentEndpoints
             content.GooglePlaceId = input.GooglePlaceId;
             content.GooglePlaceName = input.GooglePlaceName;
             content.CgvContent = input.CgvContent;
+            content.DeliveryContent = input.DeliveryContent;
+            content.ReturnsContent = input.ReturnsContent;
             content.OpeningHoursJson = JsonSerializer.Serialize(input.OpeningHours);
 
             db.Offers.RemoveRange(content.Offers);
@@ -121,6 +123,8 @@ public static class ContentEndpoints
         content.GooglePlaceId,
         content.GooglePlaceName,
         content.CgvContent,
+        content.DeliveryContent,
+        content.ReturnsContent,
         ParseOpeningHours(content.OpeningHoursJson)
     );
 
@@ -200,6 +204,8 @@ public record SiteContentResponse(
     string GooglePlaceId,
     string GooglePlaceName,
     string CgvContent,
+    string DeliveryContent,
+    string ReturnsContent,
     List<DayHoursDto> OpeningHours
 );
 
@@ -220,5 +226,7 @@ public record SiteContentInput(
     List<DayHoursDto> OpeningHours,
     string GooglePlaceId,
     string GooglePlaceName,
-    string CgvContent
+    string CgvContent,
+    string DeliveryContent,
+    string ReturnsContent
 );

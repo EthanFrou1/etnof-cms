@@ -263,7 +263,7 @@ export default function ProductGrid({ clientSiteId, palette, locale, afterFeatur
                 clientSiteId={clientSiteId}
                 palette={palette}
                 locale={locale}
-                cta={{ label: t(locale, "catalogue.viewMore"), href: `/t/${clientSiteId}/boutique` }}
+                cta={{ label: t(locale, "catalogue.viewMore"), href: `/t/${clientSiteId}/boutique?collection=${collection.id}` }}
                 collectionsById={collectionsById}
               />
             ) : (

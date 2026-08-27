@@ -43,6 +43,17 @@ public class SiteContent
     // désactivé tant que ce champ est vide sur un site où Catalogue+Stripe sont actifs.
     public string CgvContent { get; set; } = string.Empty;
 
+    // Livraison/Retours affichés dans l'accordéon de la fiche produit (charis/ProductPage.tsx,
+    // PurchaseInfo) — contrairement aux CGV, pas une obligation légale : vide par défaut pour un
+    // nouveau tenant (tous les commerces ne font pas de livraison/retours, ex. un salon de coiffure),
+    // section correspondante simplement absente du site public tant que le champ est vide (pas de
+    // blocage/avertissement comme les CGV). L'admin propose un texte suggéré à titre d'aide au
+    // wording (bouton dans EstablishmentSection.tsx), jamais posé automatiquement. Les tenants créés
+    // avant ce champ ont été rétroactivement remplis avec l'ancien texte générique statique qu'ils
+    // affichaient déjà (voir migration AddEstablishmentDeliveryReturns) — pas de régression pour eux.
+    public string DeliveryContent { get; set; } = string.Empty;
+    public string ReturnsContent { get; set; } = string.Empty;
+
     // JSON sérialisé d'une liste de 7 DayHoursDto (lundi -> dimanche) — même convention que
     // ClientSite.ModulesConfigJson : colonne texte brute, parsée/reformée à la frontière API
     // (voir ContentEndpoints.ToResponse) plutôt qu'une collection mappée par EF Core. Le format

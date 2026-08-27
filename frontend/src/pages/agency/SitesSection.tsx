@@ -7,6 +7,7 @@ import { inputClass, type ModuleMeta } from "./shared";
 import { IconExternalLink } from "../../components/admin/icons";
 import ModuleThumbnail from "../../components/admin/ModuleThumbnail";
 import Select from "../../components/admin/Select";
+import ConfirmModal from "../../components/admin/ConfirmModal";
 
 const STATUSES = ["En cours", "Livré", "En maintenance"];
 
@@ -249,6 +250,7 @@ export default function SitesSection({ password }: { password: string }) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [templateFilter, setTemplateFilter] = useState("");
+  const [siteToDelete, setSiteToDelete] = useState<ClientSite | null>(null);
 
   const load = () =>
     adminFetch(API_BASE_URL, "/api/admin/client-sites", password)
@@ -265,6 +267,7 @@ export default function SitesSection({ password }: { password: string }) {
 
   const handleDelete = async (id: string) => {
     await adminFetch(API_BASE_URL, `/api/admin/client-sites/${id}`, password, { method: "DELETE" });
+    setSiteToDelete(null);
     load();
   };
 
@@ -416,7 +419,7 @@ export default function SitesSection({ password }: { password: string }) {
                       </button>
                       <button
                         type="button"
-                        onClick={() => handleDelete(site.id)}
+                        onClick={() => setSiteToDelete(site)}
                         className="font-medium text-red-500 hover:text-red-600"
                       >
                         Supprimer
@@ -437,6 +440,15 @@ export default function SitesSection({ password }: { password: string }) {
           editing={modal === "create" ? null : modal}
           onClose={() => setModal(null)}
           onSaved={load}
+        />
+      )}
+
+      {siteToDelete && (
+        <ConfirmModal
+          title={`Supprimer le site "${siteToDelete.name}" ?`}
+          message="Action définitive et irréversible : le site du client, son contenu, ses produits/commandes et ses messages seront tous supprimés."
+          onConfirm={() => handleDelete(siteToDelete.id)}
+          onCancel={() => setSiteToDelete(null)}
         />
       )}
     </div>
