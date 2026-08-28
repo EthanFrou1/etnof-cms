@@ -365,13 +365,15 @@ function ProductCard({
 function CartButton({ clientSiteId, palette, locale }: { clientSiteId: string; palette: ModulePalette; locale?: Locale }) {
   const { itemCount } = useCart();
 
+  if (itemCount === 0) return null;
+
   return createPortal(
     <a
       href={`/t/${clientSiteId}/panier`}
       className="fixed bottom-6 right-6 z-40 flex items-center gap-2 rounded-pill px-5 py-3 text-sm font-semibold text-white shadow-soft"
       style={{ backgroundColor: palette.ink }}
     >
-      {t(locale, "catalogue.cart")} {itemCount > 0 && `(${itemCount})`}
+      {t(locale, "catalogue.cart")} ({itemCount})
     </a>,
     document.body
   );
@@ -379,22 +381,28 @@ function CartButton({ clientSiteId, palette, locale }: { clientSiteId: string; p
 
 export default function CatalogueSection({ apiBaseUrl, clientSiteId, palette, locale, limit }: CatalogueSectionProps) {
   const [products, setProducts] = useState<Product[]>([]);
+  // Recherche : seulement affichée/pertinente sur la page boutique complète (pas d'aperçu `limit`,
+  // voir plus bas) — jamais utilisée par le teaser de la home.
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     fetch(`${apiBaseUrl}/api/t/${clientSiteId}/catalogue/products`)
-      .then((res) => res.json())
+      .then((res) => (res.ok ? res.json() : []))
       .then(setProducts)
       .catch((err) => console.error("Erreur CatalogueSection :", err));
   }, [apiBaseUrl, clientSiteId]);
 
   if (products.length === 0) return null;
 
+  const searchQuery = search.trim().toLowerCase();
+  const searchedProducts = searchQuery ? products.filter((p) => p.name.toLowerCase().includes(searchQuery)) : products;
+
   // Aperçu (`limit` fourni, voir CatalogueSectionProps) : les produits "mis en avant" passent en
   // premier (tri stable, Array.prototype.sort le garantit) avant de tronquer — sinon ordre du
   // backend inchangé (CreatedAt décroissant).
   const visibleProducts = limit
-    ? [...products].sort((a, b) => Number(b.highlighted) - Number(a.highlighted)).slice(0, limit)
-    : products;
+    ? [...searchedProducts].sort((a, b) => Number(b.highlighted) - Number(a.highlighted)).slice(0, limit)
+    : searchedProducts;
   const hasMore = Boolean(limit) && products.length > limit!;
 
   return (
@@ -403,18 +411,35 @@ export default function CatalogueSection({ apiBaseUrl, clientSiteId, palette, lo
         <span className="text-xs font-semibold uppercase tracking-[0.1em]" style={{ color: palette.accent }}>
           {t(locale, "catalogue.label")}
         </span>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {visibleProducts.map((product) => (
-            <ProductCard
-              key={product.id}
-              apiBaseUrl={apiBaseUrl}
-              clientSiteId={clientSiteId}
-              product={product}
-              palette={palette}
-              locale={locale}
-            />
-          ))}
-        </div>
+        {!limit && (
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={t(locale, "catalogue.searchPlaceholder")}
+            aria-label={t(locale, "catalogue.searchPlaceholder")}
+            className="w-full max-w-sm rounded-button border px-4 py-2.5 text-sm"
+            style={{ borderColor: `${palette.ink}33`, color: palette.ink }}
+          />
+        )}
+        {visibleProducts.length === 0 ? (
+          <p className="text-sm" style={{ color: `${palette.ink}99` }}>
+            {t(locale, "catalogue.noSearchResults")}
+          </p>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {visibleProducts.map((product) => (
+              <ProductCard
+                key={product.id}
+                apiBaseUrl={apiBaseUrl}
+                clientSiteId={clientSiteId}
+                product={product}
+                palette={palette}
+                locale={locale}
+              />
+            ))}
+          </div>
+        )}
         {hasMore && (
           <a
             href={`/t/${clientSiteId}/boutique`}

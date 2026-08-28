@@ -122,7 +122,11 @@ export default function PhoneInput({ value, onChange, placeholder }: PhoneInputP
   return (
     <div>
       <div className="flex gap-2">
-        <div className="w-48 shrink-0">
+        {/* w-32 en mobile (au lieu de w-48 partout) : sur un écran étroit (panier public, Charis),
+            le sélecteur de pays laissait trop peu de place au champ numéro lui-même — remonté par
+            Ethan. sm:w-48 revient à la largeur d'origine dès qu'il y a la place (admin, essentiellement
+            desktop). Le texte du sélecteur tronque déjà proprement (voir Select.tsx, `truncate`). */}
+        <div className="w-32 shrink-0 sm:w-48">
           <Select
             className={inputClass}
             value={country}

@@ -20,6 +20,16 @@ const LanguageSwitcher = lazy(() => import("@modules/multilingue/frontend/Langua
 
 const ink = "#1A1512";
 
+// Longueur (texte brut, balises retirées) à partir de laquelle "Notre histoire" dépasse ~10 lignes
+// affichées (voir line-clamp-[10] plus bas) et justifie le bouton "Voir plus" — même seuil
+// approximatif que TemplateHestia.tsx et StorySection.tsx (Charis), pas de mesure DOM réelle
+// nécessaire pour ce besoin.
+const LONG_STORY_THRESHOLD = 800;
+
+function stripHtml(html: string): string {
+  return html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+}
+
 // Motif de rayons de soleil (signature visuelle propre à Helios, dieu du soleil), en fine bande
 // décorative sous le hero — parité avec la frise en méandre grec d'Hestia (GreekKeyDivider). Généré
 // en local (pas d'asset externe), tuilé horizontalement, recoloré selon la palette active.
@@ -75,6 +85,7 @@ function Reveal({ children }: { children: ReactNode }) {
 
 export default function TemplateHelios({ clientSiteId, modules, content, paletteId, customAccent, logoUrl, locale, onChangeLocale }: TemplateProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [storyExpanded, setStoryExpanded] = useState(false);
   const mapsAddress = content?.address;
   const mapsApiKey = modules?.maps?.apiKey;
   const whatsappNumber = modules?.whatsapp?.phoneNumber;
@@ -88,6 +99,7 @@ export default function TemplateHelios({ clientSiteId, modules, content, palette
   // etnof-web codée en dur.
   const modulePalette = { accent, background, ink };
   const [firstOffer, ...restOffers] = content?.offers ?? [];
+  const hasStory = Boolean(content?.storyContent?.trim());
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: background }}>
@@ -95,6 +107,11 @@ export default function TemplateHelios({ clientSiteId, modules, content, palette
         <div className="mx-auto flex max-w-7xl items-center justify-between">
           <span className="text-lg font-extrabold text-white">{siteName}</span>
           <div className="hidden items-center gap-6 text-sm font-medium text-white/80 md:flex">
+            {hasStory && (
+              <a href="#histoire" className="transition-colors duration-200 hover:text-white">
+                {t(locale, "nav.story")}
+              </a>
+            )}
             {modules?.catalogue?.enabled && (
               <a href={`/t/${clientSiteId}/boutique`} className="transition-colors duration-200 hover:text-white">
                 {t(locale, "nav.catalogue")}
@@ -130,6 +147,11 @@ export default function TemplateHelios({ clientSiteId, modules, content, palette
                 {t(locale, "nav.newsletter")}
               </a>
             )}
+            {modules?.["compte-client"]?.enabled && (
+              <a href={`/t/${clientSiteId}/compte`} className="transition-colors duration-200 hover:text-white">
+                {t(locale, "account.title")}
+              </a>
+            )}
             {modules?.pages?.enabled && typeof pagesMenuLabel === "string" && (
               <Suspense fallback={null}>
                 <CustomPagesNav apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} label={pagesMenuLabel} ink={ink} variant="desktop" />
@@ -158,6 +180,11 @@ export default function TemplateHelios({ clientSiteId, modules, content, palette
           <div
             className="mx-auto mt-4 flex max-w-7xl flex-col gap-1 border-t border-white/10 pt-4 text-sm font-medium text-white/80 md:hidden"
           >
+            {hasStory && (
+              <a href="#histoire" className="rounded-button px-2 py-2 transition-colors duration-200 hover:text-white">
+                {t(locale, "nav.story")}
+              </a>
+            )}
             {modules?.catalogue?.enabled && (
               <a href={`/t/${clientSiteId}/boutique`} className="rounded-button px-2 py-2 transition-colors duration-200 hover:text-white">
                 {t(locale, "nav.catalogue")}
@@ -191,6 +218,11 @@ export default function TemplateHelios({ clientSiteId, modules, content, palette
             {modules?.newsletter?.enabled && (
               <a href="#newsletter" className="rounded-button px-2 py-2 transition-colors duration-200 hover:text-white">
                 {t(locale, "nav.newsletter")}
+              </a>
+            )}
+            {modules?.["compte-client"]?.enabled && (
+              <a href={`/t/${clientSiteId}/compte`} className="rounded-button px-2 py-2 transition-colors duration-200 hover:text-white">
+                {t(locale, "account.title")}
               </a>
             )}
             {modules?.pages?.enabled && typeof pagesMenuLabel === "string" && (
@@ -285,6 +317,33 @@ export default function TemplateHelios({ clientSiteId, modules, content, palette
                     </div>
                   ))}
                 </div>
+              )}
+            </section>
+          </Reveal>
+        )}
+
+        {hasStory && (
+          <Reveal>
+            <section id="histoire" className="flex flex-col gap-4 rounded-card bg-white p-10 shadow-card">
+              <span className="text-xs font-semibold uppercase tracking-[0.1em]" style={{ color: accent }}>
+                {t(locale, "nav.story")}
+              </span>
+              <div
+                className={`max-w-2xl text-lg leading-relaxed [&_a]:underline [&_strong]:font-bold ${
+                  storyExpanded ? "" : "line-clamp-4"
+                }`}
+                style={{ color: `${ink}99` }}
+                dangerouslySetInnerHTML={{ __html: content!.storyContent }}
+              />
+              {stripHtml(content!.storyContent).length > LONG_STORY_THRESHOLD && (
+                <button
+                  type="button"
+                  onClick={() => setStoryExpanded((e) => !e)}
+                  className="self-start text-sm font-semibold hover:underline"
+                  style={{ color: accent }}
+                >
+                  {storyExpanded ? t(locale, "story.showLess") : t(locale, "story.showMore")}
+                </button>
               )}
             </section>
           </Reveal>

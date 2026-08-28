@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Modules.Catalogue;
+using Modules.Contact;
 
 namespace Backend;
 
@@ -361,6 +362,269 @@ public static class BrevoEmailService
           <tr>
             <td align=""center"" style=""padding:20px 16px;font-size:12px;color:{grayText};"">
               {WebUtility.HtmlEncode(senderName)}{(footerLine.Length > 0 ? $" · {footerLine}" : "")}
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>";
+    }
+
+    // Notifie le tenant (pas le client) qu'une nouvelle commande vient d'arriver — jusqu'ici rien ne
+    // le prévenait, il fallait penser à retourner voir l'admin. Envoyée à ManagerEmail (contact
+    // interne, jamais affiché publiquement, voir SiteContent.cs) si renseigné, sinon repli sur Email
+    // (public) : mieux vaut prévenir quelque part que nulle part. Best-effort comme
+    // SendOrderConfirmationEmailAsync, jamais laissée faire échouer le webhook Stripe.
+    public static async Task<bool> SendNewOrderNotificationAsync(
+        HttpClient http, string apiKey, SiteContent site, Order order, List<OrderItem> items, string adminOrdersUrl)
+    {
+        var notifyEmail = !string.IsNullOrWhiteSpace(site.ManagerEmail) ? site.ManagerEmail : site.Email;
+        if (string.IsNullOrWhiteSpace(apiKey) || string.IsNullOrWhiteSpace(notifyEmail)) return false;
+
+        var senderName = string.IsNullOrWhiteSpace(site.SiteName) ? "etnof-cms" : site.SiteName;
+
+        var payload = new BrevoEmailRequest(
+            Sender: new BrevoContact(senderName, SupportInbox),
+            To: new List<BrevoContact> { new(senderName, notifyEmail) },
+            Subject: $"Nouvelle commande reçue — {order.Total:0.00} €",
+            HtmlContent: BuildNewOrderNotificationHtml(senderName, order, items, adminOrdersUrl)
+        );
+
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Post, EndpointUrl);
+            request.Headers.Add("api-key", apiKey);
+            request.Headers.Add("Accept", "application/json");
+            request.Content = JsonContent.Create(payload, options: JsonOptions);
+
+            using var response = await http.SendAsync(request);
+            return response.IsSuccessStatusCode;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+
+    // Même gabarit visuel que BuildOrderConfirmationHtml, avec un CTA vers l'admin (absent côté
+    // client : pas de page de suivi de commande publique, voir plus haut).
+    private static string BuildNewOrderNotificationHtml(string senderName, Order order, List<OrderItem> items, string adminOrdersUrl)
+    {
+        const string navy = "#0F172A";
+        const string brandMid = "#4F46E5";
+        const string grayText = "#64748B";
+        const string border = "#E2E8F0";
+        const string bgPage = "#F8FAFC";
+        const string fontFamily = "-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Roboto,Helvetica,Arial,sans-serif";
+
+        var lineRows = string.Join("", items.Select(item => $@"
+                <tr>
+                  <td style=""padding:10px 0;border-bottom:1px solid {border};font-size:13px;color:{navy};"">{WebUtility.HtmlEncode(item.ProductName)}{(string.IsNullOrWhiteSpace(item.SizeLabel) ? "" : $" ({WebUtility.HtmlEncode(item.SizeLabel)})")}</td>
+                  <td align=""right"" style=""padding:10px 0;border-bottom:1px solid {border};font-size:13px;color:{grayText};white-space:nowrap;"">{item.Quantity} × {item.UnitPrice:0.00} €</td>
+                  <td align=""right"" style=""padding:10px 0 10px 12px;border-bottom:1px solid {border};font-size:13px;font-weight:700;color:{navy};white-space:nowrap;"">{(item.Quantity * item.UnitPrice):0.00} €</td>
+                </tr>"));
+
+        return $@"
+<body style=""margin:0;padding:32px 16px;background-color:{bgPage};font-family:{fontFamily};"">
+  <table role=""presentation"" width=""100%"" cellpadding=""0"" cellspacing=""0"">
+    <tr>
+      <td align=""center"">
+        <table role=""presentation"" width=""560"" cellpadding=""0"" cellspacing=""0"" style=""max-width:560px;width:100%;background-color:#FFFFFF;border-radius:20px;box-shadow:0 2px 12px rgba(15,23,42,0.05);"">
+          <tr>
+            <td style=""padding:40px;"">
+              <div style=""text-transform:uppercase;letter-spacing:0.1em;font-size:13px;font-weight:600;color:{brandMid};margin-bottom:8px;"">
+                {WebUtility.HtmlEncode(senderName)}
+              </div>
+              <h1 style=""margin:0 0 16px;font-size:24px;font-weight:800;color:{navy};"">Nouvelle commande reçue</h1>
+              <p style=""margin:0 0 24px;font-size:15px;line-height:1.6;color:{grayText};"">
+                {WebUtility.HtmlEncode(order.CustomerName)} ({WebUtility.HtmlEncode(order.CustomerEmail)}) vient de passer commande.
+              </p>
+
+              <table role=""presentation"" width=""100%"" cellpadding=""0"" cellspacing=""0"" style=""margin-bottom:24px;"">
+                <tr>
+                  <td style=""padding-bottom:8px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:{grayText};"">Détail</td>
+                  <td></td>
+                  <td></td>
+                </tr>
+                {lineRows}
+                <tr>
+                  <td colspan=""2"" style=""padding-top:14px;font-size:15px;font-weight:800;color:{navy};"">Total</td>
+                  <td align=""right"" style=""padding-top:14px;font-size:15px;font-weight:800;color:{navy};white-space:nowrap;"">{order.Total:0.00} €</td>
+                </tr>
+              </table>
+
+              <table role=""presentation"" cellpadding=""0"" cellspacing=""0"">
+                <tr>
+                  <td style=""background-color:{brandMid};border-radius:12px;"">
+                    <a href=""{adminOrdersUrl}"" style=""display:inline-block;padding:14px 28px;font-size:14px;font-weight:700;color:#FFFFFF;text-decoration:none;"">
+                      Voir la commande
+                    </a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>";
+    }
+
+    // Notifie le tenant qu'un nouveau message de contact vient d'arriver — même besoin que pour les
+    // commandes ci-dessus : jusqu'ici seule la page Messages de l'admin en gardait trace, sans
+    // aucune alerte. `ReplyTo` pointe vers l'expéditeur du message pour permettre une réponse directe.
+    public static async Task<bool> SendNewContactMessageNotificationAsync(
+        HttpClient http, string apiKey, SiteContent site, ContactMessage message, string adminMessagesUrl)
+    {
+        var notifyEmail = !string.IsNullOrWhiteSpace(site.ManagerEmail) ? site.ManagerEmail : site.Email;
+        if (string.IsNullOrWhiteSpace(apiKey) || string.IsNullOrWhiteSpace(notifyEmail)) return false;
+
+        var senderName = string.IsNullOrWhiteSpace(site.SiteName) ? "etnof-cms" : site.SiteName;
+
+        var payload = new BrevoEmailRequest(
+            Sender: new BrevoContact(senderName, SupportInbox),
+            To: new List<BrevoContact> { new(senderName, notifyEmail) },
+            Subject: $"Nouveau message de {message.Name}",
+            HtmlContent: BuildNewContactMessageNotificationHtml(senderName, message, adminMessagesUrl),
+            ReplyTo: string.IsNullOrWhiteSpace(message.Email) ? null : new BrevoContact(message.Name, message.Email)
+        );
+
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Post, EndpointUrl);
+            request.Headers.Add("api-key", apiKey);
+            request.Headers.Add("Accept", "application/json");
+            request.Content = JsonContent.Create(payload, options: JsonOptions);
+
+            using var response = await http.SendAsync(request);
+            return response.IsSuccessStatusCode;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+
+    private static string BuildNewContactMessageNotificationHtml(string senderName, ContactMessage message, string adminMessagesUrl)
+    {
+        const string navy = "#0F172A";
+        const string brandMid = "#4F46E5";
+        const string grayText = "#64748B";
+        const string bgPage = "#F8FAFC";
+        const string fontFamily = "-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Roboto,Helvetica,Arial,sans-serif";
+        var encodedMessage = WebUtility.HtmlEncode(message.Message).Replace("\n", "<br>");
+
+        return $@"
+<body style=""margin:0;padding:32px 16px;background-color:{bgPage};font-family:{fontFamily};"">
+  <table role=""presentation"" width=""100%"" cellpadding=""0"" cellspacing=""0"">
+    <tr>
+      <td align=""center"">
+        <table role=""presentation"" width=""560"" cellpadding=""0"" cellspacing=""0"" style=""max-width:560px;width:100%;background-color:#FFFFFF;border-radius:20px;box-shadow:0 2px 12px rgba(15,23,42,0.05);"">
+          <tr>
+            <td style=""padding:40px;"">
+              <div style=""text-transform:uppercase;letter-spacing:0.1em;font-size:13px;font-weight:600;color:{brandMid};margin-bottom:8px;"">
+                {WebUtility.HtmlEncode(senderName)}
+              </div>
+              <h1 style=""margin:0 0 16px;font-size:24px;font-weight:800;color:{navy};"">Nouveau message de contact</h1>
+              <p style=""margin:0 0 24px;font-size:13px;color:{grayText};"">
+                {WebUtility.HtmlEncode(message.Name)} · <a href=""mailto:{message.Email}"" style=""color:{grayText};"">{WebUtility.HtmlEncode(message.Email)}</a>
+              </p>
+              <p style=""margin:0 0 24px;font-size:15px;line-height:1.6;color:{navy};"">{encodedMessage}</p>
+
+              <table role=""presentation"" cellpadding=""0"" cellspacing=""0"">
+                <tr>
+                  <td style=""background-color:{brandMid};border-radius:12px;"">
+                    <a href=""{adminMessagesUrl}"" style=""display:inline-block;padding:14px 28px;font-size:14px;font-weight:700;color:#FFFFFF;text-decoration:none;"">
+                      Voir dans l'admin
+                    </a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>";
+    }
+
+    // Lien de connexion "magique" du module compte-client (voir CompteClientModule.cs) — envoyé à
+    // chaque demande de connexion, que le lien précédent ait expiré ou non (un client peut en
+    // redemander un sans limite). `loginUrl` pointe vers /t/{clientSiteId}/compte?token=... ; la page
+    // d'atterrissage exige un clic explicite pour établir la session (jamais au chargement de la
+    // page) — sinon un scanner de sécurité de messagerie qui pré-visite le lien grillerait le token
+    // avant même que le client n'ouvre l'email.
+    public static async Task<bool> SendCustomerLoginLinkAsync(
+        HttpClient http, string apiKey, SiteContent site, Customer customer, string loginUrl)
+    {
+        if (string.IsNullOrWhiteSpace(apiKey) || string.IsNullOrWhiteSpace(customer.Email)) return false;
+
+        var senderName = string.IsNullOrWhiteSpace(site.SiteName) ? "etnof-cms" : site.SiteName;
+
+        var payload = new BrevoEmailRequest(
+            Sender: new BrevoContact(senderName, SupportInbox),
+            To: new List<BrevoContact> { new(customer.Name, customer.Email) },
+            Subject: $"Connexion à votre compte — {senderName}",
+            HtmlContent: BuildCustomerLoginLinkHtml(senderName, customer, loginUrl)
+        );
+
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Post, EndpointUrl);
+            request.Headers.Add("api-key", apiKey);
+            request.Headers.Add("Accept", "application/json");
+            request.Content = JsonContent.Create(payload, options: JsonOptions);
+
+            using var response = await http.SendAsync(request);
+            return response.IsSuccessStatusCode;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+
+    private static string BuildCustomerLoginLinkHtml(string senderName, Customer customer, string loginUrl)
+    {
+        const string navy = "#0F172A";
+        const string brandMid = "#4F46E5";
+        const string grayText = "#64748B";
+        const string bgPage = "#F8FAFC";
+        const string fontFamily = "-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Roboto,Helvetica,Arial,sans-serif";
+
+        return $@"
+<body style=""margin:0;padding:32px 16px;background-color:{bgPage};font-family:{fontFamily};"">
+  <table role=""presentation"" width=""100%"" cellpadding=""0"" cellspacing=""0"">
+    <tr>
+      <td align=""center"">
+        <table role=""presentation"" width=""560"" cellpadding=""0"" cellspacing=""0"" style=""max-width:560px;width:100%;background-color:#FFFFFF;border-radius:20px;box-shadow:0 2px 12px rgba(15,23,42,0.05);"">
+          <tr>
+            <td style=""padding:40px;"">
+              <div style=""text-transform:uppercase;letter-spacing:0.1em;font-size:13px;font-weight:600;color:{brandMid};margin-bottom:8px;"">
+                {WebUtility.HtmlEncode(senderName)}
+              </div>
+              <h1 style=""margin:0 0 16px;font-size:24px;font-weight:800;color:{navy};"">Se connecter à votre compte</h1>
+              <p style=""margin:0 0 24px;font-size:15px;line-height:1.6;color:{grayText};"">
+                Bonjour {WebUtility.HtmlEncode(customer.Name)},<br>
+                Cliquez sur le bouton ci-dessous pour accéder à votre compte et à l'historique de vos commandes. Ce lien est valable 15 minutes.
+              </p>
+
+              <table role=""presentation"" cellpadding=""0"" cellspacing=""0"">
+                <tr>
+                  <td style=""background-color:{brandMid};border-radius:12px;"">
+                    <a href=""{loginUrl}"" style=""display:inline-block;padding:14px 28px;font-size:14px;font-weight:700;color:#FFFFFF;text-decoration:none;"">
+                      Accéder à mon compte
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <p style=""margin:24px 0 0;font-size:12px;line-height:1.6;color:{grayText};"">
+                Si vous n'êtes pas à l'origine de cette demande, ignorez simplement cet email.
+              </p>
             </td>
           </tr>
         </table>

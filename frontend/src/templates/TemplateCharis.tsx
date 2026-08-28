@@ -173,16 +173,11 @@ export default function TemplateCharis({ clientSiteId, modules, content, palette
       </header>
 
       <div className="mx-auto flex max-w-7xl flex-col gap-24 px-4 pb-16 sm:px-8">
-        <Reveal>
-          <StorySection
-            clientSiteId={clientSiteId}
-            apiBaseUrl={API_BASE_URL}
-            storyContent={content?.storyContent ?? ""}
-            palette={modulePalette}
-            locale={locale}
-          />
-        </Reveal>
-
+        {/* Catalogue avant "Notre histoire" (inversé le 2026-08-28) : la troncature de "Notre
+            histoire" est passée de 4 à ~10 lignes le même jour (voir StorySection.tsx) à la demande
+            d'Ethan, ce qui a rendu le bloc bien plus haut — il fallait descendre trop loin pour
+            atteindre les produits. Les acheteurs arrivent maintenant directement sur le catalogue,
+            "Notre histoire" (contenu de marque, pas transactionnel) vient juste après. */}
         {modules?.catalogue?.enabled && (
           <Reveal>
             <section id="boutique" className="flex flex-col gap-6">
@@ -194,36 +189,52 @@ export default function TemplateCharis({ clientSiteId, modules, content, palette
           </Reveal>
         )}
 
+        <Reveal>
+          <StorySection
+            clientSiteId={clientSiteId}
+            apiBaseUrl={API_BASE_URL}
+            storyContent={content?.storyContent ?? ""}
+            palette={modulePalette}
+            locale={locale}
+          />
+        </Reveal>
+
         <Suspense fallback={null}>
           <Reveal>
             <div className="grid items-start gap-8 sm:grid-cols-2">
+              {/* empty:hidden : plusieurs de ces sections se masquent elles-mêmes (return null) quand
+                  elles n'ont pas de contenu (Galerie sans photo, Avis Google sans avis, Blog sans
+                  article publié) — sans ce filtre, le <div> conteneur restait dans la grille malgré
+                  un enfant vide et consommait quand même son gap-8, laissant un grand vide avant la
+                  section suivante (Contact). `:empty` ne matche que si React n'a effectivement rien
+                  rendu dedans (return null = aucun nœud DOM enfant). */}
               {modules?.galerie?.enabled && (
-                <div id="galerie" className={`sm:col-span-2 ${sectionTitleSize}`}>
+                <div id="galerie" className={`empty:hidden sm:col-span-2 ${sectionTitleSize}`}>
                   <GallerySection apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} palette={modulePalette} locale={locale} />
                 </div>
               )}
               {modules?.["avis-google"]?.enabled && (
-                <div id="avis-google" className={`sm:col-span-2 ${sectionTitleSize}`}>
+                <div id="avis-google" className={`empty:hidden sm:col-span-2 ${sectionTitleSize}`}>
                   <AvisGoogleSection apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} palette={modulePalette} locale={locale} />
                 </div>
               )}
               {modules?.blog?.enabled && (
-                <div id="blog" className={`sm:col-span-2 ${sectionTitleSize}`}>
+                <div id="blog" className={`empty:hidden sm:col-span-2 ${sectionTitleSize}`}>
                   <BlogSection apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} palette={modulePalette} locale={locale} />
                 </div>
               )}
               {modules?.rdv?.enabled && (
-                <div id="rdv" className={`sm:col-span-2 ${sectionTitleSize}`}>
+                <div id="rdv" className={`empty:hidden sm:col-span-2 ${sectionTitleSize}`}>
                   <RdvSection apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} palette={modulePalette} locale={locale} />
                 </div>
               )}
               {modules?.contact?.enabled && (
-                <div id="contact" className={sectionTitleSize}>
+                <div id="contact" className={`empty:hidden ${sectionTitleSize}`}>
                   <ContactSection apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} palette={modulePalette} locale={locale} />
                 </div>
               )}
               {socialConfig?.enabled && (
-                <div id="reseaux-sociaux" className={sectionTitleSize}>
+                <div id="reseaux-sociaux" className={`empty:hidden ${sectionTitleSize}`}>
                   <SocialSection
                     facebookUrl={typeof socialConfig.facebookUrl === "string" ? socialConfig.facebookUrl : ""}
                     instagramUrl={typeof socialConfig.instagramUrl === "string" ? socialConfig.instagramUrl : ""}
@@ -232,22 +243,19 @@ export default function TemplateCharis({ clientSiteId, modules, content, palette
                   />
                 </div>
               )}
+              {/* Toujours en dernier et pleine largeur (sm:col-span-2, jamais coincée dans une
+                  colonne partagée avec les réseaux sociaux — toujours vrai) mais désormais DANS cette
+                  même grille plutôt qu'en dehors : sinon l'écart avec la section précédente suivait le
+                  gap-24 du conteneur extérieur au lieu du gap-8 de la grille, visiblement différent de
+                  l'écart Contact→Réseaux sociaux juste au-dessus (remonté par Ethan). */}
+              {modules?.newsletter?.enabled && (
+                <div id="newsletter" className={`sm:col-span-2 ${sectionTitleSize}`}>
+                  <NewsletterSection apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} palette={modulePalette} locale={locale} />
+                </div>
+              )}
             </div>
           </Reveal>
         </Suspense>
-
-        {/* Toujours juste avant le footer et pleine largeur (pas dans la grille sm:grid-cols-2
-            ci-dessus) — demandé par Ethan : la newsletter doit rester la dernière section de contenu,
-            jamais coincée dans une colonne partagée avec les réseaux sociaux. */}
-        {modules?.newsletter?.enabled && (
-          <Suspense fallback={null}>
-            <Reveal>
-              <div id="newsletter" className={sectionTitleSize}>
-                <NewsletterSection apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} palette={modulePalette} locale={locale} />
-              </div>
-            </Reveal>
-          </Suspense>
-        )}
       </div>
     </SiteChrome>
   );

@@ -1,9 +1,8 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { API_BASE_URL } from "../../config";
 import { t, type Locale } from "@modules/multilingue/frontend/translations";
-import { CartProvider } from "@modules/catalogue/frontend/CartContext";
 import ProductCard, { type Product as CardProduct, type ModulePalette } from "./ProductCard";
-import CartButton from "./CartButton";
+import ProductSlideCard from "./ProductSlideCard";
 
 // Exporté pour ProductPage.tsx (section "Nos autres produits") — même forme de produit réutilisée
 // pour un slider de produits liés, en dehors du contexte "collection" de ce fichier.
@@ -88,12 +87,13 @@ export function FeaturedSlider({
           // Largeur en fraction du conteneur (pas en px fixe) pour garantir exactement 3 tuiles
           // visibles sur desktop quelle que soit la largeur d'écran : un slider avec assez de place
           // pour tout afficher sans scroll n'a pas besoin des flèches, d'où le calcul plutôt qu'un
-          // simple w-72 fixe.
+          // simple w-72 fixe. `w-full` en mobile (pas de peek du produit suivant, jugé "moche" par
+          // Ethan) : un seul produit visible à la fois, on swipe pour voir le suivant.
           <div
             key={product.id}
-            className="w-[85%] shrink-0 snap-start sm:w-[calc((100%-1.5rem)/2)] lg:w-[calc((100%-3rem)/3)]"
+            className="w-full shrink-0 snap-start sm:w-[calc((100%-1.5rem)/2)] lg:w-[calc((100%-3rem)/3)]"
           >
-            <ProductCard
+            <ProductSlideCard
               clientSiteId={clientSiteId}
               product={product}
               palette={palette}
@@ -103,7 +103,11 @@ export function FeaturedSlider({
           </div>
         ))}
       </div>
-      {products.length > 3 && (
+      {/* > 1 plutôt que > SLIDER_THRESHOLD (3) : depuis que mobile force ce slider même pour de
+          petites collections (voir ProductGrid.tsx plus bas), les flèches doivent apparaître dès
+          qu'il y a quelque chose à faire défiler — demandé par Ethan, qui les trouvait absentes sur
+          les slides à 1-2 produits alors qu'elles étaient déjà là à partir de 4. */}
+      {products.length > 1 && (
         <div className="flex justify-end gap-2">
           <button
             type="button"
@@ -152,6 +156,20 @@ type Collection = { id: string; name: string };
 // collections/du repli, d'où la grille tant que tout tient sur une seule ligne.
 const SLIDER_THRESHOLD = 3;
 
+// Largeur de card qui reproduit une colonne de `lg:grid-cols-3` sur un conteneur max-w-7xl (~384px,
+// voir calcul dans le commentaire d'origine plus haut) — grille de la grille statique (≤
+// SLIDER_THRESHOLD produits). D'abord plafonnée en nombre de colonnes (1 ou 2 produits → grid-cols-2
+// fixe), ce qui grossissait démesurément les cards en desktop avec seulement 1-2 produits (remonté
+// par Ethan) : `repeat(auto-fill,24rem)` calcule lui-même le nombre de colonnes qui tiennent dans la
+// largeur réelle du conteneur, sans jamais dépasser cette taille par card ni les étirer pour combler
+// l'espace restant (qui reste simplement vide, comme sur une grille "normale" à ligne incomplète) —
+// mobile (où le slider prend de toute façon le relais, voir plus bas) garde un simple plafond par
+// nombre de produits, la taille n'y pose pas de problème.
+export function staticGridClass(count: number) {
+  const mobileCols = count <= 1 ? "grid-cols-1" : "grid-cols-2";
+  return `${mobileCols} sm:[grid-template-columns:repeat(auto-fill,24rem)]`;
+}
+
 type ProductGridProps = {
   clientSiteId: string;
   palette: ModulePalette;
@@ -174,7 +192,7 @@ export default function ProductGrid({ clientSiteId, palette, locale, afterFeatur
 
   useEffect(() => {
     fetch(`${API_BASE_URL}/api/t/${clientSiteId}/catalogue/products`)
-      .then((res) => res.json())
+      .then((res) => (res.ok ? res.json() : []))
       .then(setProducts)
       .catch((err) => console.error("Erreur ProductGrid :", err));
     fetch(`${API_BASE_URL}/api/t/${clientSiteId}/catalogue/collections`)
@@ -206,7 +224,6 @@ export default function ProductGrid({ clientSiteId, palette, locale, afterFeatur
   const showFallback = highlighted.length === 0 && collectionSections.length === 0;
 
   return (
-    <CartProvider clientSiteId={clientSiteId}>
       <div className="flex flex-col gap-16">
         {highlighted.length > SLIDER_THRESHOLD ? (
           <FeaturedSlider
@@ -218,18 +235,33 @@ export default function ProductGrid({ clientSiteId, palette, locale, afterFeatur
           />
         ) : (
           highlighted.length > 0 && (
-            <div className="grid grid-cols-2 gap-x-8 gap-y-12 sm:grid-cols-2 lg:grid-cols-3">
-              {highlighted.map((product) => (
-                <ProductCard
-                  key={product.id}
+            <>
+              {/* Mobile : toujours le slider, même à ≤ SLIDER_THRESHOLD produits — la grille
+                  statique avec la nouvelle card plus haute (photo + vignettes, voir
+                  ProductSlideCard.tsx) rendait mal en dessous de 3 produits sur un écran étroit
+                  (remonté par Ethan). Desktop garde la grille pleine largeur. */}
+              <div className="sm:hidden">
+                <FeaturedSlider
+                  products={highlighted}
                   clientSiteId={clientSiteId}
-                  product={product}
                   palette={palette}
                   locale={locale}
-                  collectionName={product.collectionId ? collectionsById[product.collectionId] : undefined}
+                  collectionsById={collectionsById}
                 />
-              ))}
-            </div>
+              </div>
+              <div className={`hidden gap-x-8 gap-y-12 sm:grid ${staticGridClass(highlighted.length)}`}>
+                {highlighted.map((product) => (
+                  <ProductCard
+                    key={product.id}
+                    clientSiteId={clientSiteId}
+                    product={product}
+                    palette={palette}
+                    locale={locale}
+                    collectionName={product.collectionId ? collectionsById[product.collectionId] : undefined}
+                  />
+                ))}
+              </div>
+            </>
           )
         )}
 
@@ -257,6 +289,11 @@ export default function ProductGrid({ clientSiteId, palette, locale, afterFeatur
             <h3 className="text-base font-semibold sm:text-lg" style={{ color: palette.ink }}>
               {collection.name}
             </h3>
+            {/* Pas de badge collection sur ces cards (`collectionsById={{}}` / pas de `collectionName`) :
+                le titre de la section (juste au-dessus) annonce déjà la collection, le répéter sur
+                chaque card était redondant (remonté par Ethan) — contrairement au slider "mis en
+                avant" ou "Nos autres produits" (ProductPage.tsx), qui mélangent plusieurs collections
+                et où le badge reste informatif. */}
             {items.length > SLIDER_THRESHOLD ? (
               <FeaturedSlider
                 products={items}
@@ -264,27 +301,40 @@ export default function ProductGrid({ clientSiteId, palette, locale, afterFeatur
                 palette={palette}
                 locale={locale}
                 cta={{ label: t(locale, "catalogue.viewMore"), href: `/t/${clientSiteId}/boutique?collection=${collection.id}` }}
-                collectionsById={collectionsById}
+                collectionsById={{}}
               />
             ) : (
-              <div className="grid grid-cols-2 gap-x-8 gap-y-12 sm:grid-cols-2 lg:grid-cols-3">
-                {items.map((product) => (
-                  <ProductCard
-                    key={product.id}
+              <>
+                {/* Même traitement que le slider "mis en avant" ci-dessus : toujours un slider en
+                    mobile, la grille statique réservée à sm+. */}
+                <div className="sm:hidden">
+                  <FeaturedSlider
+                    products={items}
                     clientSiteId={clientSiteId}
-                    product={product}
                     palette={palette}
                     locale={locale}
-                    collectionName={collection.name}
+                    cta={{ label: t(locale, "catalogue.viewMore"), href: `/t/${clientSiteId}/boutique?collection=${collection.id}` }}
+                    collectionsById={{}}
                   />
-                ))}
-              </div>
+                </div>
+                <div className={`hidden gap-x-8 gap-y-12 sm:grid ${staticGridClass(items.length)}`}>
+                  {items.map((product) => (
+                    <ProductCard
+                      key={product.id}
+                      clientSiteId={clientSiteId}
+                      product={product}
+                      palette={palette}
+                      locale={locale}
+                    />
+                  ))}
+                </div>
+              </>
             )}
           </div>
         ))}
 
         {showFallback && (
-          <div className="grid grid-cols-2 gap-x-8 gap-y-12 sm:grid-cols-2 lg:grid-cols-3">
+          <div className={`grid gap-x-8 gap-y-12 ${staticGridClass(fallback.length)}`}>
             {fallback.map((product) => (
               <ProductCard
                 key={product.id}
@@ -298,8 +348,5 @@ export default function ProductGrid({ clientSiteId, palette, locale, afterFeatur
           </div>
         )}
       </div>
-
-      {products.length > 0 && <CartButton clientSiteId={clientSiteId} palette={palette} locale={locale} />}
-    </CartProvider>
   );
 }

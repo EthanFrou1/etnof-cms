@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Modules.AvisGoogle;
 using Modules.Blog;
 using Modules.Catalogue;
+using Modules.CompteClient;
 using Modules.Contact;
 using Modules.Galerie;
 using Modules.Multilingue;
@@ -48,4 +49,5 @@ public class AppDbContext : DbContext
     public DbSet<ContentTranslation> ContentTranslations => Set<ContentTranslation>();
     public DbSet<GalleryImage> GalleryImages => Set<GalleryImage>();
     public DbSet<CustomPage> CustomPages => Set<CustomPage>();
+    public DbSet<CustomerLoginToken> CustomerLoginTokens => Set<CustomerLoginToken>();
 }

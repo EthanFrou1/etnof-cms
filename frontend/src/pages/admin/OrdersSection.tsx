@@ -3,6 +3,7 @@ import { API_BASE_URL } from "../../config";
 import { adminFetch } from "../../hooks/useAdminSession";
 import { StatusLegend } from "../../components/admin/StatusLegend";
 import Select from "../../components/admin/Select";
+import { downloadCsv } from "../../utils/csv";
 
 type OrderItem = {
   id: string;
@@ -132,6 +133,23 @@ export default function OrdersSection({ clientSiteId, password }: OrdersSectionP
   const currentPage = Math.min(page, pageCount);
   const pageItems = filteredSorted.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
+  // Exporte la vue actuelle (recherche + filtre de statut déjà appliqués) plutôt que toutes les
+  // commandes sans distinction — cohérent avec ce que le commerçant voit à l'écran au moment du clic.
+  const exportCsv = () => {
+    downloadCsv(
+      `commandes-${new Date().toISOString().slice(0, 10)}.csv`,
+      ["Date", "Client", "Email", "Articles", "Total", "Statut"],
+      filteredSorted.map((order) => [
+        new Date(order.createdAt).toLocaleString("fr-FR"),
+        order.customerName,
+        order.customerEmail,
+        order.items.map((i) => `${i.quantity}x ${i.productName}${i.sizeLabel ? ` (${i.sizeLabel})` : ""}`).join(" | "),
+        order.total.toFixed(2),
+        statusLabel[order.status],
+      ])
+    );
+  };
+
   const columnHeaderClass = "cursor-pointer select-none px-4 py-3 text-left hover:text-navy";
 
   return (
@@ -173,6 +191,13 @@ export default function OrdersSection({ clientSiteId, password }: OrdersSectionP
             <span className="text-sm text-gray-text">
               {filteredSorted.length} commande{filteredSorted.length > 1 ? "s" : ""}
             </span>
+            <button
+              type="button"
+              onClick={exportCsv}
+              className="ml-auto rounded-button border border-border-subtle px-3 py-2 text-sm font-medium text-navy hover:bg-bg-page-start"
+            >
+              Exporter en CSV
+            </button>
           </div>
 
           <p className="text-xs text-gray-text sm:hidden">← Fais glisser le tableau pour voir plus de colonnes →</p>

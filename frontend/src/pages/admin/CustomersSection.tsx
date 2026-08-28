@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { API_BASE_URL } from "../../config";
 import { adminFetch } from "../../hooks/useAdminSession";
+import { downloadCsv } from "../../utils/csv";
 
 type Customer = {
   id: string;
@@ -198,6 +199,22 @@ export default function CustomersSection({ clientSiteId, password }: CustomersSe
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const exportCsv = () => {
+    if (!customers) return;
+    downloadCsv(
+      `clients-${new Date().toISOString().slice(0, 10)}.csv`,
+      ["Nom", "Email", "Téléphone", "Commandes", "Total dépensé", "Dernière commande"],
+      customers.map((c) => [
+        c.name,
+        c.email,
+        c.phone,
+        String(c.orderCount),
+        c.totalSpent.toFixed(2),
+        c.lastOrderAt ? new Date(c.lastOrderAt).toLocaleDateString("fr-FR") : "",
+      ])
+    );
+  };
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -207,13 +224,23 @@ export default function CustomersSection({ clientSiteId, password }: CustomersSe
             {customers ? `${customers.length} client${customers.length > 1 ? "s" : ""}` : "Chargement…"}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => setShowModal(true)}
-          className="rounded-button bg-brand-gradient px-4 py-2.5 font-semibold text-white hover:opacity-90"
-        >
-          + Ajouter un client
-        </button>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={exportCsv}
+            disabled={!customers || customers.length === 0}
+            className="rounded-button border border-border-subtle px-4 py-2.5 font-medium text-navy hover:bg-bg-page-start disabled:opacity-40"
+          >
+            Exporter en CSV
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowModal(true)}
+            className="rounded-button bg-brand-gradient px-4 py-2.5 font-semibold text-white hover:opacity-90"
+          >
+            + Ajouter un client
+          </button>
+        </div>
       </div>
 
       {!customers ? null : customers.length === 0 ? (

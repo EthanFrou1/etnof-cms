@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 import { API_BASE_URL } from "../../config";
 import { t, type Locale } from "@modules/multilingue/frontend/translations";
+import { CartProvider, useCart } from "@modules/catalogue/frontend/CartContext";
 import type { ModulesConfig } from "../../hooks/useModules";
 
 const CustomPagesNav = lazy(() => import("@modules/pages/frontend/CustomPagesNav"));
@@ -26,6 +27,45 @@ function CloseIcon({ color }: { color: string }) {
       <line x1="5" y1="5" x2="19" y2="19" />
       <line x1="19" y1="5" x2="5" y2="19" />
     </svg>
+  );
+}
+
+function BagIcon({ color }: { color: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6">
+      <path d="M6 8h12l-1 13H7L6 8Z" />
+      <path d="M9 8V6a3 3 0 0 1 6 0v2" />
+    </svg>
+  );
+}
+
+function UserIcon({ color }: { color: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6">
+      <circle cx="12" cy="8" r="3.5" />
+      <path d="M5 20c0-3.5 3-6 7-6s7 2.5 7 6" />
+    </svg>
+  );
+}
+
+// Icône panier permanente dans le header (desktop + mobile) — remplace l'ancien bouton flottant
+// (`CartButton.tsx`, retiré) qui se superposait au contenu en défilant avec la page, en particulier
+// sur la fiche produit (remonté par Ethan). Même emplacement que karminecorp.fr. Doit être monté
+// sous un `CartProvider` (voir le composant racine plus bas) pour lire `itemCount`.
+function CartIconLink({ clientSiteId, ink, accent }: { clientSiteId: string; ink: string; accent: string }) {
+  const { itemCount } = useCart();
+  return (
+    <a href={`/t/${clientSiteId}/panier`} aria-label="Panier" className="relative">
+      <BagIcon color={ink} />
+      {itemCount > 0 && (
+        <span
+          className="absolute -right-2 -top-2 flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-bold text-white"
+          style={{ backgroundColor: accent }}
+        >
+          {itemCount}
+        </span>
+      )}
+    </a>
   );
 }
 
@@ -166,30 +206,47 @@ export default function SiteChrome({
   };
 
   return (
+    // Englobe tout (nav comprise) : l'icône panier du header a besoin du contexte, et les pages qui
+    // ajoutent au panier (ProductGrid.tsx, CataloguePage.tsx, ProductPage.tsx) ne doivent plus créer
+    // leur propre <CartProvider> imbriqué (état dupliqué, désynchronisé du compteur du header).
+    <CartProvider clientSiteId={clientSiteId}>
     <div className="flex min-h-screen flex-col" style={{ backgroundColor: background, color: ink }}>
-      <nav className="relative border-b px-4 py-5 sm:px-8" style={{ backgroundColor: `${ink}06`, borderColor: `${ink}1A` }}>
+      {/* Sticky à tous les breakpoints (desktop inclus depuis le 2026-08-28 — mobile seul au départ,
+          étendu pour garder l'icône panier accessible en permanence). Fond passé de la légère teinte
+          translucide d'origine (`${ink}06`, ~2% d'opacité) à `background` (couleur pleine de la page)
+          au moment du passage en sticky mobile : indispensable pour ne pas laisser transparaître le
+          contenu qui défile derrière, déjà en place donc aucun changement supplémentaire ici. */}
+      <nav className="sticky top-0 z-30 border-b px-4 py-5 sm:px-8" style={{ backgroundColor: background, borderColor: `${ink}1A` }}>
         <div className="mx-auto flex max-w-7xl items-center justify-between">
           <a href={`/t/${clientSiteId}`} className="text-base font-semibold uppercase tracking-[0.2em]" style={{ color: "inherit" }}>
             {siteName}
           </a>
-          <div className="hidden items-center gap-7 md:flex">
-            {navLinks("desktop")}
-            {modules?.multilingue?.enabled && (
-              <Suspense fallback={null}>
-                <div className="border-l pl-6" style={{ borderColor: `${ink}1A` }}>
-                  <LanguageSwitcher locale={locale} onChange={onChangeLocale} accent={accent} />
-                </div>
-              </Suspense>
+          <div className="flex items-center gap-4 sm:gap-6">
+            <div className="hidden items-center gap-7 md:flex">
+              {navLinks("desktop")}
+              {modules?.multilingue?.enabled && (
+                <Suspense fallback={null}>
+                  <div className="border-l pl-6" style={{ borderColor: `${ink}1A` }}>
+                    <LanguageSwitcher locale={locale} onChange={onChangeLocale} accent={accent} />
+                  </div>
+                </Suspense>
+              )}
+            </div>
+            {modules?.["compte-client"]?.enabled && (
+              <a href={`/t/${clientSiteId}/compte`} aria-label={t(locale, "account.title")}>
+                <UserIcon color={ink} />
+              </a>
             )}
+            {modules?.catalogue?.enabled && <CartIconLink clientSiteId={clientSiteId} ink={ink} accent={accent} />}
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen((open) => !open)}
+              className="md:hidden"
+              aria-label={mobileMenuOpen ? "Fermer le menu" : "Ouvrir le menu"}
+            >
+              {mobileMenuOpen ? <CloseIcon color={ink} /> : <MenuIcon color={ink} />}
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={() => setMobileMenuOpen((open) => !open)}
-            className="md:hidden"
-            aria-label={mobileMenuOpen ? "Fermer le menu" : "Ouvrir le menu"}
-          >
-            {mobileMenuOpen ? <CloseIcon color={ink} /> : <MenuIcon color={ink} />}
-          </button>
         </div>
 
         {mobileMenuOpen && (
@@ -218,5 +275,6 @@ export default function SiteChrome({
         </Suspense>
       )}
     </div>
+    </CartProvider>
   );
 }

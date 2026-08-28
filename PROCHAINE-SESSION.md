@@ -1,37 +1,40 @@
-# Reprise de session — dernière mise à jour 2026-08-27
+# Reprise de session — dernière mise à jour 2026-08-28
 
-Ce fichier résume où on en est pour reprendre rapidement. Le détail complet (technique, décisions, tests effectués) est dans `docs/05-roadmap-poc.md` (nombreuses sections datées du 2026-08-27, de "Tailles : réordonnancement + ajout à la création" à "Fix : PhoneInput n'insérait pas les espaces au fil de la frappe") — ce fichier-ci n'en est qu'un résumé de reprise.
+Ce fichier résume où on en est pour reprendre rapidement. Le détail complet (technique, décisions, tests effectués) est dans `docs/05-roadmap-poc.md`.
 
-## Commits
+## PR précédente
 
-Le travail de cette session est **commité** (`2b3eab6`, "Boutique Charis, confirmations de suppression, demande de réassort et corrections de bugs") sur la branche `feature/admin-content-restructure` (même branche que les sessions précédentes), poussé sur `origin`. **`gh` (GitHub CLI) n'est pas installé sur cette machine** — la PR n'a donc pas pu être ouverte automatiquement. Lien pour l'ouvrir manuellement : https://github.com/EthanFrou1/etnof-cms/pull/new/feature/admin-content-restructure. **Ne pas merger avant validation d'Ethan.**
+La PR de la session du 2026-08-27 (`feature/admin-content-restructure`, commit `2b3eab6` et suivants) a été **acceptée et mergée par Ethan** (`main`, merge commit `5ee240d`). Tous les points "à vérifier"/"à confirmer" de cette session ont été testés par Ethan et sont bons.
 
-## ⚠️ Backend à redémarrer si tu reprends une session déjà en cours
+On reste sur la branche `feature/admin-content-restructure` pour la suite (convention habituelle du projet).
 
-Deux migrations EF Core créées **et appliquées** à la base locale pendant cette session (`AddEstablishmentDeliveryReturns`, `AddStockRequests`) — le backend a dû être redémarré en cours de session car le process resté actif depuis une session précédente tournait sur du code périmé (un nouvel endpoint renvoyait 404 alors que le code était correct). Si tu relances tout depuis zéro, rien à faire de spécial — juste `dotnet run` comme d'habitude, les migrations sont déjà dans l'historique EF. Si un process tourne déjà et qu'un comportement ne correspond pas au code, redémarre-le avant de chercher plus loin.
+## PR de cette session
 
-## Ce qui a été fait cette session (résumé — détail dans la doc citée en tête)
+Commit `7243f0e` poussé sur `feature/admin-content-restructure` (`gh` toujours indisponible sur cette machine — PR à ouvrir manuellement) : https://github.com/EthanFrou1/etnof-cms/pull/new/feature/admin-content-restructure. **Ne pas merger avant validation d'Ethan** — beaucoup de points "à confirmer" listés plus bas, en particulier le nouveau module compte-client jamais essayé avec un vrai email.
 
-- **Boutique Charis filtrée par collection via l'URL** (`?collection=id`) — le lien "Voir plus" (home) et le fil d'Ariane (fiche produit) pointent maintenant vers la collection précise au lieu de la boutique complète.
-- **Livraison/Retours éditables par établissement** (`SiteContent.DeliveryContent`/`ReturnsContent`) : vides par défaut pour un nouveau tenant (section absente du site tant que non rempli — tous les commerces ne font pas de livraison), bouton "Utiliser une suggestion" dans l'admin pour guider le wording. Les tenants déjà existants ont été backfillés avec l'ancien texte générique qu'ils affichaient déjà.
-- **Tailles produit** : réordonnancement par glisser-déposer, ajout de tailles directement dans la modale de création du produit, bascule explicite "Taille unique"/"Plusieurs tailles" (avec confirmation avant de supprimer toutes les tailles), correction de l'aperçu produit qui affichait le stock global obsolète au lieu de la somme par taille.
-- **Confirmations de suppression généralisées** : audit complet de l'admin (`ConfirmModal`), retrofit sur 8 fichiers qui en manquaient — tailles, photos produit, avis, logo, photos établissement, galerie, devis, factures, clients de facturation, formules, et surtout la **suppression d'un site client entier** (message d'avertissement renforcé).
-- **Alerte "Stock faible" du tableau de bord** corrigée pour regarder le stock par taille (au lieu du champ global devenu obsolète dès qu'un produit a des tailles).
-- **Nouvelle fonctionnalité "Prévenez-moi quand disponible"** (`StockRequest`) : un client peut signaler son intérêt pour un produit/une taille en rupture (bouton + modale sur le site public), consultable et supprimable depuis la fiche produit admin. Pas d'email automatique au tenant (décision explicite d'Ethan, même principe que les messages de contact).
-- **Fix `RichTextEditor.tsx`** : ne se resynchronisait pas quand `value` changeait depuis l'extérieur (ex. bouton "Utiliser une suggestion") — TipTap n'utilise `content` qu'à l'initialisation.
-- **Fix `PhoneInput.tsx`** : n'insérait pas les espaces au fil de la frappe — `AsYouType` (formateur à état) recevait toute la chaîne d'un coup à chaque rendu au lieu d'être nourri caractère par caractère.
+## Ce qui a été fait cette session (2026-08-28) — voir `docs/05-roadmap-poc.md`, sections datées pour le détail complet
+
+**Partie 1 — "Notre histoire" + audit mobile + vague de retours UX Charis** (~20 petites retouches à partir de captures d'écran réelles d'Ethan) :
+- "Notre histoire" étendue à Hestia/Helios (jusqu'ici Charis seulement), troncature ajustée à ~10 lignes avec "Voir plus"/"Voir moins" sur les 3 templates.
+- Audit responsive mobile des 3 templates : 1 bug réel corrigé (fiche produit Charis qui débordait de 251px), reste propre.
+- Refonte du slider "produits d'une collection" en mini-fiche produit (photo + 2 vignettes) façon karminecorp.fr.
+- Bouton panier déplacé du flottant vers une **icône permanente dans le header** (+ pastille), header Charis rendu collant (`sticky`) en mobile **puis en desktop**.
+- Page panier restructurée en mobile (ligne d'article, champ téléphone élargi), filtres boutique avec compteurs + repli en `<select>` au-delà de 5 collections, cards produit plafonnées en taille (plus de card démesurée à 1-2 produits).
+- **Reste à confirmer par Ethan** : la plupart de ces retouches ont été vérifiées par Chrome headless/CDP cette session, pas encore sur un vrai téléphone/navigateur par toi.
+
+**Partie 2 — nouvelles fonctionnalités** (après discussion sur ce qui serait utile aux clients/à nous) :
+- **Notification email au tenant** (nouvelle commande / nouveau message de contact) — testé de bout en bout côté message de contact, côté commande seulement par revue de code (même patron déjà prouvé).
+- **Export CSV** commandes/clients (admin).
+- **Recherche produit** sur le site public (boutique, les 3 templates).
+- **Module "Compte client"** (connexion par lien email, pas de mot de passe — historique de commandes + édition de ses infos) : nouveau module complet (migration, backend, frontend), testé de bout en bout, laissé actif sur Atelier Lumen pour qu'Ethan l'essaie lui-même avec un vrai email. Voir la doc pour le détail — c'était un vrai chantier de cadrage, pas une retouche rapide.
+- **Reste à faire** (approuvé par Ethan, pas encore commencé) : liste de souhaits, multi-comptes admin par tenant.
 
 ## État des tenants de test
 
 - **Historique** (`11111111-1111-1111-1111-111111111111`) : Hestia/Olivier, mot de passe `admin123`.
 - **Boulangerie Dupont** (`e5d113ff-a734-47e9-8aae-78dea8d6102a`) : Hestia/Argile.
-- **Atelier Lumen** (`36d1b5f8-d5a4-493a-9ff3-d46616816adb`) : Charis/Noir, mot de passe `admin123` — utilisé pour tester toutes les fonctionnalités de cette session. Contient une demande de réassort de test sur "Trench Long Beige" (taille XL, email `verif-restart@test.com`) laissée après un test de bout en bout du redémarrage backend — à supprimer depuis la fiche produit si tu veux repartir propre, sinon inoffensif.
-
-## À vérifier / reste à faire
-
-- [ ] Tout le travail de cette session reste **à confirmer visuellement par Ethan dans le navigateur** — voir les sections "Reste à vérifier par Ethan"/"À confirmer par Ethan" datées du 2026-08-27 dans `docs/05-roadmap-poc.md` pour la liste précise par fonctionnalité.
-- [ ] Ouvrir la PR manuellement (lien ci-dessus) une fois la vérification faite.
-- [ ] Reporté des sessions précédentes, toujours vrai : remplacer les photos placeholder d'Atelier Lumen, vrais tarifs des modules à valider, poids des images de cards Modules, "Notre histoire"/nav conditionnée sur Hestia/Helios (Charis seulement pour l'instant), guide des tailles générique (pas de mesures par produit — évoqué cette session, pas encore fait).
+- **Atelier Lumen** (`36d1b5f8-d5a4-493a-9ff3-d46616816adb`) : Charis/Noir, mot de passe `admin123`. Contient une demande de réassort de test sur "Trench Long Beige" (taille XL, email `verif-restart@test.com`) — à supprimer depuis la fiche produit si tu veux repartir propre, sinon inoffensif.
+- **Aucun tenant Helios** n'existe encore — à créer si besoin d'un vrai tenant sur ce template plutôt que de le tester en basculant temporairement un tenant existant.
 
 ## Pour reprendre rapidement
 
