@@ -8,6 +8,10 @@ La PR de la session du 2026-08-27 (`feature/admin-content-restructure`, commit `
 
 On reste sur la branche `feature/admin-content-restructure` pour la suite (convention habituelle du projet).
 
+## PR de cette session
+
+Commit `7243f0e` poussé sur `feature/admin-content-restructure` (`gh` toujours indisponible sur cette machine — PR à ouvrir manuellement) : https://github.com/EthanFrou1/etnof-cms/pull/new/feature/admin-content-restructure. **Ne pas merger avant validation d'Ethan** — beaucoup de points "à confirmer" listés plus bas, en particulier le nouveau module compte-client jamais essayé avec un vrai email.
+
 ## Ce qui a été fait cette session (2026-08-28) — voir `docs/05-roadmap-poc.md`, sections datées pour le détail complet
 
 **Partie 1 — "Notre histoire" + audit mobile + vague de retours UX Charis** (~20 petites retouches à partir de captures d'écran réelles d'Ethan) :
