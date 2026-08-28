@@ -334,9 +334,17 @@ function CartPageContent({
         <div className="flex flex-col gap-6 rounded-card bg-white p-8 shadow-card">
           <div className="flex flex-col gap-3">
             {items.map((item) => (
-              <div key={`${item.productId}-${item.size ?? ""}`} className="flex items-center justify-between gap-3 rounded-button border border-border-subtle p-3">
+              // flex-col en mobile (image+infos, puis quantité/suppression sur leur propre ligne en
+              // dessous) : à 390px, tout tenir sur une seule ligne (comme avant) écrasait le nom du
+              // produit contre les boutons +/- et "Retirer" — remonté par Ethan. sm:flex-row revient
+              // à une seule ligne dès qu'il y a la place. Vignette agrandie (h-14 → h-20) au passage,
+              // le produit n'était pas assez visible.
+              <div
+                key={`${item.productId}-${item.size ?? ""}`}
+                className="flex flex-col gap-3 rounded-button border border-border-subtle p-3 sm:flex-row sm:items-center sm:justify-between"
+              >
                 <div className="flex items-center gap-3">
-                  <div className="h-14 w-14 shrink-0 overflow-hidden rounded-button bg-black/5">
+                  <div className="h-20 w-20 shrink-0 overflow-hidden rounded-button bg-black/5">
                     {item.imagePath ? (
                       <img src={`${apiBaseUrl}${item.imagePath}`} alt={item.name} className="h-full w-full object-cover" />
                     ) : (
@@ -355,23 +363,25 @@ function CartPageContent({
                     </span>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => updateQuantity(item.productId, item.quantity - 1, item.size)}
-                    className="h-7 w-7 rounded-button border border-border-subtle text-sm"
-                  >
-                    −
-                  </button>
-                  <span className="w-6 text-center text-sm">{item.quantity}</span>
-                  <button
-                    type="button"
-                    onClick={() => updateQuantity(item.productId, item.quantity + 1, item.size)}
-                    disabled={item.quantity >= item.maxStock}
-                    className="h-7 w-7 rounded-button border border-border-subtle text-sm disabled:opacity-40"
-                  >
-                    +
-                  </button>
+                <div className="flex items-center justify-between gap-2 sm:justify-end">
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => updateQuantity(item.productId, item.quantity - 1, item.size)}
+                      className="h-7 w-7 rounded-button border border-border-subtle text-sm"
+                    >
+                      −
+                    </button>
+                    <span className="w-6 text-center text-sm">{item.quantity}</span>
+                    <button
+                      type="button"
+                      onClick={() => updateQuantity(item.productId, item.quantity + 1, item.size)}
+                      disabled={item.quantity >= item.maxStock}
+                      className="h-7 w-7 rounded-button border border-border-subtle text-sm disabled:opacity-40"
+                    >
+                      +
+                    </button>
+                  </div>
                   <button
                     type="button"
                     onClick={() => removeItem(item.productId, item.size)}

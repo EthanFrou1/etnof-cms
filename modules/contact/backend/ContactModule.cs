@@ -11,7 +11,9 @@ public static class ContactModule
     {
         // Le module peut être désactivé en direct depuis l'admin du tenant, sans redémarrage du
         // backend : la route reste mappée, mais renvoie 404 dès que le module est désactivé.
-        app.MapPost("/api/t/{clientSiteId:guid}/contact", async (Guid clientSiteId, ContactMessageInput input, AppDbContext db, ModuleRegistry registry) =>
+        app.MapPost("/api/t/{clientSiteId:guid}/contact", async (
+            Guid clientSiteId, ContactMessageInput input, AppDbContext db, ModuleRegistry registry,
+            IHttpClientFactory httpFactory, IConfiguration config) =>
         {
             if (!await registry.IsEnabledAsync(clientSiteId, Name))
             {
@@ -30,6 +32,28 @@ public static class ContactModule
 
             db.ContactMessages.Add(message);
             await db.SaveChangesAsync();
+
+            // Best-effort, même logique que la notification de commande (StripeModule.cs) — jamais
+            // laissée faire échouer l'enregistrement du message, déjà fait ci-dessus.
+            try
+            {
+                var emailSettings = await AgencyEmailEndpoints.GetOrCreateAsync(db);
+                if (!string.IsNullOrWhiteSpace(emailSettings.BrevoApiKey))
+                {
+                    var site = await db.SiteContents.FirstOrDefaultAsync(s => s.ClientSiteId == clientSiteId);
+                    if (site is not null)
+                    {
+                        var http = httpFactory.CreateClient();
+                        var frontendBaseUrl = config["Cors:AllowedOrigin"] ?? "http://localhost:5173";
+                        var adminMessagesUrl = $"{frontendBaseUrl.TrimEnd('/')}/admin/{clientSiteId}/messages";
+                        await BrevoEmailService.SendNewContactMessageNotificationAsync(http, emailSettings.BrevoApiKey, site, message, adminMessagesUrl);
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                // Ignoré volontairement — voir commentaire ci-dessus.
+            }
 
             return Results.Created($"/api/t/{clientSiteId}/contact/{message.Id}", message);
         });

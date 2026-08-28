@@ -137,7 +137,7 @@ public static class StripeModule
         // ce webhook, jamais la redirection navigateur, qui fait foi pour créer la commande — voir
         // commentaire en tête de fichier.
         app.MapPost("/api/t/{clientSiteId:guid}/stripe/webhook", async (
-            Guid clientSiteId, HttpRequest request, AppDbContext db, IHttpClientFactory httpFactory) =>
+            Guid clientSiteId, HttpRequest request, AppDbContext db, IHttpClientFactory httpFactory, IConfiguration config) =>
         {
             var settings = await db.StripeSettings.FirstOrDefaultAsync(s => s.ClientSiteId == clientSiteId);
             if (settings is null || string.IsNullOrWhiteSpace(settings.WebhookSecret))
@@ -285,6 +285,12 @@ public static class StripeModule
                     {
                         var http = httpFactory.CreateClient();
                         await BrevoEmailService.SendOrderConfirmationEmailAsync(http, emailSettings.BrevoApiKey, site, order, order.Items);
+
+                        // Notifie aussi le tenant (pas seulement le client) — demandé par Ethan, voir
+                        // BrevoEmailService.SendNewOrderNotificationAsync.
+                        var frontendBaseUrl = config["Cors:AllowedOrigin"] ?? "http://localhost:5173";
+                        var adminOrdersUrl = $"{frontendBaseUrl.TrimEnd('/')}/admin/{clientSiteId}/orders";
+                        await BrevoEmailService.SendNewOrderNotificationAsync(http, emailSettings.BrevoApiKey, site, order, order.Items, adminOrdersUrl);
                     }
                 }
             }

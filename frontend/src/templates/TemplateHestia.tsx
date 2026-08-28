@@ -43,6 +43,15 @@ function useHestiaFonts() {
   }, []);
 }
 
+// Longueur (texte brut, balises retirées) à partir de laquelle "Notre histoire" dépasse ~10 lignes
+// affichées (voir line-clamp-[10] plus bas) et justifie le bouton "Voir plus" — même seuil
+// approximatif que StorySection.tsx (Charis), pas de mesure DOM réelle nécessaire pour ce besoin.
+const LONG_STORY_THRESHOLD = 800;
+
+function stripHtml(html: string): string {
+  return html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+}
+
 // Même ordre que WEEKDAYS dans EstablishmentSection.tsx (index 0 = lundi, cf.
 // SiteContent.openingHours). Libellés tirés du dictionnaire partagé (module Multilingue) plutôt que
 // codés en dur, pour suivre la langue choisie par le visiteur.
@@ -213,6 +222,7 @@ export default function TemplateHestia({ clientSiteId, modules, content, palette
   useHestiaFonts();
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [storyExpanded, setStoryExpanded] = useState(false);
   const mapsAddress = content?.address;
   const mapsApiKey = modules?.maps?.apiKey;
   const whatsappNumber = modules?.whatsapp?.phoneNumber;
@@ -228,6 +238,7 @@ export default function TemplateHestia({ clientSiteId, modules, content, palette
 
   const images = useEstablishmentImages(clientSiteId);
   const hasEstablishmentSection = Boolean(content?.description) || images.length > 0;
+  const hasStory = Boolean(content?.storyContent?.trim());
   // Le module "horaires" gate explicitement l'affichage public des horaires (voir
   // modules/horaires/module.meta.json) — pas seulement l'onglet admin. On exige aussi qu'au moins
   // un jour ait une vraie plage renseignée : les 7 jours existent toujours par défaut ("fermé" vide),
@@ -252,6 +263,7 @@ export default function TemplateHestia({ clientSiteId, modules, content, palette
     return tone;
   };
   const establishmentBg = toneFor(hasEstablishmentSection);
+  const storyBg = toneFor(hasStory);
   const hoursBg = toneFor(showHours);
   const offersBg = toneFor(hasOffers);
 
@@ -266,6 +278,11 @@ export default function TemplateHestia({ clientSiteId, modules, content, palette
             {siteName}
           </span>
           <div className="hidden items-center gap-5 text-sm font-medium md:flex" style={{ color: `${ink}99` }}>
+            {hasStory && (
+              <a href="#histoire" style={{ color: "inherit" }} className="transition-opacity duration-200 hover:opacity-70">
+                {t(locale, "nav.story")}
+              </a>
+            )}
             {modules?.catalogue?.enabled && (
               <a href={`/t/${clientSiteId}/boutique`} style={{ color: "inherit" }} className="transition-opacity duration-200 hover:opacity-70">
                 {t(locale, "nav.catalogue")}
@@ -301,6 +318,11 @@ export default function TemplateHestia({ clientSiteId, modules, content, palette
                 {t(locale, "nav.newsletter")}
               </a>
             )}
+            {modules?.["compte-client"]?.enabled && (
+              <a href={`/t/${clientSiteId}/compte`} style={{ color: "inherit" }} className="transition-opacity duration-200 hover:opacity-70">
+                {t(locale, "account.title")}
+              </a>
+            )}
             {modules?.pages?.enabled && typeof pagesMenuLabel === "string" && (
               <Suspense fallback={null}>
                 <CustomPagesNav apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} label={pagesMenuLabel} ink={ink} variant="desktop" />
@@ -329,6 +351,11 @@ export default function TemplateHestia({ clientSiteId, modules, content, palette
               className="absolute left-0 right-0 top-[calc(100%+8px)] z-10 flex flex-col gap-1 rounded-card p-4 text-sm font-medium shadow-soft md:hidden"
               style={{ backgroundColor: "#FFFFFF", color: `${ink}99` }}
             >
+              {hasStory && (
+                <a href="#histoire" style={{ color: "inherit" }} className="rounded-button px-2 py-2 transition-opacity duration-200 hover:opacity-70">
+                  {t(locale, "nav.story")}
+                </a>
+              )}
               {modules?.catalogue?.enabled && (
                 <a href={`/t/${clientSiteId}/boutique`} style={{ color: "inherit" }} className="rounded-button px-2 py-2 transition-opacity duration-200 hover:opacity-70">
                   {t(locale, "nav.catalogue")}
@@ -362,6 +389,11 @@ export default function TemplateHestia({ clientSiteId, modules, content, palette
               {modules?.newsletter?.enabled && (
                 <a href="#newsletter" style={{ color: "inherit" }} className="rounded-button px-2 py-2 transition-opacity duration-200 hover:opacity-70">
                   {t(locale, "nav.newsletter")}
+                </a>
+              )}
+              {modules?.["compte-client"]?.enabled && (
+                <a href={`/t/${clientSiteId}/compte`} style={{ color: "inherit" }} className="rounded-button px-2 py-2 transition-opacity duration-200 hover:opacity-70">
+                  {t(locale, "account.title")}
                 </a>
               )}
               {modules?.pages?.enabled && typeof pagesMenuLabel === "string" && (
@@ -425,6 +457,31 @@ export default function TemplateHestia({ clientSiteId, modules, content, palette
               )
             )}
           </div>
+        </Band>
+      )}
+
+      {hasStory && (
+        <Band background={storyBg}>
+          <section id="histoire" className="flex flex-col gap-4">
+            <Overline accent={accent}>{t(locale, "nav.story")}</Overline>
+            <div
+              className={`max-w-2xl text-xl leading-relaxed [&_a]:underline [&_strong]:font-bold ${
+                storyExpanded ? "" : "line-clamp-[10]"
+              }`}
+              style={{ color: `${ink}B3` }}
+              dangerouslySetInnerHTML={{ __html: content!.storyContent }}
+            />
+            {stripHtml(content!.storyContent).length > LONG_STORY_THRESHOLD && (
+              <button
+                type="button"
+                onClick={() => setStoryExpanded((e) => !e)}
+                className="self-start text-sm font-semibold hover:underline"
+                style={{ color: accent }}
+              >
+                {storyExpanded ? t(locale, "story.showLess") : t(locale, "story.showMore")}
+              </button>
+            )}
+          </section>
         </Band>
       )}
 

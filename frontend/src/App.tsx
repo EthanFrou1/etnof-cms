@@ -49,6 +49,7 @@ const AGENCY_SECTIONS: AgencySection[] = [
 const BlogPostPage = lazy(() => import("@modules/blog/frontend/BlogPostPage"));
 const CartPage = lazy(() => import("@modules/catalogue/frontend/CartPage"));
 const CheckoutResultPage = lazy(() => import("@modules/catalogue/frontend/CheckoutResultPage"));
+const AccountPage = lazy(() => import("@modules/compte-client/frontend/AccountPage"));
 const CustomPageView = lazy(() => import("@modules/pages/frontend/CustomPageView"));
 const CharisProductPage = lazy(() => import("./templates/charis/ProductPage"));
 const CataloguePage = lazy(() => import("./pages/CataloguePage"));
@@ -176,6 +177,17 @@ function App() {
     return (
       <Suspense fallback={null}>
         <CheckoutResultPage clientSiteId={segments[1]} apiBaseUrl={API_BASE_URL} />
+      </Suspense>
+    );
+  }
+
+  // /t/{clientSiteId}/compte — module compte-client (connexion par lien email, historique de
+  // commandes), identique pour tous les templates (même principe que /panier). Gère elle-même le
+  // paramètre ?token= du lien de connexion reçu par email.
+  if (segments[0] === "t" && segments[1] && segments[2] === "compte") {
+    return (
+      <Suspense fallback={null}>
+        <AccountPage clientSiteId={segments[1]} apiBaseUrl={API_BASE_URL} />
       </Suspense>
     );
   }

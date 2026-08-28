@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Modules.AvisGoogle;
 using Modules.Blog;
 using Modules.Catalogue;
+using Modules.CompteClient;
 using Modules.Contact;
 using Modules.Galerie;
 using Modules.Multilingue;
@@ -122,5 +123,6 @@ PagesAdminEndpoints.MapEndpoints(app);
 StripeModule.MapEndpoints(app);
 StripeAdminEndpoints.MapEndpoints(app);
 MultilingueAdminEndpoints.MapEndpoints(app);
+CompteClientModule.MapEndpoints(app);
 
 app.Run();

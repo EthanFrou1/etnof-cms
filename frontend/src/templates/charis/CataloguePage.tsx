@@ -1,6 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 import { t, type Locale } from "@modules/multilingue/frontend/translations";
-import { CartProvider } from "@modules/catalogue/frontend/CartContext";
 
 const NewsletterSection = lazy(() => import("@modules/newsletter/frontend/NewsletterSection"));
 const AvisGoogleSection = lazy(() => import("@modules/avis-google/frontend/AvisGoogleSection"));
@@ -15,7 +14,7 @@ import { resolvePalette } from "../registry";
 import SiteFooter from "../SiteFooter";
 import SiteChrome from "./SiteChrome";
 import ProductCard, { type Product as CardProduct, type ModulePalette } from "./ProductCard";
-import CartButton from "./CartButton";
+import { staticGridClass } from "./ProductGrid";
 
 type Product = CardProduct & { collectionId: string | null };
 type Collection = { id: string; name: string };
@@ -25,11 +24,16 @@ function CatalogueContent({
   apiBaseUrl,
   palette,
   locale,
+  search,
 }: {
   clientSiteId: string;
   apiBaseUrl: string;
   palette: ModulePalette;
   locale: Locale;
+  // Levé jusqu'au composant parent (CharisCataloguePage) pour pouvoir afficher le champ de recherche
+  // à côté du lien "Retour au site" plutôt qu'au-dessus des pastilles de collection — demandé par
+  // Ethan, voir plus bas.
+  search: string;
 }) {
   const [products, setProducts] = useState<Product[] | null>(null);
   const [collections, setCollections] = useState<Collection[]>([]);
@@ -54,7 +58,7 @@ function CatalogueContent({
 
   useEffect(() => {
     fetch(`${apiBaseUrl}/api/t/${clientSiteId}/catalogue/products`)
-      .then((res) => res.json())
+      .then((res) => (res.ok ? res.json() : []))
       .then(setProducts)
       .catch(() => setProducts([]));
     fetch(`${apiBaseUrl}/api/t/${clientSiteId}/catalogue/collections`)
@@ -65,8 +69,13 @@ function CatalogueContent({
 
   if (!products) return null;
 
-  const collectionsById = collections.reduce<Record<string, string>>((acc, c) => {
-    acc[c.id] = c.name;
+  // Nombre de collections au-delà duquel les pastilles de filtre (une par collection + "Tout")
+  // formeraient un mur de boutons sur plusieurs lignes plutôt qu'une seule rangée compacte — bascule
+  // sur un <select> natif, plus adapté à beaucoup d'options (demandé par Ethan). En dessous, les
+  // pastilles restent préférables (plus visibles, plus dans l'esprit du reste du site).
+  const CHIP_THRESHOLD = 5;
+  const collectionCounts = collections.reduce<Record<string, number>>((acc, c) => {
+    acc[c.id] = products.filter((p) => p.collectionId === c.id).length;
     return acc;
   }, {});
 
@@ -76,55 +85,81 @@ function CatalogueContent({
   // produits" seulement s'il existe déjà au moins une collection ; sinon (aucune collection créée) on
   // retombe sur une grille unique sans titre, comme avant. Un filtre actif retombe sur une seule
   // grille (pas de titre : le chip sélectionné l'indique déjà).
+  // Recherche par nom, appliquée avant le regroupement par collection (les compteurs de
+  // collectionCounts/chips restent eux basés sur `products`, pas `searchedProducts` — un chip garde
+  // toujours le total réel de sa collection, indépendamment d'une recherche en cours).
+  const searchQuery = search.trim().toLowerCase();
+  const searchedProducts = searchQuery ? products.filter((p) => p.name.toLowerCase().includes(searchQuery)) : products;
+
   const sections =
     activeCollectionId !== null
-      ? [{ title: null, items: products.filter((p) => p.collectionId === activeCollectionId) }]
+      ? [{ title: null, items: searchedProducts.filter((p) => p.collectionId === activeCollectionId) }]
       : collections.length > 0
         ? [
             ...collections.map((collection) => ({
               title: collection.name,
-              items: products.filter((p) => p.collectionId === collection.id),
+              items: searchedProducts.filter((p) => p.collectionId === collection.id),
             })),
-            { title: t(locale, "catalogue.otherProducts"), items: products.filter((p) => !p.collectionId) },
+            { title: t(locale, "catalogue.otherProducts"), items: searchedProducts.filter((p) => !p.collectionId) },
           ].filter((section) => section.items.length > 0)
-        : [{ title: null, items: products }];
+        : [{ title: null, items: searchedProducts }];
 
   return (
     <>
-      {collections.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => selectCollection(null)}
-            className="rounded-pill border px-4 py-2 text-sm font-medium transition-colors duration-200"
-            style={
-              activeCollectionId === null
-                ? { backgroundColor: palette.accent, borderColor: palette.accent, color: "#FFFFFF" }
-                : { borderColor: `${palette.ink}33`, color: palette.ink }
-            }
+      {collections.length > 0 &&
+        (collections.length > CHIP_THRESHOLD ? (
+          <select
+            aria-label={t(locale, "catalogue.allCollections")}
+            value={activeCollectionId ?? ""}
+            onChange={(e) => selectCollection(e.target.value || null)}
+            className="w-full max-w-xs rounded-pill border bg-white px-4 py-2.5 text-sm font-medium"
+            style={{ borderColor: `${palette.ink}33`, color: palette.ink }}
           >
-            {t(locale, "catalogue.allCollections")}
-          </button>
-          {collections.map((collection) => (
+            <option value="">
+              {t(locale, "catalogue.allCollections")} ({products.length})
+            </option>
+            {collections.map((collection) => (
+              <option key={collection.id} value={collection.id}>
+                {collection.name} ({collectionCounts[collection.id]})
+              </option>
+            ))}
+          </select>
+        ) : (
+          <div className="flex flex-wrap gap-2">
             <button
-              key={collection.id}
               type="button"
-              onClick={() => selectCollection(collection.id)}
+              onClick={() => selectCollection(null)}
               className="rounded-pill border px-4 py-2 text-sm font-medium transition-colors duration-200"
               style={
-                activeCollectionId === collection.id
+                activeCollectionId === null
                   ? { backgroundColor: palette.accent, borderColor: palette.accent, color: "#FFFFFF" }
                   : { borderColor: `${palette.ink}33`, color: palette.ink }
               }
             >
-              {collection.name}
+              {t(locale, "catalogue.allCollections")} ({products.length})
             </button>
-          ))}
-        </div>
-      )}
+            {collections.map((collection) => (
+              <button
+                key={collection.id}
+                type="button"
+                onClick={() => selectCollection(collection.id)}
+                className="rounded-pill border px-4 py-2 text-sm font-medium transition-colors duration-200"
+                style={
+                  activeCollectionId === collection.id
+                    ? { backgroundColor: palette.accent, borderColor: palette.accent, color: "#FFFFFF" }
+                    : { borderColor: `${palette.ink}33`, color: palette.ink }
+                }
+              >
+                {collection.name} ({collectionCounts[collection.id]})
+              </button>
+            ))}
+          </div>
+        ))}
 
       {sections.length === 0 ? (
-        <p style={{ color: `${palette.ink}99` }}>{t(locale, "catalogue.emptyCollection")}</p>
+        <p style={{ color: `${palette.ink}99` }}>
+          {searchQuery ? t(locale, "catalogue.noSearchResults") : t(locale, "catalogue.emptyCollection")}
+        </p>
       ) : (
         sections.map((section, index) => (
           <section
@@ -137,23 +172,18 @@ function CatalogueContent({
                 {section.title}
               </h2>
             )}
-            <div className="grid grid-cols-2 gap-x-8 gap-y-12 sm:grid-cols-2 lg:grid-cols-3">
+            {/* Pas de collectionName ici (même logique que ProductGrid.tsx, home) : chaque section a
+                déjà son titre (ou, filtre actif, le chip sélectionné) — le badge répéterait la même
+                collection sur chaque card sans rien ajouter. */}
+            <div className={`grid gap-x-8 gap-y-12 ${staticGridClass(section.items.length)}`}>
               {section.items.map((product) => (
-                <ProductCard
-                  key={product.id}
-                  clientSiteId={clientSiteId}
-                  product={product}
-                  palette={palette}
-                  locale={locale}
-                  collectionName={product.collectionId ? collectionsById[product.collectionId] : undefined}
-                />
+                <ProductCard key={product.id} clientSiteId={clientSiteId} product={product} palette={palette} locale={locale} />
               ))}
             </div>
           </section>
         ))
       )}
 
-      {products.length > 0 && <CartButton clientSiteId={clientSiteId} palette={palette} locale={locale} />}
     </>
   );
 }
@@ -172,6 +202,7 @@ export default function CharisCataloguePage({ clientSiteId, apiBaseUrl }: Charis
   const { locale, setLocale } = useLocale(clientSiteId);
   const modules = useModules(clientSiteId);
   const content = useContent(clientSiteId, locale);
+  const [search, setSearch] = useState("");
 
   const resolved = templateId ? resolvePalette(templateId, paletteId, customAccent) : null;
   const background = resolved?.background ?? "#FFFFFF";
@@ -190,13 +221,22 @@ export default function CharisCataloguePage({ clientSiteId, apiBaseUrl }: Charis
       footer={<SiteFooter content={content} palette={palette} modules={modules} locale={locale} dark />}
     >
       <div className="mx-auto flex max-w-7xl flex-col gap-8 px-4 py-10 sm:px-8">
-        <a href={`/t/${clientSiteId}`} className="self-start text-sm font-medium hover:opacity-70" style={{ color: `${palette.ink}99` }}>
-          {t(locale, "blog.backToSite")}
-        </a>
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <a href={`/t/${clientSiteId}`} className="text-sm font-medium hover:opacity-70" style={{ color: `${palette.ink}99` }}>
+            {t(locale, "blog.backToSite")}
+          </a>
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={t(locale, "catalogue.searchPlaceholder")}
+            aria-label={t(locale, "catalogue.searchPlaceholder")}
+            className="w-full max-w-sm rounded-pill border bg-white px-4 py-2.5 text-sm"
+            style={{ borderColor: `${palette.ink}33`, color: palette.ink }}
+          />
+        </div>
 
-        <CartProvider clientSiteId={clientSiteId}>
-          <CatalogueContent clientSiteId={clientSiteId} apiBaseUrl={apiBaseUrl} palette={palette} locale={locale} />
-        </CartProvider>
+        <CatalogueContent clientSiteId={clientSiteId} apiBaseUrl={apiBaseUrl} palette={palette} locale={locale} search={search} />
 
         {(modules?.["avis-google"]?.enabled || modules?.newsletter?.enabled) && (
           <Suspense fallback={null}>

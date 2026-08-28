@@ -1,8 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { t, type Locale } from "@modules/multilingue/frontend/translations";
-import { CartProvider, useCart } from "@modules/catalogue/frontend/CartContext";
+import { useCart } from "@modules/catalogue/frontend/CartContext";
 import StockRequestForm from "@modules/catalogue/frontend/StockRequestForm";
+import type { ModulesConfig } from "../../hooks/useModules";
+
+const NewsletterSection = lazy(() => import("@modules/newsletter/frontend/NewsletterSection"));
 // Cette page est montée seule par une route dédiée (App.tsx), pas nichée dans TemplateCharis — même
 // principe que CartPage.tsx (modules/catalogue/frontend/) : rien ne lui fournit la palette du
 // tenant, elle la résout elle-même via les hooks déjà utilisés par les templates.
@@ -13,7 +16,6 @@ import { useLocale } from "../../hooks/useLocale";
 import { resolvePalette } from "../registry";
 import SiteFooter from "../SiteFooter";
 import SiteChrome from "./SiteChrome";
-import CartButton from "./CartButton";
 import { FeaturedSlider, type Product as SliderProduct } from "./ProductGrid";
 
 type ProductImage = { id: string; path: string };
@@ -546,6 +548,7 @@ function ProductPageContent({
   locale,
   deliveryContent,
   returnsContent,
+  modules,
 }: {
   clientSiteId: string;
   productId: string;
@@ -554,6 +557,7 @@ function ProductPageContent({
   locale: Locale;
   deliveryContent: string;
   returnsContent: string;
+  modules: ModulesConfig | null;
 }) {
   const [product, setProduct] = useState<Product | null | undefined>(undefined);
   const { addItem } = useCart();
@@ -626,7 +630,12 @@ function ProductPageContent({
   };
 
   return (
-    <div className="mx-auto flex max-w-7xl flex-col gap-10">
+    // Pas de mx-auto/max-w-7xl ici : le wrapper appelant (ProductPage, plus bas dans ce fichier)
+    // fournit déjà ce centrage — un second niveau désactivait le stretch flexbox et laissait le
+    // slider "Autres produits" (cards shrink-0) forcer la largeur de toute la fiche en mobile.
+    // gap-6 en mobile (au lieu de gap-10 partout) : trop d'espace entre le fil d'Ariane et la
+    // galerie sur un écran étroit, remonté par Ethan — desktop inchangé (sm:gap-10).
+    <div className="flex flex-col gap-6 sm:gap-10">
       <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-1.5 text-sm" style={{ color: `${palette.ink}80` }}>
         <a href={`/t/${clientSiteId}`} className="hover:opacity-70">
           {t(locale, "breadcrumb.home")}
@@ -663,7 +672,7 @@ function ProductPageContent({
           </div>
 
           {product.description && (
-            <p className="text-sm leading-relaxed" style={{ color: `${palette.ink}99` }}>
+            <p className="text-sm leading-relaxed" style={{ color: `${palette.ink}CC` }}>
               {product.description}
             </p>
           )}
@@ -806,6 +815,14 @@ function ProductPageContent({
         locale={locale}
       />
 
+      {/* Tout en bas de la fiche, avant le footer — demandé par Ethan, même emplacement que sur
+          karminecorp.fr. Absent des autres pages Charis (home/boutique), spécifique à cette page. */}
+      {modules?.newsletter?.enabled && (
+        <Suspense fallback={null}>
+          <NewsletterSection apiBaseUrl={apiBaseUrl} clientSiteId={clientSiteId} palette={palette} locale={locale} />
+        </Suspense>
+      )}
+
       {/* Barre sticky mobile (sm:hidden) : visible dès que le bouton "Ajouter au panier" principal
           sort du viewport (voir l'IntersectionObserver plus haut) — la fiche est longue (avis,
           produits liés), pas besoin de remonter tout en haut pour acheter. */}
@@ -871,18 +888,16 @@ export default function ProductPage({ clientSiteId, productId, apiBaseUrl }: Pro
       footer={<SiteFooter content={content} palette={palette} modules={modules} locale={locale} dark />}
     >
       <div className="mx-auto flex max-w-7xl flex-col gap-10 px-4 py-10 sm:px-8">
-        <CartProvider clientSiteId={clientSiteId}>
-          <ProductPageContent
-            clientSiteId={clientSiteId}
-            productId={productId}
-            apiBaseUrl={apiBaseUrl}
-            palette={palette}
-            locale={locale}
-            deliveryContent={content?.deliveryContent ?? ""}
-            returnsContent={content?.returnsContent ?? ""}
-          />
-          <CartButton clientSiteId={clientSiteId} palette={palette} locale={locale} />
-        </CartProvider>
+        <ProductPageContent
+          clientSiteId={clientSiteId}
+          productId={productId}
+          apiBaseUrl={apiBaseUrl}
+          palette={palette}
+          locale={locale}
+          deliveryContent={content?.deliveryContent ?? ""}
+          returnsContent={content?.returnsContent ?? ""}
+          modules={modules}
+        />
       </div>
     </SiteChrome>
   );

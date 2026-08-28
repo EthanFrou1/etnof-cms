@@ -1,0 +1,6 @@
+{
+  "name": "compte-client",
+  "displayName": "Compte client",
+  "description": "Connexion par lien email pour vos clients : historique de commandes et informations personnelles modifiables depuis le site public",
+  "dependencies": []
+}
