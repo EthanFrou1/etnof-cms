@@ -3,6 +3,7 @@ import { API_BASE_URL } from "../../config";
 import { adminFetch } from "../../hooks/useAdminSession";
 import { useModules } from "../../hooks/useModules";
 import AutoTranslateButton, { translateTexts } from "../../components/admin/AutoTranslateButton";
+import SaveButton, { type SaveStatus } from "../../components/admin/SaveButton";
 
 type MultilingueSectionProps = {
   clientSiteId: string;
@@ -55,7 +56,6 @@ function SitePanel({ clientSiteId, password, locale }: { clientSiteId: string; p
     });
     await load();
     setSaveStatus("saved");
-    setTimeout(() => setSaveStatus((c) => (c === "saved" ? "idle" : c)), 1500);
   };
 
   const handleSave = () => saveSite(draft);
@@ -72,7 +72,6 @@ function SitePanel({ clientSiteId, password, locale }: { clientSiteId: string; p
           <p className="text-sm text-gray-text">Nom et description affichés sur la page d'accueil publique.</p>
         </div>
         <div className="flex items-center gap-3">
-          {saveStatus === "saved" && <span className="text-sm text-green-accent">Enregistré</span>}
           <AutoTranslateButton
             onTranslate={async () => {
               const [siteName, description] = await translateTexts(
@@ -85,14 +84,7 @@ function SitePanel({ clientSiteId, password, locale }: { clientSiteId: string; p
               await saveSite({ siteName, description });
             }}
           />
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={!isDirty || saveStatus === "saving"}
-            className="rounded-button bg-brand-gradient px-4 py-2.5 font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            {saveStatus === "saving" ? "Enregistrement…" : "Enregistrer"}
-          </button>
+          <SaveButton status={saveStatus} onClick={handleSave} onIdle={() => setSaveStatus("idle")} disabled={!isDirty} />
         </div>
       </div>
 
@@ -138,7 +130,7 @@ type OfferTranslation = {
 function OffersPanel({ clientSiteId, password, locale }: { clientSiteId: string; password: string; locale: Locale }) {
   const [offers, setOffers] = useState<OfferTranslation[] | null>(null);
   const [drafts, setDrafts] = useState<Record<string, { title: string; description: string }>>({});
-  const [savedId, setSavedId] = useState<string | null>(null);
+  const [rowStatus, setRowStatus] = useState<Record<string, SaveStatus>>({});
 
   const load = () =>
     adminFetch(API_BASE_URL, `/api/t/${clientSiteId}/admin/multilingue/offers?locale=${locale}`, password)
@@ -154,14 +146,14 @@ function OffersPanel({ clientSiteId, password, locale }: { clientSiteId: string;
   }, [locale]);
 
   const saveOffer = async (offerId: string, values: { title: string; description: string }) => {
-    await adminFetch(API_BASE_URL, `/api/t/${clientSiteId}/admin/multilingue/offers/${offerId}`, password, {
+    setRowStatus((s) => ({ ...s, [offerId]: "saving" }));
+    const res = await adminFetch(API_BASE_URL, `/api/t/${clientSiteId}/admin/multilingue/offers/${offerId}`, password, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ locale, title: values.title, description: values.description }),
     });
-    await load();
-    setSavedId(offerId);
-    setTimeout(() => setSavedId((current) => (current === offerId ? null : current)), 1500);
+    if (res.ok) await load();
+    setRowStatus((s) => ({ ...s, [offerId]: res.ok ? "saved" : "error" }));
   };
 
   const handleSave = (offerId: string) => saveOffer(offerId, drafts[offerId]);
@@ -187,7 +179,6 @@ function OffersPanel({ clientSiteId, password, locale }: { clientSiteId: string;
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <span className="text-sm font-semibold text-navy">{offer.original.title || "(sans titre)"}</span>
                   <div className="flex items-center gap-3">
-                    {savedId === offer.offerId && <span className="text-sm text-green-accent">Enregistré</span>}
                     <AutoTranslateButton
                       onTranslate={async () => {
                         const [title, description] = await translateTexts(
@@ -200,14 +191,13 @@ function OffersPanel({ clientSiteId, password, locale }: { clientSiteId: string;
                         await saveOffer(offer.offerId, { title, description });
                       }}
                     />
-                    <button
-                      type="button"
+                    <SaveButton
+                      status={rowStatus[offer.offerId] ?? "idle"}
                       onClick={() => handleSave(offer.offerId)}
+                      onIdle={() => setRowStatus((s) => ({ ...s, [offer.offerId]: "idle" }))}
                       disabled={!isDirty}
-                      className="rounded-button border border-border-subtle px-3 py-1.5 text-sm font-medium text-gray-text transition-opacity hover:bg-bg-page-start disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                      Enregistrer
-                    </button>
+                      size="sm"
+                    />
                   </div>
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
@@ -246,7 +236,7 @@ type BlogTranslation = {
 function BlogPanel({ clientSiteId, password, locale }: { clientSiteId: string; password: string; locale: Locale }) {
   const [posts, setPosts] = useState<BlogTranslation[] | null>(null);
   const [drafts, setDrafts] = useState<Record<string, { title: string; content: string }>>({});
-  const [savedId, setSavedId] = useState<string | null>(null);
+  const [rowStatus, setRowStatus] = useState<Record<string, SaveStatus>>({});
 
   const load = () =>
     adminFetch(API_BASE_URL, `/api/t/${clientSiteId}/admin/multilingue/blog?locale=${locale}`, password)
@@ -262,14 +252,14 @@ function BlogPanel({ clientSiteId, password, locale }: { clientSiteId: string; p
   }, [locale]);
 
   const savePost = async (postId: string, values: { title: string; content: string }) => {
-    await adminFetch(API_BASE_URL, `/api/t/${clientSiteId}/admin/multilingue/blog/${postId}`, password, {
+    setRowStatus((s) => ({ ...s, [postId]: "saving" }));
+    const res = await adminFetch(API_BASE_URL, `/api/t/${clientSiteId}/admin/multilingue/blog/${postId}`, password, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ locale, title: values.title, content: values.content }),
     });
-    await load();
-    setSavedId(postId);
-    setTimeout(() => setSavedId((current) => (current === postId ? null : current)), 1500);
+    if (res.ok) await load();
+    setRowStatus((s) => ({ ...s, [postId]: res.ok ? "saved" : "error" }));
   };
 
   const handleSave = (postId: string) => savePost(postId, drafts[postId]);
@@ -295,7 +285,6 @@ function BlogPanel({ clientSiteId, password, locale }: { clientSiteId: string; p
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <span className="text-sm font-semibold text-navy">{post.original.title || "(sans titre)"}</span>
                   <div className="flex items-center gap-3">
-                    {savedId === post.postId && <span className="text-sm text-green-accent">Enregistré</span>}
                     <AutoTranslateButton
                       onTranslate={async () => {
                         const [title, content] = await translateTexts(
@@ -308,14 +297,13 @@ function BlogPanel({ clientSiteId, password, locale }: { clientSiteId: string; p
                         await savePost(post.postId, { title, content });
                       }}
                     />
-                    <button
-                      type="button"
+                    <SaveButton
+                      status={rowStatus[post.postId] ?? "idle"}
                       onClick={() => handleSave(post.postId)}
+                      onIdle={() => setRowStatus((s) => ({ ...s, [post.postId]: "idle" }))}
                       disabled={!isDirty}
-                      className="rounded-button border border-border-subtle px-3 py-1.5 text-sm font-medium text-gray-text transition-opacity hover:bg-bg-page-start disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                      Enregistrer
-                    </button>
+                      size="sm"
+                    />
                   </div>
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">

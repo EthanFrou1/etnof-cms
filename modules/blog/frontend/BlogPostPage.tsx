@@ -68,6 +68,29 @@ export default function BlogPostPage({ slug, apiBaseUrl, clientSiteId }: BlogPos
     }
   }, [post]);
 
+  // Données structurées JSON-LD (BlogPosting) — même principe dupliqué que le bloc ci-dessus (un
+  // module reste isolé, pas d'import de frontend/src/utils/structuredData.ts, voir
+  // docs/02-architecture-modules.md). SEO avancé, voir docs/04-catalogue-modules.md.
+  useEffect(() => {
+    if (!post) return;
+    const description = post.content.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 160);
+    let tag = document.head.querySelector<HTMLScriptElement>('script[type="application/ld+json"]');
+    if (!tag) {
+      tag = document.createElement("script");
+      tag.setAttribute("type", "application/ld+json");
+      document.head.appendChild(tag);
+    }
+    tag.textContent = JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "BlogPosting",
+      headline: post.title,
+      ...(description ? { description } : {}),
+      datePublished: post.publishedAt,
+      mainEntityOfPage: { "@type": "WebPage", "@id": window.location.href.split("?")[0] },
+    });
+    return () => tag?.remove();
+  }, [post]);
+
   return (
     <div className="min-h-screen px-4 py-6 sm:px-8">
       <div className="mx-auto flex max-w-2xl flex-col gap-8">

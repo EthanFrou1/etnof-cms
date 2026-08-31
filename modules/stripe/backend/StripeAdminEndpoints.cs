@@ -14,7 +14,9 @@ public static class StripeAdminEndpoints
 
         group.MapGet("/settings", async (Guid clientSiteId, HttpRequest req, IConfiguration config, AppDbContext db) =>
         {
-            if (!await TenantAdminAuth.IsAuthorizedAsync(req, config, db, clientSiteId)) return Results.Unauthorized();
+            // Owner-only : clés Stripe secrètes, un compte Employé n'y a pas accès (ni en lecture ni
+            // en écriture) — voir TenantAdminAuth.IsOwnerAuthorizedAsync.
+            if (!await TenantAdminAuth.IsOwnerAuthorizedAsync(req, config, clientSiteId)) return Results.Unauthorized();
 
             var settings = await db.StripeSettings.FirstOrDefaultAsync(s => s.ClientSiteId == clientSiteId);
             return Results.Ok(new
@@ -26,7 +28,9 @@ public static class StripeAdminEndpoints
 
         group.MapPut("/settings", async (Guid clientSiteId, SettingsInput input, HttpRequest req, IConfiguration config, AppDbContext db) =>
         {
-            if (!await TenantAdminAuth.IsAuthorizedAsync(req, config, db, clientSiteId)) return Results.Unauthorized();
+            // Owner-only : clés Stripe secrètes, un compte Employé n'y a pas accès (ni en lecture ni
+            // en écriture) — voir TenantAdminAuth.IsOwnerAuthorizedAsync.
+            if (!await TenantAdminAuth.IsOwnerAuthorizedAsync(req, config, clientSiteId)) return Results.Unauthorized();
 
             var settings = await db.StripeSettings.FirstOrDefaultAsync(s => s.ClientSiteId == clientSiteId);
             if (settings is null)

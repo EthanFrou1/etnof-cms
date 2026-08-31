@@ -115,6 +115,31 @@ Pas de navigation EF `Order.Customer` (évite le cycle de sérialisation JSON d�
 | UnitPrice | decimal | Copie du prix au moment de la commande |
 | Quantity | int | |
 | SizeLabel | string? | Ajouté le 2026-08-26 avec `ProductSize` — `null` pour un produit sans taille, sinon copie du `Label` choisi au moment de la commande (même logique snapshot que `ProductName`/`UnitPrice`, reste correct même si la taille est supprimée du produit ensuite) |
+| ImagePath | string? | Ajouté le 2026-08-31 — copie du chemin de la 1ʳᵉ photo du produit (triée par `SortOrder`) au moment de la commande, même logique snapshot. `null` si le produit n'avait aucune photo. Affiché dans l'historique de commandes de la page "Mon compte" (`AccountPage.tsx`) |
+
+### OrderStatusChange (module Catalogue, ajouté le 2026-08-31)
+| Champ | Type | Note |
+|---|---|---|
+| Id | Guid | |
+| ClientSiteId | Guid | |
+| OrderId | Guid | |
+| FromStatus / ToStatus | string | |
+| ActorLabel | string | Copie (pas une FK) — même principe que `AdminActionLog.ActorLabel` |
+| CreatedAt | DateTime | |
+
+"Suivi" affiché dans la ligne dépliée d'une commande (`OrdersSection.tsx` → `OrderDetailPanel.tsx`) — une ligne ajoutée à chaque vrai changement de statut (`PUT /admin/catalogue/orders/{id}/status`), jamais si le statut renvoyé est identique à l'actuel. Distinct de `AdminActionLog` (générique à tout l'admin) : ici on garde explicitement l'ancien/nouveau statut pour une vraie timeline, pas juste "Modification — Commandes".
+
+### OrderComment (module Catalogue, ajouté le 2026-08-31)
+| Champ | Type | Note |
+|---|---|---|
+| Id | Guid | |
+| ClientSiteId | Guid | |
+| OrderId | Guid | |
+| AuthorLabel | string | |
+| Text | string | |
+| CreatedAt | DateTime | |
+
+Note interne sur une commande, jamais visible du client — même section que "Suivi" ci-dessus.
 
 ### ProductReview (module Catalogue, ajouté le 2026-08-06)
 | Champ | Type | Note |
@@ -159,6 +184,48 @@ Paiement en ligne réel depuis le module Stripe (voir plus bas, `StripeSettings`
 
 Photos affichées dans le panneau résumé de la page "Établissement" (`EstablishmentSection.tsx`). Même pattern d'upload que `ProductImage`.
 
+### AdminActionLog (core, ajouté le 2026-08-31)
+| Champ | Type | Note |
+|---|---|---|
+| Id | Guid | |
+| ClientSiteId | Guid | |
+| ActorType | string | `"owner"` / `"employee"` / `"agency"` |
+| ActorLabel | string | Copie ("Propriétaire" / "Agence (support)" / prénom+nom de l'Employé au moment de l'action) — pas une FK, reste correct même si le compte Employé est ensuite supprimé |
+| Method | string | HTTP (`POST`/`PUT`/`DELETE`) |
+| Path | string | Chemin complet de la requête |
+| Action | string | Libellé lisible dérivé du chemin (`AdminActionLogger.DescribeAction`) — pas écrit à la main par endpoint |
+| StatusCode | int | |
+| CreatedAt | DateTime | |
+
+Capturé génériquement par un middleware (`Program.cs`, voir `AdminActionLogger.cs`) sur toute requête d'écriture réussie sous `/api/t/{clientSiteId}/admin/...`, quel que soit l'endpoint — pas d'ajout à la main requis quand une nouvelle page admin arrive. Visible par le Propriétaire (page "Historique", owner-only comme Comptes/Modules/Stripe) et par l'agence (modale "Historique" sur chaque card de `SitesSection.tsx`) ; pagination par 20 ("Charger plus", `skip`/`take`). Les actions de l'agence via le mot de passe passe-partout sont loguées comme les autres — décision d'Ethan, la transparence protège le client autant que l'agence. La connexion elle-même (`POST .../admin/login`, `.../admin/accounts/invitation/confirm`) est loguée à la main (pas de token sur la requête de login, donc pas capturable par le middleware générique) — voir `TenantAdminEndpoints.cs`.
+
+### TenantAdminAccount (core, ajouté le 2026-08-31)
+| Champ | Type | Note |
+|---|---|---|
+| Id | Guid | |
+| ClientSiteId | Guid | |
+| FirstName / LastName | string | |
+| Email | string | Unique par tenant (pas de contrainte FK en base, vérifié à la création/modification côté endpoint) |
+| Phone | string | Facultatif |
+| PasswordHash | string | Même hachage PBKDF2 que `ClientSite.PasswordHash` (`AdminPasswordHasher`) — vide tant que le compte n'est pas activé, jamais choisi par le Propriétaire (voir `TenantAdminAccountInvite` ci-dessous) |
+| ActivatedAt | DateTime? | Null tant que l'invitation n'a pas été suivie — affiché "En attente d'activation" dans `AccountsSection.tsx` |
+| CreatedAt | DateTime | |
+
+Compte "Employé" — accès admin restreint (pas de Modules, Paiement Stripe, ni la gestion des comptes elle-même, voir `TenantAdminAuth.IsOwnerAuthorizedAsync`), connexion quotidienne par email + mot de passe (pas de lien magique à chaque fois — décision d'Ethan, plus simple au quotidien). Le compte "Propriétaire" n'a pas de ligne ici : c'est toujours `ClientSite.PasswordHash`, jamais dupliqué. Un seul rôle existe (la présence d'une ligne ici EST le rôle "Employé") — pas de colonne `Role`, pas de permissions configurables.
+
+### TenantAdminAccountInvite (core, ajouté le 2026-08-31)
+| Champ | Type | Note |
+|---|---|---|
+| Id | Guid | |
+| ClientSiteId | Guid | |
+| AccountId | Guid | |
+| Token | string | Aléatoire (32 octets), à usage unique |
+| ExpiresAt | DateTime | 48h après création (contre 15 min pour `CustomerLoginToken` — une invitation n'est pas une connexion routinière) |
+| UsedAt | DateTime? | |
+| CreatedAt | DateTime | |
+
+Lien d'invitation envoyé par email (Brevo) à la création d'un `TenantAdminAccount` (ou au clic sur "Renvoyer l'invitation") — l'employé définit lui-même son mot de passe en le suivant, jamais transmis par le Propriétaire. Même patron 2 temps que `CustomerLoginToken` (module Compte client) : un GET ne consomme jamais le lien (affiche juste "définir mon mot de passe"), seul le POST de confirmation derrière un vrai clic l'active.
+
 ### SiteContent (core, pas un module — voir `docs/06-contenu-site.md`)
 | Champ | Type | Note |
 |---|---|---|
@@ -174,6 +241,7 @@ Photos affichées dans le panneau résumé de la page "Établissement" (`Establi
 | GooglePlaceId / GooglePlaceName | string | Fiche Google liée depuis la recherche de cette page (ajouté le 2026-07-29) — gratuite, ne contient jamais d'avis. Lue par le module Avis Google pour proposer directement "Actualiser les avis" sans re-chercher, sans jamais déclencher l'appel payant "reviews" toute seule |
 | OpeningHoursJson | text | JSON d'une liste de 7 `DayHoursDto` (`Closed`/`MorningOpen`/`MorningClose`/`AfternoonOpen`/`AfternoonClose`, lundi→dimanche) — colonne texte brute reformée à la frontière API, même convention que `ClientSite.ModulesConfigJson` ; onglet "Horaires", gaté par le module "Horaires" |
 | CgvContent | text | HTML riche (TipTap), onglet "CGV" (ajouté le 2026-08-06) — champ core plutôt qu'une page du module Pages (payant/optionnel) car obligation légale, pas une fonctionnalité premium. Affiché sur `/t/{clientSiteId}/cgv`. Bloque le paiement du panier (module Catalogue+Stripe) tant que vide, voir `docs/04-catalogue-modules.md` |
+| LegalNoticeContent / PrivacyPolicyContent | text | Ajoutés le 2026-08-31, onglet "Mentions légales" — même raisonnement que `CgvContent` (obligation légale pour tout site, pas seulement une boutique, donc champ core plutôt qu'une page du module Pages). Affichés sur `/t/{clientSiteId}/mentions-legales` et `/confidentialite`. Pas de garde-fou bloquant comme `CgvContent` (rien à interrompre côté paiement) |
 | PublishedContentJson | text? | Ajouté le 2026-08-07 — snapshot JSON de ce même contenu tel que publié (bouton "Rafraîchir le site", `PublishEndpoints.cs`). `null` tant que le tenant n'a jamais publié : l'endpoint public retombe alors sur les champs live ci-dessus. Voir aussi `ClientSite.Published*` pour le même principe côté template/logo |
 
 ### Offer (core, liste liée à SiteContent)

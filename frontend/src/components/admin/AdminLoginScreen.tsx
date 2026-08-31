@@ -14,7 +14,7 @@ export default function AdminLoginScreen({ title, loginPath, onLoggedIn }: Admin
           Admin<span className="text-green-accent">Pro</span>
         </span>
         <p className="text-center text-sm text-white/60">{title}</p>
-        <AdminLoginForm loginPath={loginPath} onLoggedIn={onLoggedIn} />
+        <AdminLoginForm loginPath={loginPath} onLoggedIn={onLoggedIn} showEmail />
       </div>
     </div>
   );

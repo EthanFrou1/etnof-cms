@@ -236,19 +236,24 @@ function CartPageContent({
     city.trim() &&
     termsAccepted;
 
-  // CGV du tenant (SiteContent.CgvContent, champ "core" dédié — voir CgvPage.tsx et
-  // EstablishmentSection.tsx, onglet CGV) : obligation légale, pas une page libre optionnelle du
-  // module Pages. Tant que ce champ est vide, le paiement reste bloqué (voir isCheckoutBlocked).
-  const [cgvContent, setCgvContent] = useState<string | null>(null);
+  // CGV + Politique de confidentialité du tenant (SiteContent.CgvContent/PrivacyPolicyContent,
+  // champs "core" — voir CgvPage.tsx/PrivacyPolicyPage.tsx et EstablishmentSection.tsx, onglets
+  // "Livraison & CGV"/"Mentions légales") : obligation légale, pas une page libre optionnelle du
+  // module Pages. Tant que l'un des deux est vide, le paiement reste bloqué (voir isCheckoutBlocked)
+  // — vérifié aussi côté serveur (StripeModule.cs, `/stripe/checkout`), ce blocage frontend n'est
+  // qu'un confort d'affichage, pas la seule protection.
+  const [legalContent, setLegalContent] = useState<{ cgv: string; privacyPolicy: string } | null>(null);
 
   useEffect(() => {
     fetch(`${apiBaseUrl}/api/t/${clientSiteId}/content`)
       .then((res) => (res.ok ? res.json() : null))
-      .then((data: { cgvContent: string } | null) => setCgvContent(data?.cgvContent ?? ""))
-      .catch(() => setCgvContent(""));
+      .then((data: { cgvContent: string; privacyPolicyContent: string } | null) =>
+        setLegalContent({ cgv: data?.cgvContent ?? "", privacyPolicy: data?.privacyPolicyContent ?? "" })
+      )
+      .catch(() => setLegalContent({ cgv: "", privacyPolicy: "" }));
   }, [apiBaseUrl, clientSiteId]);
 
-  const cgvMissing = cgvContent !== null && !cgvContent.trim();
+  const cgvMissing = legalContent !== null && (!legalContent.cgv.trim() || !legalContent.privacyPolicy.trim());
 
   // Redirige vers Stripe Checkout (page hébergée par Stripe) — le panier n'est vidé qu'au retour en
   // cas de succès (voir CatalogueSection.tsx), pas ici : si le client annule sur la page Stripe, il
@@ -748,10 +753,10 @@ export default function CartPage({ clientSiteId, apiBaseUrl }: CartPageProps) {
   // ré-enveloppé dans un `max-w-7xl` pour la variante claire (Helios), qui elle n'a pas de fond
   // propre et s'attend à hériter du conteneur appelant (même convention que TemplateHelios.tsx).
   const footer = footerDark ? (
-    <SiteFooter content={content} palette={palette} modules={modules} locale={locale} dark />
+    <SiteFooter clientSiteId={clientSiteId} content={content} palette={palette} modules={modules} locale={locale} dark />
   ) : (
     <div className="mx-auto w-full max-w-7xl px-4 sm:px-8">
-      <SiteFooter content={content} palette={palette} modules={modules} locale={locale} />
+      <SiteFooter clientSiteId={clientSiteId} content={content} palette={palette} modules={modules} locale={locale} />
     </div>
   );
 

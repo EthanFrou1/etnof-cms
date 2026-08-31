@@ -587,6 +587,86 @@ public static class BrevoEmailService
         }
     }
 
+    // Invitation à définir son mot de passe pour un compte "Employé" (TenantAdminAccount) — voir
+    // TenantAdminEndpoints.cs. Même gabarit que SendCustomerLoginLinkAsync ci-dessus, adapté au
+    // vocabulaire (pas une "connexion", un compte pas encore activé).
+    public static async Task<bool> SendTenantAdminInviteAsync(
+        HttpClient http, string apiKey, string siteName, string firstName, string email, string inviteUrl)
+    {
+        if (string.IsNullOrWhiteSpace(apiKey) || string.IsNullOrWhiteSpace(email)) return false;
+
+        var senderName = string.IsNullOrWhiteSpace(siteName) ? "etnof-cms" : siteName;
+
+        var payload = new BrevoEmailRequest(
+            Sender: new BrevoContact(senderName, SupportInbox),
+            To: new List<BrevoContact> { new(firstName, email) },
+            Subject: $"Invitation à administrer {senderName}",
+            HtmlContent: BuildTenantAdminInviteHtml(senderName, firstName, inviteUrl)
+        );
+
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Post, EndpointUrl);
+            request.Headers.Add("api-key", apiKey);
+            request.Headers.Add("Accept", "application/json");
+            request.Content = JsonContent.Create(payload, options: JsonOptions);
+
+            using var response = await http.SendAsync(request);
+            return response.IsSuccessStatusCode;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+
+    private static string BuildTenantAdminInviteHtml(string senderName, string firstName, string inviteUrl)
+    {
+        const string navy = "#0F172A";
+        const string brandMid = "#4F46E5";
+        const string grayText = "#64748B";
+        const string bgPage = "#F8FAFC";
+        const string fontFamily = "-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Roboto,Helvetica,Arial,sans-serif";
+
+        return $@"
+<body style=""margin:0;padding:32px 16px;background-color:{bgPage};font-family:{fontFamily};"">
+  <table role=""presentation"" width=""100%"" cellpadding=""0"" cellspacing=""0"">
+    <tr>
+      <td align=""center"">
+        <table role=""presentation"" width=""560"" cellpadding=""0"" cellspacing=""0"" style=""max-width:560px;width:100%;background-color:#FFFFFF;border-radius:20px;box-shadow:0 2px 12px rgba(15,23,42,0.05);"">
+          <tr>
+            <td style=""padding:40px;"">
+              <div style=""text-transform:uppercase;letter-spacing:0.1em;font-size:13px;font-weight:600;color:{brandMid};margin-bottom:8px;"">
+                {WebUtility.HtmlEncode(senderName)}
+              </div>
+              <h1 style=""margin:0 0 16px;font-size:24px;font-weight:800;color:{navy};"">Vous avez été invité(e)</h1>
+              <p style=""margin:0 0 24px;font-size:15px;line-height:1.6;color:{grayText};"">
+                Bonjour {WebUtility.HtmlEncode(firstName)},<br>
+                Vous avez été invité(e) à administrer le site « {WebUtility.HtmlEncode(senderName)} ». Cliquez sur le bouton ci-dessous pour définir votre mot de passe et accéder à l'admin. Ce lien est valable 48 heures.
+              </p>
+
+              <table role=""presentation"" cellpadding=""0"" cellspacing=""0"">
+                <tr>
+                  <td style=""background-color:{brandMid};border-radius:12px;"">
+                    <a href=""{inviteUrl}"" style=""display:inline-block;padding:14px 28px;font-size:14px;font-weight:700;color:#FFFFFF;text-decoration:none;"">
+                      Définir mon mot de passe
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <p style=""margin:24px 0 0;font-size:12px;line-height:1.6;color:{grayText};"">
+                Si vous n'êtes pas à l'origine de cette demande, ignorez simplement cet email.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>";
+    }
+
     private static string BuildCustomerLoginLinkHtml(string senderName, Customer customer, string loginUrl)
     {
         const string navy = "#0F172A";

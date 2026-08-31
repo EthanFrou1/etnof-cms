@@ -9,6 +9,9 @@ import ProductDetailPage from "./pages/ProductDetailPage";
 import BlogPostDetailPage from "./pages/BlogPostDetailPage";
 import PageDetailPage from "./pages/PageDetailPage";
 import CgvPage from "./pages/CgvPage";
+import LegalNoticePage from "./pages/LegalNoticePage";
+import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
+import TenantInvitationPage from "./pages/TenantInvitationPage";
 import type { AdminSection } from "./components/admin/AdminLayout";
 import type { AgencySection } from "./components/admin/AgencyLayout";
 import { API_BASE_URL } from "./config";
@@ -32,6 +35,8 @@ const ADMIN_SECTIONS: AdminSection[] = [
   "multilingue",
   "galerie",
   "pages",
+  "accounts",
+  "history",
 ];
 
 const AGENCY_SECTIONS: AgencySection[] = [
@@ -108,6 +113,12 @@ function App() {
     return <PageDetailPage clientSiteId={segments[1]} pageId={segments[3]} />;
   }
 
+  // /admin/{clientSiteId}/invitation?token=... — un compte Employé invité définit son mot de passe
+  // (voir TenantAdminEndpoints.cs, comptes "Employé"), sort du switch section générique.
+  if (segments[0] === "admin" && segments[1] && segments[2] === "invitation") {
+    return <TenantInvitationPage clientSiteId={segments[1]} />;
+  }
+
   // /admin/{clientSiteId}/{section} — admin d'UN tenant (section par défaut : dashboard)
   if (segments[0] === "admin" && segments[1]) {
     const requested = segments[2] as AdminSection | undefined;
@@ -137,6 +148,15 @@ function App() {
   // voir CgvPage.tsx.
   if (segments[0] === "t" && segments[1] && segments[2] === "cgv") {
     return <CgvPage clientSiteId={segments[1]} />;
+  }
+
+  // /t/{clientSiteId}/mentions-legales et /confidentialite — même principe que /cgv ci-dessus :
+  // contenu "core" (SiteContent.LegalNoticeContent/PrivacyPolicyContent), pas un module.
+  if (segments[0] === "t" && segments[1] && segments[2] === "mentions-legales") {
+    return <LegalNoticePage clientSiteId={segments[1]} />;
+  }
+  if (segments[0] === "t" && segments[1] && segments[2] === "confidentialite") {
+    return <PrivacyPolicyPage clientSiteId={segments[1]} />;
   }
 
   // /t/{clientSiteId}/produits/{productId} — fiche produit dédiée (grande photo + slider), exclusive

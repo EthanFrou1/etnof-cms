@@ -4,6 +4,7 @@ import { useAdminSession, adminFetch } from "../hooks/useAdminSession";
 import { useModules } from "../hooks/useModules";
 import AdminLoginScreen from "../components/admin/AdminLoginScreen";
 import AdminLayout from "../components/admin/AdminLayout";
+import SaveButton from "../components/admin/SaveButton";
 
 type OrderItem = {
   id: string;
@@ -182,16 +183,12 @@ function CustomerDetailContent({
         </div>
 
         <div className="mt-4 flex items-center gap-3">
-          <button
-            type="button"
+          <SaveButton
+            status={status}
             onClick={handleSave}
-            disabled={status === "saving" || !isDirty}
-            className="rounded-button bg-brand-gradient px-4 py-2.5 font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            Enregistrer
-          </button>
-          {status === "saved" && <p className="text-green-accent">Enregistré.</p>}
-          {status === "error" && <p className="text-red-500">Erreur lors de l'enregistrement.</p>}
+            onIdle={() => setStatus("idle")}
+            disabled={!isDirty}
+          />
         </div>
       </section>
 

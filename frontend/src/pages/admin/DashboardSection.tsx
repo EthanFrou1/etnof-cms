@@ -274,9 +274,15 @@ export default function DashboardSection({ clientSiteId, password }: DashboardSe
 
   const catalogueEnabled = Boolean(modules?.catalogue?.enabled);
   const rdvEnabled = Boolean(modules?.rdv?.enabled);
-  // Même garde-fou que EstablishmentSection.tsx (onglet CGV) et CartPage.tsx (bouton de paiement) :
-  // boutique en ligne active sans CGV renseignées = anomalie à signaler bien en vue.
-  const missingCgv = Boolean(modules?.catalogue?.enabled && modules?.stripe?.enabled && content && !content.cgvContent.trim());
+  // Même garde-fou que EstablishmentSection.tsx (onglet "Livraison & CGV"/"Mentions légales"),
+  // CartPage.tsx (bouton de paiement) et StripeModule.cs (rejet serveur de la session Stripe) :
+  // boutique en ligne active sans CGV ni Politique de confidentialité = anomalie à signaler bien en vue.
+  const missingCgv = Boolean(
+    modules?.catalogue?.enabled &&
+      modules?.stripe?.enabled &&
+      content &&
+      (!content.cgvContent.trim() || !content.privacyPolicyContent.trim())
+  );
 
   useEffect(() => {
     if (!catalogueEnabled) return;
@@ -309,9 +315,15 @@ export default function DashboardSection({ clientSiteId, password }: DashboardSe
     });
 
   // Uniquement calculée une fois les données nécessaires chargées — sinon les 4 étapes
-  // apparaîtraient toutes "à faire" pendant une fraction de seconde au premier rendu.
+  // apparaîtraient toutes "à faire" pendant une fraction de seconde au premier rendu. `modules`
+  // devait déjà être chargé (catalogueEnabled/href en dépendent) et, si Catalogue est actif,
+  // `products` aussi (sinon l'étape "Ajouter une offre ou un produit" se calculait avec une liste
+  // encore vide et pointait vers /offers même quand Catalogue — donc /products — est le bon module) :
+  // un oubli qui ne se voyait quasiment jamais en navigation normale (les réponses API restent en
+  // cache HTTP du navigateur d'une page à l'autre) mais systématiquement au tout premier chargement
+  // d'une session neuve (ex. juste après une invitation Employé).
   const onboardingSteps: OnboardingStep[] | null =
-    content && establishmentImageCount !== null
+    content && establishmentImageCount !== null && modules !== null && (!catalogueEnabled || products !== null)
       ? [
           { label: "Renseigner l'établissement (nom, adresse)", done: Boolean(content.establishmentName.trim()), href: "/establishment" },
           { label: "Ajouter une description du site", done: Boolean(content.description.trim()), href: "/site#content" },
@@ -332,17 +344,24 @@ export default function DashboardSection({ clientSiteId, password }: DashboardSe
 
       {missingCgv && (
         <div className="rounded-card border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-          <strong>CGV manquantes.</strong> La boutique en ligne est active mais aucune condition
-          générale de vente n'est renseignée — le paiement reste désactivé pour tes clients.{" "}
+          <strong>CGV ou Politique de confidentialité manquantes.</strong> La boutique en ligne est
+          active mais l'un des deux textes obligatoires n'est pas renseigné — le paiement reste
+          désactivé pour tes clients.{" "}
           <a href={`/admin/${clientSiteId}/establishment`} className="underline">
-            Renseigner les CGV →
+            Renseigner →
           </a>
         </div>
       )}
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <StatTile label="Modules actifs" value={modules ? enabledModuleCount : "…"} />
-        <StatTile label="Offres" value={content ? content.offers.length : "…"} />
+        {/* Le module Offres n'est pas toujours actif (voir docs/04-catalogue-modules.md) — sur un
+            tenant sans ce module, "Offres : 0" fixe n'apprend rien, autant montrer les produits. */}
+        {Boolean(modules?.offres?.enabled) ? (
+          <StatTile label="Offres" value={content ? content.offers.length : "…"} />
+        ) : (
+          <StatTile label="Produits" value={catalogueEnabled ? products?.length ?? "…" : 0} />
+        )}
         <StatTile label="Messages reçus" value={messages ? messages.length : "…"} />
         <StatTile label="Mise en page" value={templateLabel} />
       </div>

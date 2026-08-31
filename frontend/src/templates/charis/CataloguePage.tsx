@@ -218,7 +218,7 @@ export default function CharisCataloguePage({ clientSiteId, apiBaseUrl }: Charis
       locale={locale}
       onChangeLocale={setLocale}
       palette={palette}
-      footer={<SiteFooter content={content} palette={palette} modules={modules} locale={locale} dark />}
+      footer={<SiteFooter clientSiteId={clientSiteId} content={content} palette={palette} modules={modules} locale={locale} dark />}
     >
       <div className="mx-auto flex max-w-7xl flex-col gap-8 px-4 py-10 sm:px-8">
         <div className="flex flex-wrap items-center justify-between gap-4">

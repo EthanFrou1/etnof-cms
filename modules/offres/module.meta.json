@@ -1,0 +1,6 @@
+{
+  "name": "offres",
+  "displayName": "Offres",
+  "description": "Grille tarifaire / mises en avant sur le site public, indépendante du Catalogue (utile à un client sans produits, ex. un artisan de service)",
+  "dependencies": []
+}

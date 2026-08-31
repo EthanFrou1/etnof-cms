@@ -17,10 +17,13 @@ public static class AdminToken
     // redémarrage du backend (acceptable vu la durée de vie courte du token).
     private static readonly string FallbackSecret = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
 
-    public static string Issue(IConfiguration config, string scope, Guid? siteId = null)
+    // `accountId` : uniquement pour le scope "tenant-employee" (voir TenantAdminAccount.cs) — permet
+    // à AdminActionLogMiddleware.cs de savoir PRÉCISÉMENT quel compte Employé a agi (plusieurs
+    // peuvent exister par tenant, "Employé" seul ne suffirait pas à retrouver qui exactement).
+    public static string Issue(IConfiguration config, string scope, Guid? siteId = null, Guid? accountId = null)
     {
         var exp = DateTimeOffset.UtcNow.Add(Ttl).ToUnixTimeSeconds();
-        var payload = JsonSerializer.Serialize(new TokenPayload(scope, siteId, exp));
+        var payload = JsonSerializer.Serialize(new TokenPayload(scope, siteId, exp, accountId));
         var payloadBytes = Encoding.UTF8.GetBytes(payload);
         var signature = Sign(config, payloadBytes);
 
@@ -34,10 +37,14 @@ public static class AdminToken
         return payload.Exp;
     }
 
-    public static bool TryValidate(IConfiguration config, string? token, out string scope, out Guid? siteId)
+    public static bool TryValidate(IConfiguration config, string? token, out string scope, out Guid? siteId) =>
+        TryValidate(config, token, out scope, out siteId, out _);
+
+    public static bool TryValidate(IConfiguration config, string? token, out string scope, out Guid? siteId, out Guid? accountId)
     {
         scope = "";
         siteId = null;
+        accountId = null;
         if (string.IsNullOrEmpty(token)) return false;
 
         var parts = token.Split('.');
@@ -71,6 +78,7 @@ public static class AdminToken
 
         scope = payload.Scope;
         siteId = payload.SiteId;
+        accountId = payload.AccountId;
         return true;
     }
 
@@ -99,5 +107,5 @@ public static class AdminToken
         return Convert.FromBase64String(padded);
     }
 
-    private record TokenPayload(string Scope, Guid? SiteId, long Exp);
+    private record TokenPayload(string Scope, Guid? SiteId, long Exp, Guid? AccountId = null);
 }

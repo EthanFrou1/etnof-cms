@@ -1,4 +1,4 @@
-import { useAdminSession } from "../hooks/useAdminSession";
+import { useAdminSession, decodeTokenScope } from "../hooks/useAdminSession";
 import { useModules } from "../hooks/useModules";
 import AdminLoginScreen from "../components/admin/AdminLoginScreen";
 import AdminLayout, {
@@ -11,6 +11,8 @@ import AdminLayout, {
   MULTILINGUE_SECTIONS,
   GALERIE_SECTIONS,
   PAGES_SECTIONS,
+  OFFERS_SECTIONS,
+  OWNER_ONLY_SECTIONS,
   type AdminSection,
 } from "../components/admin/AdminLayout";
 import DashboardSection from "./admin/DashboardSection";
@@ -31,6 +33,8 @@ import BlogSection from "./admin/BlogSection";
 import MultilingueSection from "./admin/MultilingueSection";
 import GallerySection from "./admin/GallerySection";
 import PagesSection from "./admin/PagesSection";
+import AccountsSection from "./admin/AccountsSection";
+import HistorySection from "./admin/HistorySection";
 
 type AdminPageProps = {
   clientSiteId: string;
@@ -64,11 +68,23 @@ export default function AdminPage({ clientSiteId, section }: AdminPageProps) {
     : MULTILINGUE_SECTIONS.includes(section) && !modules?.multilingue?.enabled ? "Multilingue"
     : GALERIE_SECTIONS.includes(section) && !modules?.galerie?.enabled ? "Galerie"
     : PAGES_SECTIONS.includes(section) && !modules?.pages?.enabled ? "Pages personnalisées"
+    : OFFERS_SECTIONS.includes(section) && !modules?.offres?.enabled ? "Offres"
     : null;
+
+  // Accès direct par URL à une section réservée au Propriétaire (Modules, Paiement Stripe, gestion
+  // des comptes) par un compte Employé — même principe que blockedByModule, mais côté rôle plutôt
+  // que module actif. Le backend refuse de toute façon ces endpoints (TenantAdminAuth.
+  // IsOwnerAuthorizedAsync), ceci n'est que l'affichage cohérent côté nav.
+  const isEmployee = decodeTokenScope(password) === "tenant-employee";
+  const blockedByRole = isEmployee && OWNER_ONLY_SECTIONS.includes(section);
 
   return (
     <AdminLayout clientSiteId={clientSiteId} activeSection={section} password={password}>
-      {blockedByModule ? (
+      {blockedByRole ? (
+        <div className="rounded-card bg-white p-8 shadow-card">
+          <p className="text-gray-text">Cette page est réservée au Propriétaire du site.</p>
+        </div>
+      ) : blockedByModule ? (
         <div className="rounded-card bg-white p-8 shadow-card">
           <p className="text-gray-text">
             Le module {blockedByModule} n'est pas activé pour ce site — cette page n'est pas disponible.
@@ -93,6 +109,8 @@ export default function AdminPage({ clientSiteId, section }: AdminPageProps) {
           {section === "multilingue" && <MultilingueSection clientSiteId={clientSiteId} password={password} />}
           {section === "galerie" && <GallerySection clientSiteId={clientSiteId} password={password} />}
           {section === "pages" && <PagesSection clientSiteId={clientSiteId} password={password} />}
+          {section === "accounts" && <AccountsSection clientSiteId={clientSiteId} password={password} />}
+          {section === "history" && <HistorySection clientSiteId={clientSiteId} password={password} />}
           {section === "messages" && <MessagesSection clientSiteId={clientSiteId} password={password} />}
         </>
       )}

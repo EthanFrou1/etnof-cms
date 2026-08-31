@@ -32,6 +32,24 @@ public static class StripeModule
                 return Results.BadRequest(new { error = "Le panier est vide." });
             }
 
+            // Garde-fou serveur (pas seulement l'affichage de CartPage.tsx, contournable en appelant
+            // cet endpoint directement) : CGV et politique de confidentialité obligatoires avant
+            // d'accepter un paiement réel — protège Ethan autant que ses clients (obligation légale,
+            // pas une fonctionnalité premium, voir docs/04-catalogue-modules.md). Exception : un site
+            // "Prospection" (démo/test créé par Ethan, voir SitesSection.tsx) n'a pas de vraie vente
+            // à protéger, ce garde-fou ne s'y applique pas.
+            var site = await db.ClientSites.FindAsync(clientSiteId);
+            if (site is null) return Results.NotFound();
+
+            if (site.Status != "Prospection")
+            {
+                var siteContent = await db.SiteContents.FirstOrDefaultAsync(c => c.ClientSiteId == clientSiteId);
+                if (siteContent is null || string.IsNullOrWhiteSpace(siteContent.CgvContent) || string.IsNullOrWhiteSpace(siteContent.PrivacyPolicyContent))
+                {
+                    return Results.BadRequest(new { error = "Le paiement en ligne nécessite des CGV et une politique de confidentialité renseignées." });
+                }
+            }
+
             var settings = await db.StripeSettings.FirstOrDefaultAsync(s => s.ClientSiteId == clientSiteId);
             if (settings is null || string.IsNullOrWhiteSpace(settings.SecretKey))
             {
@@ -235,6 +253,7 @@ public static class StripeModule
             {
                 var product = await db.Products
                     .Include(p => p.Sizes)
+                    .Include(p => p.Images)
                     .FirstOrDefaultAsync(p => p.ClientSiteId == clientSiteId && p.Id == line.ProductId);
                 if (product is null) continue;
 
@@ -265,6 +284,7 @@ public static class StripeModule
                     UnitPrice = product.Price,
                     Quantity = line.Quantity,
                     SizeLabel = size?.Label,
+                    ImagePath = product.Images.OrderBy(i => i.SortOrder).FirstOrDefault()?.Path,
                 });
             }
 

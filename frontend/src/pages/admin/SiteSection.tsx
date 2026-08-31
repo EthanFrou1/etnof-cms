@@ -5,6 +5,7 @@ import type { TemplateId } from "../../hooks/useTemplate";
 import { adminFetch } from "../../hooks/useAdminSession";
 import { TEMPLATES, resolvePalette } from "../../templates/registry";
 import RichTextEditor from "../../components/admin/RichTextEditor";
+import SaveButton from "../../components/admin/SaveButton";
 
 type SiteSectionProps = {
   clientSiteId: string;
@@ -309,6 +310,10 @@ export default function SiteSection({ clientSiteId, password }: SiteSectionProps
             googlePlaceName: content.googlePlaceName,
             openingHours: content.openingHours,
             cgvContent: content.cgvContent,
+            legalNoticeContent: content.legalNoticeContent,
+            privacyPolicyContent: content.privacyPolicyContent,
+            deliveryContent: content.deliveryContent,
+            returnsContent: content.returnsContent,
           }),
         })
       );
@@ -334,18 +339,12 @@ export default function SiteSection({ clientSiteId, password }: SiteSectionProps
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-extrabold text-navy">Site internet</h1>
-        <div className="flex items-center gap-3">
-          {saveStatus === "saved" && <span className="text-sm text-green-accent">Enregistré</span>}
-          {saveStatus === "error" && <span className="text-sm text-red-500">Erreur lors de l'enregistrement.</span>}
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={!isDirty || saveStatus === "saving"}
-            className="rounded-button bg-brand-gradient px-4 py-2.5 font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            {saveStatus === "saving" ? "Enregistrement…" : "Enregistrer"}
-          </button>
-        </div>
+        <SaveButton
+          status={saveStatus}
+          onClick={handleSave}
+          onIdle={() => setSaveStatus("idle")}
+          disabled={!isDirty}
+        />
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-card bg-white p-5 shadow-card">

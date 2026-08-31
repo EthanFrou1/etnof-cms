@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { API_BASE_URL } from "../../config";
 import { adminFetch } from "../../hooks/useAdminSession";
+import SaveButton from "../../components/admin/SaveButton";
 
 type WeekdayRule = {
   dayOfWeek: number;
@@ -109,7 +110,6 @@ function SchedulePanel({ clientSiteId, password }: RdvSectionProps) {
       setOriginalDuration(duration);
       setOriginalDays(days);
       setSaveStatus("saved");
-      setTimeout(() => setSaveStatus((current) => (current === "saved" ? "idle" : current)), 1500);
     } else {
       setSaveStatus("idle");
     }
@@ -123,17 +123,7 @@ function SchedulePanel({ clientSiteId, password }: RdvSectionProps) {
         <h3 className="text-sm font-semibold uppercase tracking-[0.05em] text-gray-text">
           Planning hebdomadaire
         </h3>
-        <div className="flex items-center gap-3">
-          {saveStatus === "saved" && <span className="text-sm text-green-accent">Enregistré</span>}
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={!isDirty || saveStatus === "saving"}
-            className="rounded-button bg-brand-gradient px-4 py-2.5 font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            {saveStatus === "saving" ? "Enregistrement…" : "Enregistrer"}
-          </button>
-        </div>
+        <SaveButton status={saveStatus} onClick={handleSave} onIdle={() => setSaveStatus("idle")} disabled={!isDirty} />
       </div>
 
       <label className="mb-4 flex items-center gap-2 text-sm font-medium text-gray-text">

@@ -81,6 +81,32 @@ app.UseRateLimiter();
 // Sert les photos produits uploadées (backend/wwwroot/uploads/{clientSiteId}/{productId}/...).
 app.UseStaticFiles();
 
+// Historique des actions admin (voir AdminActionLog.cs) — capture générique de toute écriture
+// (POST/PUT/DELETE) réussie sous /api/t/{clientSiteId}/admin/..., quel que soit l'endpoint. La
+// connexion elle-même (POST .../admin/login) n'a pas d'en-tête Authorization sur sa requête —
+// loguée à la main dans TenantAdminEndpoints.cs une fois le token émis, pas ici.
+app.Use(async (context, next) =>
+{
+    var match = AdminActionLogger.MatchTenantAdminPath(context.Request.Path.Value ?? "");
+    var isWrite = context.Request.Method is "POST" or "PUT" or "DELETE";
+
+    await next();
+
+    if (match is null || !isWrite) return;
+    if (context.Response.StatusCode < 200 || context.Response.StatusCode >= 300) return;
+
+    var db = context.RequestServices.GetRequiredService<AppDbContext>();
+    var config = context.RequestServices.GetRequiredService<IConfiguration>();
+    var actor = await AdminActionLogger.ResolveActorAsync(db, config, context.Request);
+    if (actor is null) return;
+
+    await AdminActionLogger.LogAsync(
+        db, match.Value.ClientSiteId, actor.Value.ActorType, actor.Value.ActorLabel,
+        context.Request.Method, context.Request.Path.Value ?? "",
+        AdminActionLogger.DescribeAction(context.Request.Method, match.Value.PathTail),
+        context.Response.StatusCode);
+});
+
 app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }));
 
 // Public : config des modules d'UN tenant (utilisé par useModules() côté frontend).
@@ -102,6 +128,8 @@ AgencyStripeEndpoints.MapEndpoints(app);
 InvoicePaymentEndpoints.MapEndpoints(app);
 AgencyEmailEndpoints.MapEndpoints(app);
 PackageOfferEndpoints.MapEndpoints(app);
+SeoEndpoints.MapEndpoints(app);
+AdminTokenEndpoints.MapEndpoints(app);
 
 // La route reste mappée même si le module est désactivé ; le handler vérifie l'état courant et
 // renvoie 404 dynamiquement, pour qu'un toggle depuis l'admin du tenant prenne effet sans redémarrage.

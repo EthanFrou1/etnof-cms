@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from "react";
+import { clearSession } from "../../hooks/useAdminSession";
 import {
   IconAppearance,
   IconCard,
@@ -198,6 +199,16 @@ export default function AgencyLayout({ activeSection, children }: AgencyLayoutPr
           >
             etnof-web
           </a>
+          <button
+            type="button"
+            onClick={() => {
+              clearSession("agency");
+              window.location.href = "/admin/dashboard";
+            }}
+            className="px-3 py-2 text-left text-xs text-white/40 hover:text-white/70"
+          >
+            Se déconnecter
+          </button>
         </div>
       </aside>
 

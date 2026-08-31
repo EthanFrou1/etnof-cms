@@ -147,7 +147,7 @@ export default function TemplateCharis({ clientSiteId, modules, content, palette
       locale={locale}
       onChangeLocale={onChangeLocale}
       palette={modulePalette}
-      footer={<SiteFooter content={content} palette={modulePalette} modules={modules} locale={locale} dark />}
+      footer={<SiteFooter clientSiteId={clientSiteId} content={content} palette={modulePalette} modules={modules} locale={locale} dark />}
     >
       <header className="px-4 pb-14 pt-10 sm:px-8">
         <div className="mx-auto flex max-w-7xl flex-col gap-6">
