@@ -503,11 +503,91 @@ public static class CatalogueAdminEndpoints
                 }
             }
 
+            // "Suivi" de la commande (voir OrderStatusChange.cs) — seulement si le statut change
+            // vraiment (renvoyer le même statut ne doit pas ajouter une entrée vide à la timeline).
+            if (input.Status != order.Status)
+            {
+                var actor = await AdminActionLogger.ResolveActorAsync(db, config, req);
+                db.OrderStatusChanges.Add(new OrderStatusChange
+                {
+                    Id = Guid.NewGuid(),
+                    ClientSiteId = clientSiteId,
+                    OrderId = order.Id,
+                    FromStatus = order.Status,
+                    ToStatus = input.Status,
+                    ActorLabel = actor?.ActorLabel ?? "Inconnu",
+                    CreatedAt = DateTime.UtcNow,
+                });
+            }
+
             order.Status = input.Status;
             await db.SaveChangesAsync();
             await transaction.CommitAsync();
 
             return Results.Ok(order);
+        });
+
+        // "Suivi" de la commande — historique des changements de statut, voir OrderStatusChange.cs.
+        group.MapGet("/orders/{id:guid}/status-changes", async (Guid clientSiteId, Guid id, HttpRequest req, IConfiguration config, AppDbContext db) =>
+        {
+            if (!await TenantAdminAuth.IsAuthorizedAsync(req, config, db, clientSiteId)) return Results.Unauthorized();
+
+            var changes = await db.OrderStatusChanges
+                .Where(c => c.ClientSiteId == clientSiteId && c.OrderId == id)
+                .OrderBy(c => c.CreatedAt)
+                .ToListAsync();
+
+            return Results.Ok(changes);
+        });
+
+        // Commentaires internes sur une commande (jamais visibles du client) — voir OrderComment.cs.
+        group.MapGet("/orders/{id:guid}/comments", async (Guid clientSiteId, Guid id, HttpRequest req, IConfiguration config, AppDbContext db) =>
+        {
+            if (!await TenantAdminAuth.IsAuthorizedAsync(req, config, db, clientSiteId)) return Results.Unauthorized();
+
+            var comments = await db.OrderComments
+                .Where(c => c.ClientSiteId == clientSiteId && c.OrderId == id)
+                .OrderBy(c => c.CreatedAt)
+                .ToListAsync();
+
+            return Results.Ok(comments);
+        });
+
+        group.MapPost("/orders/{id:guid}/comments", async (Guid clientSiteId, Guid id, OrderCommentInput input, HttpRequest req, IConfiguration config, AppDbContext db) =>
+        {
+            if (!await TenantAdminAuth.IsAuthorizedAsync(req, config, db, clientSiteId)) return Results.Unauthorized();
+            if (string.IsNullOrWhiteSpace(input.Text)) return Results.BadRequest(new { error = "Commentaire vide." });
+
+            var orderExists = await db.Orders.AnyAsync(o => o.ClientSiteId == clientSiteId && o.Id == id);
+            if (!orderExists) return Results.NotFound();
+
+            var actor = await AdminActionLogger.ResolveActorAsync(db, config, req);
+            var comment = new OrderComment
+            {
+                Id = Guid.NewGuid(),
+                ClientSiteId = clientSiteId,
+                OrderId = id,
+                AuthorLabel = actor?.ActorLabel ?? "Inconnu",
+                Text = input.Text.Trim(),
+                CreatedAt = DateTime.UtcNow,
+            };
+            db.OrderComments.Add(comment);
+            await db.SaveChangesAsync();
+
+            return Results.Created($"/api/t/{clientSiteId}/admin/catalogue/orders/{id}/comments/{comment.Id}", comment);
+        });
+
+        group.MapDelete("/orders/{id:guid}/comments/{commentId:guid}", async (Guid clientSiteId, Guid id, Guid commentId, HttpRequest req, IConfiguration config, AppDbContext db) =>
+        {
+            if (!await TenantAdminAuth.IsAuthorizedAsync(req, config, db, clientSiteId)) return Results.Unauthorized();
+
+            var comment = await db.OrderComments.FirstOrDefaultAsync(c => c.Id == commentId && c.OrderId == id && c.ClientSiteId == clientSiteId);
+            if (comment is null) return Results.NotFound();
+
+            db.OrderComments.Remove(comment);
+            await db.SaveChangesAsync();
+
+            return Results.Ok();
         });
 
         group.MapGet("/customers", async (Guid clientSiteId, HttpRequest req, IConfiguration config, AppDbContext db) =>
@@ -620,5 +700,6 @@ public record ReorderSizesInput(List<Guid> SizeIds);
 public record CollectionInput(string Name);
 public record ReorderCollectionsInput(List<Guid> CollectionIds);
 public record OrderStatusInput(string Status);
+public record OrderCommentInput(string Text);
 public record CustomerInput(string Name, string Email, string Phone, string AddressLine1, string AddressLine2, string PostalCode, string City, string Country, string Notes);
 public record SelectReviewInput(bool Selected);

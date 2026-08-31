@@ -5,6 +5,7 @@ import { useContent } from "../hooks/useContent";
 import { useTemplate } from "../hooks/useTemplate";
 import { useLocale } from "../hooks/useLocale";
 import { useDocumentMeta } from "../hooks/useDocumentMeta";
+import { buildLocalBusinessSchema } from "../utils/structuredData";
 import TemplateHestia from "../templates/TemplateHestia";
 import TemplateHelios from "../templates/TemplateHelios";
 import TemplateCharis from "../templates/TemplateCharis";
@@ -25,6 +26,7 @@ export default function PublicSite({ clientSiteId }: PublicSiteProps) {
     title: content?.siteName || "…",
     description: content?.description,
     faviconUrl: logoUrl ? `${API_BASE_URL}${logoUrl}` : undefined,
+    structuredData: buildLocalBusinessSchema(content, window.location.href.split("?")[0]) ?? undefined,
   });
 
   if (!templateId) return null;

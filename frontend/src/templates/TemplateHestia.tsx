@@ -247,7 +247,7 @@ export default function TemplateHestia({ clientSiteId, modules, content, palette
     content?.openingHours?.some((d) => (d.morningOpen && d.morningClose) || (d.afternoonOpen && d.afternoonClose))
   );
   const showHours = Boolean(modules?.horaires?.enabled) && hasConfiguredHours;
-  const hasOffers = Boolean(content && content.offers.length > 0);
+  const hasOffers = Boolean(modules?.offres?.enabled && content && content.offers.length > 0);
 
   // Fond alterné : chaque section réellement affichée (dans l'ordre) prend le fond opposé à la
   // précédente. Le hero ouvre toujours en ton "palette.background" (cohérent avec la navbar
@@ -593,7 +593,7 @@ export default function TemplateHestia({ clientSiteId, modules, content, palette
         </Suspense>
       </Band>
 
-      <SiteFooter content={content} palette={modulePalette} modules={modules} locale={locale} dark />
+      <SiteFooter clientSiteId={clientSiteId} content={content} palette={modulePalette} modules={modules} locale={locale} dark />
 
       {/* Bouton flottant hors du flux de bandes (persistant, pas une section qu'on scrolle) — voir
           modules/whatsapp/frontend/WhatsAppButton.tsx : pas de lien de nav ni d'ancre associée. */}

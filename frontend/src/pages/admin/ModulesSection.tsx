@@ -3,6 +3,7 @@ import { API_BASE_URL, AGENCY_CONTACT_EMAIL } from "../../config";
 import type { ModuleConfig, ModulesConfig } from "../../hooks/useModules";
 import { adminFetch } from "../../hooks/useAdminSession";
 import { MODULE_IMAGES } from "../../moduleIcons";
+import SaveButton from "../../components/admin/SaveButton";
 
 type ModulesSectionProps = {
   clientSiteId: string;
@@ -12,8 +13,11 @@ type ModulesSectionProps = {
 // Prix stocké en texte libre par Ethan (voir PricingSection.tsx, espace agence) — parfois
 // avec "EUR" ou "€" déjà tapé, parfois juste un nombre. On n'affiche jamais cette valeur brute : on
 // n'en garde que les chiffres et on ajoute systématiquement "€", pour que l'unité soit toujours la
-// même quelle que soit la façon dont le prix a été saisi.
+// même quelle que soit la façon dont le prix a été saisi. Exception : la sentinelle "Gratuit" (case
+// "Gratuit" cochée côté PricingSection.tsx), affichée telle quelle plutôt que passée au filtre à
+// chiffres qui la viderait.
 function formatPriceEur(rawPrice: string): string {
+  if (rawPrice.trim().toLowerCase() === "gratuit") return "Gratuit";
   const digits = rawPrice.replace(/[^0-9]/g, "");
   return digits ? `${digits} €` : "";
 }
@@ -166,7 +170,11 @@ function ModuleCard({
               href={activationMailto(clientSiteId, displayName, price)}
               className="shrink-0 rounded-button bg-brand-gradient px-4 py-2.5 text-sm font-semibold text-white shadow-soft transition-opacity hover:opacity-90"
             >
-              {price ? `Activer pour ${price}` : "Contacte l'agence pour l'activer"}
+              {price === "Gratuit"
+                ? "Demander l'activation (gratuit)"
+                : price
+                ? `Activer pour ${price}`
+                : "Contacte l'agence pour l'activer"}
             </a>
           </div>
         )}
@@ -277,7 +285,6 @@ export default function ModulesSection({ clientSiteId, password }: ModulesSectio
     );
     await load();
     setSaveStatus("saved");
-    setTimeout(() => setSaveStatus((current) => (current === "saved" ? "idle" : current)), 1500);
   };
 
   const visibleModules = modules
@@ -290,17 +297,7 @@ export default function ModulesSection({ clientSiteId, password }: ModulesSectio
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-extrabold text-navy">Modules disponibles</h1>
-        <div className="flex items-center gap-3">
-          {saveStatus === "saved" && <span className="text-sm text-green-accent">Enregistré</span>}
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={!isDirty || saveStatus === "saving"}
-            className="rounded-button bg-brand-gradient px-4 py-2.5 font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            {saveStatus === "saving" ? "Enregistrement…" : "Enregistrer"}
-          </button>
-        </div>
+        <SaveButton status={saveStatus} onClick={handleSave} onIdle={() => setSaveStatus("idle")} disabled={!isDirty} />
       </div>
 
       <div className="flex flex-wrap gap-2">

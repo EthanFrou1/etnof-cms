@@ -43,6 +43,14 @@ public class SiteContent
     // désactivé tant que ce champ est vide sur un site où Catalogue+Stripe sont actifs.
     public string CgvContent { get; set; } = string.Empty;
 
+    // Mentions légales et politique de confidentialité — même raisonnement que CgvContent : obligation
+    // légale pour tout site (pas seulement une boutique en ligne), donc champs "core" plutôt qu'une
+    // page libre du module Pages (payant, optionnel). Pages publiques dédiées, voir LegalNoticePage.tsx
+    // et PrivacyPolicyPage.tsx. Pas de garde-fou bloquant comme les CGV (pas de flux de paiement à
+    // interrompre ici) — juste affichées si non vides, comme DeliveryContent/ReturnsContent.
+    public string LegalNoticeContent { get; set; } = string.Empty;
+    public string PrivacyPolicyContent { get; set; } = string.Empty;
+
     // Livraison/Retours affichés dans l'accordéon de la fiche produit (charis/ProductPage.tsx,
     // PurchaseInfo) — contrairement aux CGV, pas une obligation légale : vide par défaut pour un
     // nouveau tenant (tous les commerces ne font pas de livraison/retours, ex. un salon de coiffure),

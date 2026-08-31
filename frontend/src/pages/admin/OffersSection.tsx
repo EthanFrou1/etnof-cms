@@ -4,6 +4,7 @@ import type { Offer, SiteContent } from "../../hooks/useContent";
 import { adminFetch } from "../../hooks/useAdminSession";
 import { useModules } from "../../hooks/useModules";
 import Select from "../../components/admin/Select";
+import SaveButton from "../../components/admin/SaveButton";
 
 type EditableOffer = Offer & { id: string };
 
@@ -116,6 +117,10 @@ export default function OffersSection({ clientSiteId, password }: OffersSectionP
         googlePlaceName: content.googlePlaceName,
         openingHours: content.openingHours,
         cgvContent: content.cgvContent,
+        legalNoticeContent: content.legalNoticeContent,
+        privacyPolicyContent: content.privacyPolicyContent,
+        deliveryContent: content.deliveryContent,
+        returnsContent: content.returnsContent,
       }),
     });
     if (res.ok) {
@@ -130,18 +135,12 @@ export default function OffersSection({ clientSiteId, password }: OffersSectionP
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-extrabold text-navy">Offres</h1>
-        <div className="flex items-center gap-3">
-          {status === "saved" && <span className="text-sm text-green-accent">Enregistré</span>}
-          {status === "error" && <span className="text-sm text-red-500">Erreur lors de l'enregistrement.</span>}
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={status === "saving" || !isDirty}
-            className="rounded-button bg-brand-gradient px-4 py-2.5 font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            {status === "saving" ? "Enregistrement…" : "Enregistrer"}
-          </button>
-        </div>
+        <SaveButton
+          status={status}
+          onClick={handleSave}
+          onIdle={() => setStatus("idle")}
+          disabled={!isDirty}
+        />
       </div>
 
       <section className="rounded-card bg-white p-8 shadow-card">

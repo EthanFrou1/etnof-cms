@@ -5,10 +5,10 @@ Aligné sur la grille tarifaire etnof-web actuelle. Statut : à date de rédacti
 | Module | Option tarif correspondante | Statut |
 |---|---|---|
 | Contact | Formulaire de contact (inclus formule Essentiel) | Implémenté (Phase 2) |
-| Maps | Carte Google Maps (offert) | Implémenté (Phase 2) — clé Google Maps API à fournir par le client |
+| Maps | Carte Google Maps (offert) | Implémenté (Phase 2) — clé Google Maps API à fournir par le client. Basculé sur la sentinelle "Gratuit" de `/admin/dashboard/tarifs` le 2026-08-31 (remplace l'ancien prix "100€" resté en base par erreur, non conforme à la grille tarifaire) |
 | Blog | Blog (+250€) | Implémenté (Phase 4, affichage public uniquement) — admin (créer/éditer/publier/supprimer un article) ajouté le 2026-07-29, `/admin/{clientSiteId}/blog`. Éditeur riche (TipTap) ajouté le 2026-08-06, voir `docs/12-plan-modules-restants.md` |
 | Catalogue produits | Absent de la grille tarifaire actuelle — à prioriser par Ethan | Implémenté (2026-07-26). Produits (photos, prix, description, stock) + panier + commande. Pas de paiement en ligne réel (voir note ci-dessous) |
-| Horaires | Absent de la grille tarifaire actuelle — gratuit pour l'instant (décision d'Ethan) | Implémenté (2026-07-27). Onglet Horaires dans la page Établissement (récupération auto depuis Google Places, pause méridienne) — gate l'onglet admin, pas les données (stockées dans `SiteContent` comme le reste d'Établissement). Affichage sur le site public pas encore câblé |
+| Horaires | Absent de la grille tarifaire actuelle — gratuit pour l'instant (décision d'Ethan) | Implémenté (2026-07-27). Onglet Horaires dans la page Établissement (récupération auto depuis Google Places, pause méridienne) — gate l'onglet admin, pas les données (stockées dans `SiteContent` comme le reste d'Établissement). Affichage sur le site public pas encore câblé. Basculé sur la sentinelle "Gratuit" de `/admin/dashboard/tarifs` le 2026-08-31 |
 | Back-office / CMS léger | Back-office/CMS (+450€) | Largement couvert par l'admin `/admin` du POC (Phase 3) — reste à durcir avant vente (voir bilan Phase 5) |
 | Multilingue | Multilingue (+250€) | Implémenté (2026-07-30). Traduit le nom du site, la description, les offres et les articles de blog en anglais et espagnol (portée volontaire, décision d'Ethan — pas de multilingue pour l'établissement/adresse/téléphone). Voir `docs/12-plan-modules-restants.md` |
 | RDV | Prise de rendez-vous (+290€) | Implémenté (2026-07-28). Gabarit hebdomadaire récurrent (durée de créneau globale + plage horaire active par jour, indépendante du module Horaires), créneaux générés à la volée, réservation publique (nom/email/téléphone/note), annulation côté admin qui libère le créneau. Voir `docs/12-plan-modules-restants.md` pour la portée détaillée |
@@ -17,13 +17,37 @@ Aligné sur la grille tarifaire etnof-web actuelle. Statut : à date de rédacti
 | Newsletter | Newsletter (+190€) | Implémenté (2026-07-28). Formulaire d'inscription email public, liste + export CSV côté admin. Pas d'envoi de campagne (hors scope V1, voir `docs/12-plan-modules-restants.md`) |
 | Avis Google | Avis Google (+100€) | Implémenté (2026-07-28). L'admin lie une fiche Google Places puis récupère les avis à la demande (bouton "Actualiser") ; le client choisit ceux affichés publiquement. Jamais de rafraîchissement automatique — le champ "reviews" de l'API Google Places est payant (voir `docs/12-plan-modules-restants.md`) |
 | WhatsApp | Bouton WhatsApp (+90€) | Implémenté (2026-07-28). Bouton flottant (vert WhatsApp officiel, reconnaissable) ouvrant `wa.me` avec un message pré-rempli configurable. Aucun backend, purement frontend (même principe que Maps) |
-| Chat IA | Chat IA (+390€) | Mis de côté pour l'instant (décision d'Ethan, 2026-07-29) — pas abandonné, juste dépriorisé après Stripe |
-| FAQ IA | FAQ IA (+290€) | Mis de côté pour l'instant (décision d'Ethan, 2026-07-29) — pas abandonné, juste dépriorisé après Stripe |
-| SEO avancé | SEO avancé (+390€) | Post-POC (transverse, pas un vrai "module" isolé). Une base gratuite (titre + meta description + Open Graph, posés en JS) est déjà livrée hors module, voir `docs/12-plan-modules-restants.md` |
+| Chat IA | Chat IA (+390€) | Abandonné (décision d'Ethan, 2026-08-31) — mis de côté depuis le 2026-07-29, tranché définitivement |
+| FAQ IA | FAQ IA (+290€) | Abandonné (décision d'Ethan, 2026-08-31) — mis de côté depuis le 2026-07-29, tranché définitivement |
+| SEO avancé | SEO avancé (+390€) | Post-POC (transverse, pas un vrai "module" isolé). Base gratuite (titre + meta description + Open Graph) déjà livrée hors module, voir `docs/12-plan-modules-restants.md`. Étendue le 2026-08-31 : lien canonique sur chaque page publique, données structurées JSON-LD (`LocalBusiness` sur la home, `Product` sur la fiche produit Charis, `BlogPosting` sur un article), `sitemap.xml`/`robots.txt` par tenant (`GET /api/t/{clientSiteId}/sitemap.xml`/`robots.txt`, backend/SeoEndpoints.cs) |
 | Réseaux sociaux | Absent de la grille tarifaire actuelle — à prioriser par Ethan | Implémenté (2026-08-06). Icônes Facebook/Instagram dans le pied de page (couleurs de marque officielles, même rationale que WhatsApp), masquées individuellement si l'URL correspondante est vide |
 | Galerie | Absent de la grille tarifaire actuelle — à prioriser par Ethan | Implémenté (2026-08-06). Galerie de photos illimitée (contrairement aux 3 photos d'Établissement), grille cliquable avec agrandissement plein écran. Module complet (backend + admin + section publique), voir `docs/02-architecture-modules.md` |
 | Statistiques (Google Analytics) | Absent de la grille tarifaire actuelle — à prioriser par Ethan | Implémenté (2026-08-06). Le client colle son ID de mesure GA4 ; le script Google Analytics ne se charge qu'après consentement explicite via un bandeau RGPD (choix mémorisé en localStorage). Voir `docs/12-plan-modules-restants.md` pour le détail et les limites de la V1 |
-| Pages personnalisées | Page supplémentaire (+80€) | Implémenté (2026-08-06), tranché en vrai module plutôt qu'en livrable manuel. Pages libres (mentions légales, CGV, à propos...) réunies sous un menu déroulant configurable dans le header, ordre choisi par le client (boutons monter/descendre). Même éditeur riche que le Blog. Voir `docs/12-plan-modules-restants.md` |
+| Pages personnalisées | Page supplémentaire (+80€) | Implémenté (2026-08-06), tranché en vrai module plutôt qu'en livrable manuel. Pages libres (à propos...) réunies sous un menu déroulant configurable dans le header, ordre choisi par le client (boutons monter/descendre). Même éditeur riche que le Blog. Voir `docs/12-plan-modules-restants.md` |
+| Offres | Absent de la grille tarifaire actuelle — gratuit (décision d'Ethan, 2026-08-31) | Implémenté depuis la Phase 3 (grille tarifaire/mises en avant, indépendante du Catalogue). Basculé en vrai module le 2026-08-31 : gate l'onglet admin "Offres" et l'affichage public (Hestia/Helios), donnée toujours dans `SiteContent.Offers` comme avant (même pattern que Horaires). Marqué "Gratuit" via `/admin/dashboard/tarifs` (voir mécanisme ci-dessous) — reste autorisé au cas par cas par Ethan comme n'importe quel module, un module gratuit n'est pas activé automatiquement pour tous les tenants |
+
+## Mécanisme "Gratuit" (ajouté le 2026-08-31)
+
+`ModulePrice.Price` (colonne texte libre, éditée depuis `/admin/dashboard/tarifs`, `PricingSection.tsx`)
+accepte désormais la sentinelle `"Gratuit"` en plus d'un montant chiffré — une case à cocher dans
+l'UI, pas une saisie manuelle. Un module marqué ainsi affiche "Gratuit" (et "Demander l'activation
+(gratuit)" côté admin client) au lieu de "Activer pour {prix} €". **Ça ne change rien à
+l'autorisation** : Ethan continue de choisir tenant par tenant qui a accès à un module, gratuit ou
+non, via la case "Modules autorisés" de `/admin/dashboard/sites` — décision explicite d'Ethan pour ne
+pas activer automatiquement un module gratuit chez tout le monde. Maps et Horaires (déjà notés
+"offert"/"gratuit" ci-dessus avant ce mécanisme) sont basculés sur cette sentinelle depuis le
+2026-08-31, au même titre qu'Offres.
+
+## Mentions légales / Politique de confidentialité — pas un module (ajouté le 2026-08-31)
+
+Contrairement à Offres ci-dessus, ces deux pages ne sont **pas** devenues un module, même gratuit —
+même raisonnement que les CGV (voir `SiteContent.CgvContent`) : obligation légale pour tout site
+professionnel, pas une fonctionnalité qu'un client pourrait désactiver. Champs core
+(`SiteContent.LegalNoticeContent`/`PrivacyPolicyContent`), onglet "Mentions légales" de la page
+Établissement, pages publiques dédiées (`/mentions-legales`, `/confidentialite`), toujours
+disponibles quel que soit l'état des modules. Un lien vers chacune (plus CGV) apparaît en bas de
+page, sous le footer existant plutôt que fondu dedans (demande d'Ethan) — voir
+`frontend/src/templates/SiteFooter.tsx`, `LegalLinksBar` — uniquement pour les pages déjà renseignées.
 
 ## Note (mise à jour après le bilan Phase 5)
 
@@ -122,6 +146,20 @@ Ethan a soulevé un vrai trou : un client bloqué par une rupture (produit entie
 - **Condition d'affichage** (`showStockRequest`, dupliquée à l'identique dans `charis/ProductPage.tsx` et `CatalogueSection.tsx`) : une taille précise épuisée si le client en a sélectionné une, sinon seulement si le produit est *entièrement* épuisé — pour ne pas afficher "prévenez-moi" simplement parce qu'aucune taille n'a encore été cliquée alors que d'autres restent disponibles.
 - **Tailles épuisées rendues cliquables** (`charis/ProductPage.tsx`, `CatalogueSection.tsx`) : jusqu'ici un vrai `disabled` HTML empêchait toute sélection d'une taille à 0 — retiré (juste un style grisé) pour que le client puisse choisir précisément la taille qui l'intéresse et déclencher la demande pour celle-ci. Sur la card à survol de Charis (`charis/ProductCard.tsx`, espace trop compact pour un formulaire), une taille épuisée reste non cliquable pour ajouter au panier mais laisse maintenant le clic remonter vers la navigation `<a>` de la card, qui envoie vers la fiche produit complète.
 - **Admin** : nouvelle section "Demandes de réassort" sur la fiche produit (`ProductDetailPage.tsx`, au-dessus des Avis) — liste email/taille/date, suppression avec `ConfirmModal` (même pattern que les avis/tailles/photos). Section masquée si aucune demande, pas de nouvel onglet/page pour rester simple.
+
+**Mise à jour du 2026-08-31 — photo produit dans l'historique de commande + bouton "Contacter l'établissement"**
+
+Deux trous relevés par Ethan sur la page "Mon compte" du module Compte client (`AccountPage.tsx`) : l'historique de commandes n'affichait que texte/prix (aucune photo pour identifier l'article visuellement) et aucun moyen de contacter le tenant depuis cette page.
+
+- `OrderItem` gagne `ImagePath` (`string?`, migration `AddOrderItemImagePath`) — copié depuis la 1ʳᵉ photo du produit (triée par `SortOrder`) au moment de la commande dans `StripeModule.cs`, même logique snapshot que `ProductName`/`UnitPrice`/`SizeLabel` (reste correct même si le produit/ses photos sont modifiés après coup). `null` si le produit n'avait aucune photo — l'historique retombe alors sur un espace réservé plutôt qu'une image cassée.
+- Bouton "Contacter l'établissement" (mailto simple vers `SiteContent.Email`, jamais `ManagerEmail` qui reste un contact interne non public) au-dessus de la liste des commandes — pas de nouveau formulaire/endpoint, le module Contact existant n'étant pas garanti actif pour tous les tenants.
+
+**Mise à jour du 2026-08-31 (même jour) — blocage du paiement durci côté serveur + statut "Prospection"**
+
+Suite directe du blocage CGV du 2026-08-06 ci-dessus : Ethan a fait remarquer que ce garde-fou n'existait que côté `CartPage.tsx` (le bouton disparaît de l'UI) — rien n'empêchait techniquement d'appeler directement `POST /stripe/checkout` sans CGV renseignées. Discussion sur l'ampleur du garde-fou (bloquer la création du site tant que des étapes ne sont pas remplies, vs. bloquer uniquement le paiement) : Ethan a tranché pour la seconde option, plus ciblée — un site peut rester visible et incomplet, seule une vraie vente doit être impossible sans être en conformité légale.
+
+- **`StripeModule.cs`** (`POST /api/t/{clientSiteId}/stripe/checkout`) refuse désormais de créer une session Stripe si `SiteContent.CgvContent` **ou** `PrivacyPolicyContent` est vide (la Politique de confidentialité rejoint les CGV dans ce garde-fou — obligation RGPD dès qu'une commande collecte des données). Garde-fou serveur, donc impossible à contourner en appelant l'API directement — le blocage de `CartPage.tsx` (étendu à `PrivacyPolicyContent` au passage) reste un confort d'affichage, pas la seule protection.
+- **Nouveau statut `ClientSite.Status` "Prospection"** (`SitesSection.tsx`) : un site de démo/prospect créé par Ethan sans vraie vente à protéger — le garde-fou ci-dessus est ignoré pour ce statut uniquement. Un site créé normalement reste par défaut sur "En cours" (pas "Prospection"), pour qu'un vrai client ne se retrouve jamais avec ce garde-fou désactivé sans qu'Ethan l'ait choisi explicitement.
 
 Testé : `dotnet build -c Release`/`tsc -b` propres, migration appliquée (table `StockRequests` créée). Pas de vérification visuelle dans cet environnement — **le backend de dev doit être redémarré** pour charger ces nouveaux endpoints. **À confirmer par Ethan** : sur un produit à tailles avec une taille à 0, cliquer cette taille (Charis fiche produit et Hestia/Helios card) fait apparaître "Prévenez-moi" ; soumission → apparaît dans la section "Demandes de réassort" de l'admin ; produit entièrement épuisé (sans tailles) → même comportement sans sélection de taille requise.
 

@@ -13,6 +13,8 @@ import { useTemplate } from "../../hooks/useTemplate";
 import { useModules } from "../../hooks/useModules";
 import { useContent } from "../../hooks/useContent";
 import { useLocale } from "../../hooks/useLocale";
+import { useDocumentMeta } from "../../hooks/useDocumentMeta";
+import { buildProductSchema } from "../../utils/structuredData";
 import { resolvePalette } from "../registry";
 import SiteFooter from "../SiteFooter";
 import SiteChrome from "./SiteChrome";
@@ -581,6 +583,26 @@ function ProductPageContent({
       .catch(() => setProduct(null));
   }, [apiBaseUrl, clientSiteId, productId]);
 
+  // SEO avancé (2026-08-31) : titre/meta propres à la fiche produit (jusqu'ici cette page n'en
+  // posait aucun, elle héritait du titre générique du site) + données structurées Product — voir
+  // frontend/src/utils/structuredData.ts.
+  useDocumentMeta({
+    title: product ? product.name : "…",
+    description: product?.description,
+    structuredData: product
+      ? buildProductSchema(
+          {
+            name: product.name,
+            description: product.description,
+            price: product.price,
+            imageUrl: product.images[0] ? `${apiBaseUrl}${product.images[0].path}` : undefined,
+            inStock: product.sizes.length > 0 ? product.sizes.some((s) => s.stock > 0) : product.stock > 0,
+          },
+          window.location.href.split("?")[0]
+        )
+      : undefined,
+  });
+
   useEffect(() => {
     fetch(`${apiBaseUrl}/api/t/${clientSiteId}/catalogue/collections`)
       .then((res) => (res.ok ? res.json() : []))
@@ -885,7 +907,7 @@ export default function ProductPage({ clientSiteId, productId, apiBaseUrl }: Pro
       locale={locale}
       onChangeLocale={setLocale}
       palette={palette}
-      footer={<SiteFooter content={content} palette={palette} modules={modules} locale={locale} dark />}
+      footer={<SiteFooter clientSiteId={clientSiteId} content={content} palette={palette} modules={modules} locale={locale} dark />}
     >
       <div className="mx-auto flex max-w-7xl flex-col gap-10 px-4 py-10 sm:px-8">
         <ProductPageContent

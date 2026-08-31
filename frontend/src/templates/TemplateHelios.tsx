@@ -98,7 +98,7 @@ export default function TemplateHelios({ clientSiteId, modules, content, palette
   // "Palette appliquée aux modules" : chaque module reçoit accent/background/ink, plus de charte
   // etnof-web codée en dur.
   const modulePalette = { accent, background, ink };
-  const [firstOffer, ...restOffers] = content?.offers ?? [];
+  const [firstOffer, ...restOffers] = modules?.offres?.enabled ? content?.offers ?? [] : [];
   const hasStory = Boolean(content?.storyContent?.trim());
 
   return (
@@ -399,7 +399,7 @@ export default function TemplateHelios({ clientSiteId, modules, content, palette
           </Reveal>
         </Suspense>
 
-        <SiteFooter content={content} palette={modulePalette} modules={modules} locale={locale} />
+        <SiteFooter clientSiteId={clientSiteId} content={content} palette={modulePalette} modules={modules} locale={locale} />
       </div>
 
       {/* Bouton flottant hors du flux normal (persistant, pas une section qu'on scrolle) — voir

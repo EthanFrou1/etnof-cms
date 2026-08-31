@@ -3,6 +3,7 @@ import { API_BASE_URL } from "../../config";
 import { adminFetch } from "../../hooks/useAdminSession";
 import { useModules } from "../../hooks/useModules";
 import AutoTranslateButton, { translateTexts } from "../../components/admin/AutoTranslateButton";
+import SaveButton, { type SaveStatus } from "../../components/admin/SaveButton";
 
 type AvisGoogleSectionProps = {
   clientSiteId: string;
@@ -87,7 +88,7 @@ function TranslationTab({ clientSiteId, password }: { clientSiteId: string; pass
   const [locale, setLocale] = useState<Locale>("en");
   const [reviews, setReviews] = useState<ReviewTranslation[] | null>(null);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
-  const [savedId, setSavedId] = useState<string | null>(null);
+  const [rowStatus, setRowStatus] = useState<Record<string, SaveStatus>>({});
 
   const load = () =>
     adminFetch(API_BASE_URL, `/api/t/${clientSiteId}/admin/avis-google/translations?locale=${locale}`, password)
@@ -103,14 +104,14 @@ function TranslationTab({ clientSiteId, password }: { clientSiteId: string; pass
   }, [locale]);
 
   const saveReview = async (reviewId: string, text: string) => {
-    await adminFetch(API_BASE_URL, `/api/t/${clientSiteId}/admin/avis-google/translations/${reviewId}`, password, {
+    setRowStatus((s) => ({ ...s, [reviewId]: "saving" }));
+    const res = await adminFetch(API_BASE_URL, `/api/t/${clientSiteId}/admin/avis-google/translations/${reviewId}`, password, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ locale, text }),
     });
-    await load();
-    setSavedId(reviewId);
-    setTimeout(() => setSavedId((current) => (current === reviewId ? null : current)), 1500);
+    if (res.ok) await load();
+    setRowStatus((s) => ({ ...s, [reviewId]: res.ok ? "saved" : "error" }));
   };
 
   return (
@@ -147,7 +148,6 @@ function TranslationTab({ clientSiteId, password }: { clientSiteId: string; pass
                 <div className="mb-3 flex items-center justify-between gap-3">
                   <span className="text-sm font-semibold text-navy">{review.authorName}</span>
                   <div className="flex items-center gap-3">
-                    {savedId === review.reviewId && <span className="text-sm text-green-accent">Enregistré</span>}
                     <AutoTranslateButton
                       onTranslate={async () => {
                         const [text] = await translateTexts(clientSiteId, password, [review.original.text], locale);
@@ -155,14 +155,13 @@ function TranslationTab({ clientSiteId, password }: { clientSiteId: string; pass
                         await saveReview(review.reviewId, text);
                       }}
                     />
-                    <button
-                      type="button"
+                    <SaveButton
+                      status={rowStatus[review.reviewId] ?? "idle"}
                       onClick={() => saveReview(review.reviewId, draft)}
+                      onIdle={() => setRowStatus((s) => ({ ...s, [review.reviewId]: "idle" }))}
                       disabled={!isDirty}
-                      className="rounded-button border border-border-subtle px-3 py-1.5 text-sm font-medium text-gray-text transition-opacity hover:bg-bg-page-start disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                      Enregistrer
-                    </button>
+                      size="sm"
+                    />
                   </div>
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">

@@ -8,15 +8,20 @@ import { IconExternalLink } from "../../components/admin/icons";
 import ModuleThumbnail from "../../components/admin/ModuleThumbnail";
 import Select from "../../components/admin/Select";
 import ConfirmModal from "../../components/admin/ConfirmModal";
+import ActionLogTable, { type ActionLog } from "../../components/admin/ActionLogTable";
 
-const STATUSES = ["En cours", "Livré", "En maintenance"];
+// "Prospection" : site de démo/test créé sans vraie vente à protéger — voir StripeModule.cs,
+// `/stripe/checkout` ignore le garde-fou CGV/Politique de confidentialité pour ce statut. Ne pas
+// utiliser pour un site livré à un vrai client, même en attendant qu'il finisse sa configuration.
+const STATUSES = ["Prospection", "En cours", "Livré", "En maintenance"];
 
 // Couleur par statut — reprise pour le pill du statut, voir docs/09-charte-graphique.md (vert =
-// accent positif, bleu = brand, ambre = attention).
+// accent positif, bleu = brand, ambre = attention, violet = démo/test).
 const STATUS_STYLES: Record<string, string> = {
   "Livré": "bg-green-accent/10 text-green-accent",
   "En cours": "bg-brand-mid/10 text-brand-mid",
   "En maintenance": "bg-amber-100 text-amber-700",
+  "Prospection": "bg-purple-100 text-purple-700",
 };
 
 type ClientSite = {
@@ -45,7 +50,10 @@ const emptyForm = {
   siteType: "",
   description: "",
   url: "",
-  status: STATUSES[0],
+  // "En cours" par défaut, pas STATUSES[0] ("Prospection") — un site créé pour un vrai client ne
+  // doit pas se retrouver avec le garde-fou de paiement désactivé sans qu'Ethan l'ait choisi
+  // explicitement (voir StripeModule.cs).
+  status: "En cours",
   modules: [] as string[],
   password: "",
   templateId: TEMPLATES[0].id as TemplateId,
@@ -241,6 +249,63 @@ function SiteFormModal({
   );
 }
 
+const HISTORY_PAGE_SIZE = 20;
+
+// Historique des actions d'UN site, vu côté agence — même table que HistorySection.tsx (admin du
+// tenant), même pagination "Charger plus" par 20, juste dans une modale plutôt qu'une page dédiée
+// (pas de routage par site dans l'espace agence, voir docs/07-admin-global.md).
+function ActionLogModal({ site, password, onClose }: { site: ClientSite; password: string; onClose: () => void }) {
+  const [logs, setLogs] = useState<ActionLog[] | null>(null);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  const load = (skip: number) => {
+    if (skip > 0) setLoadingMore(true);
+    adminFetch(API_BASE_URL, `/api/admin/client-sites/${site.id}/action-logs?skip=${skip}&take=${HISTORY_PAGE_SIZE}`, password)
+      .then((res) => res.json())
+      .then((data: { items: ActionLog[]; hasMore: boolean }) => {
+        setLogs((current) => (skip === 0 ? data.items : [...(current ?? []), ...data.items]));
+        setHasMore(data.hasMore);
+        setLoadingMore(false);
+      });
+  };
+
+  useEffect(() => {
+    load(0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [site.id]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy/40 p-4" onClick={onClose}>
+      <div
+        className="flex max-h-[85vh] w-full max-w-2xl flex-col gap-4 overflow-hidden rounded-card bg-white p-6 shadow-soft"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-bold text-navy">Historique — {site.name}</h2>
+          <button type="button" onClick={onClose} className="text-xl leading-none text-gray-text hover:text-navy">
+            ×
+          </button>
+        </div>
+
+        <div className="flex flex-col gap-4 overflow-y-auto">
+          <ActionLogTable logs={logs} />
+          {hasMore && (
+            <button
+              type="button"
+              onClick={() => load(logs?.length ?? 0)}
+              disabled={loadingMore}
+              className="self-center rounded-button border border-border-subtle px-4 py-2 text-sm font-medium text-navy hover:bg-bg-page-start disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {loadingMore ? "Chargement…" : "Charger plus"}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const templateLabel = (id: TemplateId) => TEMPLATES.find((t) => t.id === id)?.label ?? id;
 
 export default function SitesSection({ password }: { password: string }) {
@@ -251,6 +316,7 @@ export default function SitesSection({ password }: { password: string }) {
   const [statusFilter, setStatusFilter] = useState("");
   const [templateFilter, setTemplateFilter] = useState("");
   const [siteToDelete, setSiteToDelete] = useState<ClientSite | null>(null);
+  const [historySite, setHistorySite] = useState<ClientSite | null>(null);
 
   const load = () =>
     adminFetch(API_BASE_URL, "/api/admin/client-sites", password)
@@ -419,6 +485,13 @@ export default function SitesSection({ password }: { password: string }) {
                       </button>
                       <button
                         type="button"
+                        onClick={() => setHistorySite(site)}
+                        className="font-medium text-gray-text hover:text-navy"
+                      >
+                        Historique
+                      </button>
+                      <button
+                        type="button"
                         onClick={() => setSiteToDelete(site)}
                         className="font-medium text-red-500 hover:text-red-600"
                       >
@@ -451,6 +524,8 @@ export default function SitesSection({ password }: { password: string }) {
           onCancel={() => setSiteToDelete(null)}
         />
       )}
+
+      {historySite && <ActionLogModal site={historySite} password={password} onClose={() => setHistorySite(null)} />}
     </div>
   );
 }

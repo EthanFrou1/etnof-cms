@@ -36,6 +36,8 @@ Subject: [SUJET DU MODULE]
 | `galerie.png` | a stylized stack of a few overlapping rounded photo frames, one slightly tilted, representing a photo gallery |
 | `analytics.png` | a stylized simple bar chart with three ascending rounded bars, paired with a small magnifying glass, representing audience/visit statistics |
 | `pages.png` | a stylized stack of a few overlapping rounded document sheets with a small dropdown-arrow chevron floating above, representing a menu of custom pages |
+| `offres.png` | a stylized price tag with a rounded corner and a small circular hole, floating above a minimal pricing-list card with a few short horizontal lines, representing pricing offers/highlights |
+| `compte-client.png` | a stylized rounded user/profile icon (simple head-and-shoulders silhouette in a circle) paired with a small padlock or key shape floating beside it, representing a customer account and passwordless sign-in |
 
 ## Notes
 

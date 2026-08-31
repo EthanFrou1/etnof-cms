@@ -3,24 +3,33 @@ import { API_BASE_URL } from "../../config";
 import { adminFetch } from "../../hooks/useAdminSession";
 import { inputClass, type ModuleMeta } from "./shared";
 import ModuleThumbnail from "../../components/admin/ModuleThumbnail";
+import SaveButton, { type SaveStatus } from "../../components/admin/SaveButton";
 
 // Ne garde que les chiffres — le prix est toujours affiché en euros (ModulesSection.tsx applique
 // la même règle côté admin client), pas la peine de laisser Ethan taper "€"/"EUR" lui-même.
 const onlyDigits = (value: string) => value.replace(/[^0-9]/g, "");
+
+// Sentinelle "Gratuit" — distincte d'un prix vide (= pas encore chiffré, CTA générique côté client,
+// voir ModulesSection.tsx) : un module marqué gratuit affiche "Gratuit" au lieu de "Activer pour
+// {prix}". Ne change rien à l'autorisation par tenant, qui reste manuelle (décision d'Ethan) — juste
+// l'affichage du prix, même si le module est gratuit.
+const FREE_SENTINEL = "Gratuit";
+const isFree = (price: string) => price.trim().toLowerCase() === FREE_SENTINEL.toLowerCase();
+const normalizedPrice = (price: string) => (isFree(price) ? FREE_SENTINEL : onlyDigits(price));
 
 // Prix affiché sur la card d'un module non autorisé côté admin client ("Activer pour {price}") —
 // voir ModulesSection.tsx. Global au socle, pas par client.
 export default function PricingSection({ password }: { password: string }) {
   const [modules, setModules] = useState<ModuleMeta[] | null>(null);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
-  const [savedName, setSavedName] = useState<string | null>(null);
+  const [rowStatus, setRowStatus] = useState<Record<string, SaveStatus>>({});
 
   const load = () =>
     adminFetch(API_BASE_URL, "/api/admin/modules", password)
       .then((res) => res.json())
       .then((data: ModuleMeta[]) => {
         setModules(data);
-        setDrafts(Object.fromEntries(data.map((m) => [m.name, onlyDigits(m.price)])));
+        setDrafts(Object.fromEntries(data.map((m) => [m.name, normalizedPrice(m.price)])));
       });
 
   useEffect(() => {
@@ -29,13 +38,13 @@ export default function PricingSection({ password }: { password: string }) {
   }, []);
 
   const handleSave = async (name: string) => {
-    await adminFetch(API_BASE_URL, `/api/admin/modules/${name}/price`, password, {
+    setRowStatus((s) => ({ ...s, [name]: "saving" }));
+    const res = await adminFetch(API_BASE_URL, `/api/admin/modules/${name}/price`, password, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ price: drafts[name] ?? "" }),
     });
-    setSavedName(name);
-    setTimeout(() => setSavedName((current) => (current === name ? null : current)), 1500);
+    setRowStatus((s) => ({ ...s, [name]: res.ok ? "saved" : "error" }));
   };
 
   return (
@@ -44,7 +53,8 @@ export default function PricingSection({ password }: { password: string }) {
         <h1 className="text-2xl font-extrabold text-navy">Tarifs des modules</h1>
         <p className="text-sm text-gray-text">
           Affiché aux clients sur la card d'un module qu'ils n'ont pas encore ("Activer pour {"{prix}"} €"). Laisser
-          vide pour ne pas afficher de prix — toujours en euros.
+          vide pour ne pas afficher de prix — toujours en euros. Coche "Gratuit" pour un module sans coût :
+          l'autorisation par client reste manuelle comme pour les autres, seul l'affichage change.
         </p>
       </div>
 
@@ -59,27 +69,39 @@ export default function PricingSection({ password }: { password: string }) {
                 <span className="text-sm font-semibold text-navy">{m.displayName}</span>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <div className="relative">
-                  <input
-                    className={`${inputClass} w-24 pr-7`}
-                    placeholder="ex : 250"
-                    inputMode="numeric"
-                    value={drafts[m.name] ?? ""}
-                    onChange={(e) => setDrafts({ ...drafts, [m.name]: onlyDigits(e.target.value) })}
-                  />
-                  <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-gray-text/60">
-                    €
+                {isFree(drafts[m.name] ?? "") ? (
+                  <span className="rounded-button border border-border-subtle px-3 py-2 text-sm font-medium text-navy">
+                    Gratuit
                   </span>
-                </div>
-                <button
-                  type="button"
+                ) : (
+                  <div className="relative">
+                    <input
+                      className={`${inputClass} w-24 pr-7`}
+                      placeholder="ex : 250"
+                      inputMode="numeric"
+                      value={drafts[m.name] ?? ""}
+                      onChange={(e) => setDrafts({ ...drafts, [m.name]: onlyDigits(e.target.value) })}
+                    />
+                    <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-gray-text/60">
+                      €
+                    </span>
+                  </div>
+                )}
+                <label className="flex shrink-0 items-center gap-1.5 text-xs font-medium text-gray-text">
+                  <input
+                    type="checkbox"
+                    checked={isFree(drafts[m.name] ?? "")}
+                    onChange={(e) => setDrafts({ ...drafts, [m.name]: e.target.checked ? FREE_SENTINEL : "" })}
+                  />
+                  Gratuit
+                </label>
+                <SaveButton
+                  status={rowStatus[m.name] ?? "idle"}
                   onClick={() => handleSave(m.name)}
-                  disabled={(drafts[m.name] ?? "") === onlyDigits(m.price)}
-                  className="shrink-0 rounded-button border border-border-subtle px-3 py-2 text-sm font-medium text-gray-text transition-opacity hover:bg-bg-page-start disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  Enregistrer
-                </button>
-                {savedName === m.name && <span className="shrink-0 text-sm text-green-accent">Enregistré</span>}
+                  onIdle={() => setRowStatus((s) => ({ ...s, [m.name]: "idle" }))}
+                  disabled={(drafts[m.name] ?? "") === normalizedPrice(m.price)}
+                  size="sm"
+                />
               </div>
             </div>
           ))}

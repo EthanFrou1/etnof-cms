@@ -19,4 +19,6 @@ export const MODULE_IMAGES: Record<string, string> = {
   galerie: "/module-icons/galerie.png",
   analytics: "/module-icons/analytics.png",
   pages: "/module-icons/pages.png",
+  offres: "/module-icons/offres.png",
+  "compte-client": "/module-icons/compte-client.png",
 };

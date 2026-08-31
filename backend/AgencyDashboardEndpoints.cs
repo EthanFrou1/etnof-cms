@@ -26,6 +26,27 @@ public static class AgencyDashboardEndpoints
             return Results.Ok(sites.Select(ToPublicShape));
         });
 
+        // Historique des actions d'UN tenant, vu côté agence (voir AdminActionLog.cs) — même requête
+        // paginée que TenantAdminEndpoints.cs, juste gardée par le mot de passe agence au lieu de
+        // TenantAdminAuth.IsOwnerAuthorizedAsync.
+        app.MapGet("/api/admin/client-sites/{id:guid}/action-logs", async (Guid id, int? skip, int? take, HttpRequest req, IConfiguration config, AppDbContext db) =>
+        {
+            if (!AdminAuth.IsAuthorized(req, config)) return Results.Unauthorized();
+
+            var pageSize = Math.Clamp(take ?? 20, 1, 100);
+            var offset = Math.Max(skip ?? 0, 0);
+
+            var rows = await db.AdminActionLogs
+                .Where(l => l.ClientSiteId == id)
+                .OrderByDescending(l => l.CreatedAt)
+                .Skip(offset)
+                .Take(pageSize + 1)
+                .Select(l => new { l.Id, l.ActorType, l.ActorLabel, l.Action, l.Method, l.Path, l.StatusCode, l.CreatedAt })
+                .ToListAsync();
+
+            return Results.Ok(new { items = rows.Take(pageSize), hasMore = rows.Count > pageSize });
+        });
+
         // Tous les modules connus du socle (un module.meta.json par dossier sous /modules), pour
         // que le formulaire "Modules autorisés" du dashboard agence liste dynamiquement tous les
         // modules existants — avant ce fix, la liste était codée en dur côté frontend et n'incluait

@@ -7,6 +7,7 @@ import { IconClock, IconMail, IconPhone, IconPin } from "../../components/admin/
 import RichTextEditor from "../../components/admin/RichTextEditor";
 import PhoneInput from "../../components/admin/PhoneInput";
 import ConfirmModal from "../../components/admin/ConfirmModal";
+import SaveButton from "../../components/admin/SaveButton";
 
 type EstablishmentSectionProps = {
   clientSiteId: string;
@@ -49,6 +50,7 @@ const TABS = [
   { id: "photos", label: "Photos" },
   { id: "hours", label: "Horaires" },
   { id: "cgv", label: "Livraison & CGV" },
+  { id: "legal", label: "Mentions légales" },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -414,6 +416,8 @@ export default function EstablishmentSection({ clientSiteId, password }: Establi
   const [googlePlaceId, setGooglePlaceId] = useState("");
   const [googlePlaceName, setGooglePlaceName] = useState("");
   const [cgvContent, setCgvContent] = useState("");
+  const [legalNoticeContent, setLegalNoticeContent] = useState("");
+  const [privacyPolicyContent, setPrivacyPolicyContent] = useState("");
   const [deliveryContent, setDeliveryContent] = useState("");
   const [returnsContent, setReturnsContent] = useState("");
   const [openingHours, setOpeningHours] = useState<DayHours[]>(WEEKDAYS.map(() => emptyDayHours()));
@@ -460,6 +464,8 @@ export default function EstablishmentSection({ clientSiteId, password }: Establi
         setGooglePlaceId(data.googlePlaceId);
         setGooglePlaceName(data.googlePlaceName);
         setCgvContent(data.cgvContent);
+        setLegalNoticeContent(data.legalNoticeContent);
+        setPrivacyPolicyContent(data.privacyPolicyContent);
         setDeliveryContent(data.deliveryContent);
         setReturnsContent(data.returnsContent);
         setOpeningHours(normalizeHours(data.openingHours));
@@ -572,6 +578,8 @@ export default function EstablishmentSection({ clientSiteId, password }: Establi
         googlePlaceId !== content.googlePlaceId ||
         googlePlaceName !== content.googlePlaceName ||
         cgvContent !== content.cgvContent ||
+        legalNoticeContent !== content.legalNoticeContent ||
+        privacyPolicyContent !== content.privacyPolicyContent ||
         deliveryContent !== content.deliveryContent ||
         returnsContent !== content.returnsContent ||
         !hoursEqual(openingHours, normalizeHours(content.openingHours)))
@@ -604,6 +612,8 @@ export default function EstablishmentSection({ clientSiteId, password }: Establi
         googlePlaceId,
         googlePlaceName,
         cgvContent,
+        legalNoticeContent,
+        privacyPolicyContent,
         deliveryContent,
         returnsContent,
         openingHours,
@@ -625,25 +635,31 @@ export default function EstablishmentSection({ clientSiteId, password }: Establi
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-extrabold text-navy">Établissement</h1>
-        <div className="flex items-center gap-3">
-          {saveStatus === "saved" && <span className="text-sm text-green-accent">Enregistré</span>}
-          {saveStatus === "error" && <span className="text-sm text-red-500">Erreur lors de l'enregistrement.</span>}
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={saveStatus === "saving" || !isDirty}
-            className="rounded-button bg-brand-gradient px-4 py-2.5 font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            {saveStatus === "saving" ? "Enregistrement…" : "Enregistrer"}
-          </button>
-        </div>
+        <SaveButton
+          status={saveStatus}
+          onClick={handleSave}
+          onIdle={() => setSaveStatus("idle")}
+          disabled={!isDirty}
+        />
       </div>
 
-      {catalogueSaleEnabled && !cgvContent.trim() && (
+      {catalogueSaleEnabled && (!cgvContent.trim() || !privacyPolicyContent.trim()) && (
         <div className="rounded-card border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-          <strong>CGV manquantes.</strong> La boutique en ligne est active mais aucune condition
-          générale de vente n'est renseignée — le bouton de paiement reste désactivé sur le panier
-          public tant que l'onglet <button type="button" onClick={() => setActiveTab("cgv")} className="underline">Livraison & CGV</button> n'est pas rempli.
+          <strong>CGV ou Politique de confidentialité manquantes.</strong> La boutique en ligne est
+          active mais l'un des deux textes obligatoires n'est pas renseigné — le paiement est refusé
+          (côté serveur) tant que{" "}
+          {!cgvContent.trim() && (
+            <button type="button" onClick={() => setActiveTab("cgv")} className="underline">
+              Livraison & CGV
+            </button>
+          )}
+          {!cgvContent.trim() && !privacyPolicyContent.trim() && " et "}
+          {!privacyPolicyContent.trim() && (
+            <button type="button" onClick={() => setActiveTab("legal")} className="underline">
+              Mentions légales
+            </button>
+          )}{" "}
+          ne sont pas remplis.
         </div>
       )}
 
@@ -856,6 +872,29 @@ export default function EstablishmentSection({ clientSiteId, password }: Establi
                   clients.
                 </p>
                 <RichTextEditor value={cgvContent} onChange={setCgvContent} />
+              </section>
+            </>
+          )}
+
+          {activeTab === "legal" && (
+            <>
+              <section className="rounded-card bg-white p-8 shadow-card">
+                <h2 className="mb-1 text-lg font-bold text-navy">Mentions légales</h2>
+                <p className="mb-4 text-sm text-gray-text">
+                  Affichées sur une page publique dédiée (<code>/mentions-legales</code>). Obligatoires
+                  pour tout site professionnel en France (éditeur, hébergeur, SIRET…).
+                </p>
+                <RichTextEditor value={legalNoticeContent} onChange={setLegalNoticeContent} />
+              </section>
+
+              <section className="rounded-card bg-white p-8 shadow-card">
+                <h2 className="mb-1 text-lg font-bold text-navy">Politique de confidentialité</h2>
+                <p className="mb-4 text-sm text-gray-text">
+                  Affichée sur une page publique dédiée (<code>/confidentialite</code>). Décrit les
+                  données personnelles collectées (formulaires, cookies…) et leur usage — obligation
+                  RGPD dès qu'un formulaire ou un cookie de suivi est présent sur le site.
+                </p>
+                <RichTextEditor value={privacyPolicyContent} onChange={setPrivacyPolicyContent} />
               </section>
             </>
           )}

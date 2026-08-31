@@ -50,4 +50,9 @@ public class AppDbContext : DbContext
     public DbSet<GalleryImage> GalleryImages => Set<GalleryImage>();
     public DbSet<CustomPage> CustomPages => Set<CustomPage>();
     public DbSet<CustomerLoginToken> CustomerLoginTokens => Set<CustomerLoginToken>();
+    public DbSet<TenantAdminAccount> TenantAdminAccounts => Set<TenantAdminAccount>();
+    public DbSet<TenantAdminAccountInvite> TenantAdminAccountInvites => Set<TenantAdminAccountInvite>();
+    public DbSet<AdminActionLog> AdminActionLogs => Set<AdminActionLog>();
+    public DbSet<OrderStatusChange> OrderStatusChanges => Set<OrderStatusChange>();
+    public DbSet<OrderComment> OrderComments => Set<OrderComment>();
 }

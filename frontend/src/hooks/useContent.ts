@@ -40,6 +40,8 @@ export type SiteContent = {
   googlePlaceId: string;
   googlePlaceName: string;
   cgvContent: string;
+  legalNoticeContent: string;
+  privacyPolicyContent: string;
   deliveryContent: string;
   returnsContent: string;
 };

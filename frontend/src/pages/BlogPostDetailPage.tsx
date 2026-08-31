@@ -6,6 +6,7 @@ import AdminLoginScreen from "../components/admin/AdminLoginScreen";
 import AdminLayout from "../components/admin/AdminLayout";
 import ConfirmModal from "../components/admin/ConfirmModal";
 import RichTextEditor from "../components/admin/RichTextEditor";
+import SaveButton from "../components/admin/SaveButton";
 
 type BlogPost = {
   id: string;
@@ -99,18 +100,12 @@ function BlogPostDetailContent({
           </a>
           <h1 className="mt-1 text-2xl font-extrabold text-navy">{post.title || "(sans titre)"}</h1>
         </div>
-        <div className="flex items-center gap-3">
-          {saveStatus === "saved" && <span className="text-sm text-green-accent">Enregistré</span>}
-          {saveStatus === "error" && <span className="text-sm text-red-500">Erreur lors de l'enregistrement.</span>}
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={!isDirty || saveStatus === "saving"}
-            className="rounded-button bg-brand-gradient px-4 py-2.5 font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            {saveStatus === "saving" ? "Enregistrement…" : "Enregistrer"}
-          </button>
-        </div>
+        <SaveButton
+          status={saveStatus}
+          onClick={handleSave}
+          onIdle={() => setSaveStatus("idle")}
+          disabled={!isDirty}
+        />
       </div>
 
       <section className="rounded-card bg-white p-8 shadow-card">

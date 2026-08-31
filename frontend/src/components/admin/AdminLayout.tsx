@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { API_BASE_URL } from "../../config";
 import { useModules } from "../../hooks/useModules";
+import { decodeTokenScope, clearSession } from "../../hooks/useAdminSession";
 import {
   IconAppearance,
   IconCard,
@@ -14,7 +15,9 @@ import {
   IconCollections,
   IconExternalLink,
   IconGlobe,
+  IconHistory,
   IconImage,
+  IconLock,
   IconMail,
   IconMenu,
   IconMessages,
@@ -45,7 +48,9 @@ export type AdminSection =
   | "blog"
   | "multilingue"
   | "galerie"
-  | "pages";
+  | "pages"
+  | "accounts"
+  | "history";
 
 // Produits/Commandes/Clients n'existent que via le module Catalogue (un client n'apparaît que
 // s'il a passé commande) — pas de module "customers" séparé, voir docs/04-catalogue-modules.md.
@@ -61,6 +66,12 @@ export const BLOG_SECTIONS: AdminSection[] = ["blog"];
 export const MULTILINGUE_SECTIONS: AdminSection[] = ["multilingue"];
 export const GALERIE_SECTIONS: AdminSection[] = ["galerie"];
 export const PAGES_SECTIONS: AdminSection[] = ["pages"];
+export const OFFERS_SECTIONS: AdminSection[] = ["offers"];
+
+// Sections réservées au Propriétaire (+ agence) — un compte Employé ne les voit pas dans la nav et
+// se voit bloquer l'accès direct par URL (voir AdminPage.tsx). Même liste que ce que le backend
+// protège avec TenantAdminAuth.IsOwnerAuthorizedAsync : Modules, Paiement Stripe, gestion des comptes.
+export const OWNER_ONLY_SECTIONS: AdminSection[] = ["modules", "stripe", "accounts", "history"];
 
 type NavLeaf = { kind: "leaf"; id: AdminSection; label: string; icon: typeof IconDashboard };
 type NavGroup = { kind: "group"; id: string; label: string; icon: typeof IconDashboard; children: NavLeaf[] };
@@ -100,6 +111,8 @@ const NAV_ITEMS: NavEntry[] = [
       leaf("multilingue", "Multilingue", IconGlobe),
       leaf("galerie", "Galerie", IconImage),
       leaf("pages", "Pages personnalisées", IconPages),
+      leaf("accounts", "Comptes", IconLock),
+      leaf("history", "Historique", IconHistory),
     ],
   },
   leaf("messages", "Messages", IconMessages),
@@ -129,6 +142,8 @@ export default function AdminLayout({ clientSiteId, activeSection, password, chi
   const blogActive = Boolean(modules?.blog?.enabled);
   const galerieActive = Boolean(modules?.galerie?.enabled);
   const pagesActive = Boolean(modules?.pages?.enabled);
+  const offresActive = Boolean(modules?.offres?.enabled);
+  const isEmployee = decodeTokenScope(password) === "tenant-employee";
 
   const isSectionVisible = (id: AdminSection) =>
     (!CATALOGUE_SECTIONS.includes(id) || catalogueActive) &&
@@ -138,7 +153,9 @@ export default function AdminLayout({ clientSiteId, activeSection, password, chi
     (!STRIPE_SECTIONS.includes(id) || stripeActive) &&
     (!BLOG_SECTIONS.includes(id) || blogActive) &&
     (!GALERIE_SECTIONS.includes(id) || galerieActive) &&
-    (!PAGES_SECTIONS.includes(id) || pagesActive);
+    (!PAGES_SECTIONS.includes(id) || pagesActive) &&
+    (!OFFERS_SECTIONS.includes(id) || offresActive) &&
+    (!OWNER_ONLY_SECTIONS.includes(id) || !isEmployee);
 
   // Un groupe contenant la section active s'ouvre automatiquement (calculé une seule fois au
   // montage : la navigation entre sections recharge la page — voir sectionHref — donc pas besoin
@@ -172,9 +189,14 @@ export default function AdminLayout({ clientSiteId, activeSection, password, chi
       .catch(() => {});
   }, [clientSiteId]);
 
-  const visibleEntries = NAV_ITEMS.map((entry) =>
+  // Un sous-menu réduit à une seule page visible (ex. "Site" sans Offres pour un tenant qui n'a pas
+  // ce module) n'a plus de raison d'être un groupe repliable — se rend directement comme sa seule
+  // entrée, avec son propre libellé/icône plutôt que ceux du groupe.
+  const visibleEntries: NavEntry[] = NAV_ITEMS.map((entry) =>
     entry.kind === "leaf" ? entry : { ...entry, children: entry.children.filter((c) => isSectionVisible(c.id)) }
-  ).filter((entry) => (entry.kind === "leaf" ? isSectionVisible(entry.id) : entry.children.length > 0));
+  )
+    .filter((entry) => (entry.kind === "leaf" ? isSectionVisible(entry.id) : entry.children.length > 0))
+    .map((entry) => (entry.kind === "group" && entry.children.length === 1 ? entry.children[0] : entry));
 
   return (
     <div className="flex min-h-screen flex-col lg:flex-row">
@@ -304,6 +326,16 @@ export default function AdminLayout({ clientSiteId, activeSection, password, chi
           >
             Vue globale agence
           </a>
+          <button
+            type="button"
+            onClick={() => {
+              clearSession(clientSiteId);
+              window.location.href = `/admin/${clientSiteId}`;
+            }}
+            className="px-3 py-2 text-left text-xs text-white/40 hover:text-white/70"
+          >
+            Se déconnecter
+          </button>
         </div>
       </aside>
 

@@ -4,8 +4,17 @@ type DocumentMetaOptions = {
   title: string;
   description?: string;
   // Logo du tenant (voir TemplateEndpoints.cs, ClientSite.LogoPath) — absent tant que le client n'en
-  // a pas uploadé, l'onglet garde alors le favicon par défaut du navigateur.
+  // a pas uploadé, l'onglet garde alors le favicon par défaut du socle (voir index.html) plutôt que
+  // rien.
   faviconUrl?: string;
+  // SEO avancé (2026-08-31) : URL canonique explicite — évite le contenu dupliqué si un même site
+  // reste joignable par plusieurs URLs (domaine du client + `/t/{clientSiteId}`). Retombe sur
+  // `window.location.href` (sans query string) si omis.
+  canonicalUrl?: string;
+  // Données structurées JSON-LD (voir frontend/src/utils/structuredData.ts) — un objet ou plusieurs
+  // (ex. LocalBusiness + BreadcrumbList). `undefined`/tableau vide = pas de balise, jamais un
+  // `<script>` vide.
+  structuredData?: Record<string, unknown> | Record<string, unknown>[];
 };
 
 function upsertMeta(attr: "name" | "property", key: string, content: string) {
@@ -28,6 +37,33 @@ function upsertIcon(href: string) {
   tag.setAttribute("href", href);
 }
 
+function upsertCanonical(href: string) {
+  let tag = document.head.querySelector<HTMLLinkElement>('link[rel="canonical"]');
+  if (!tag) {
+    tag = document.createElement("link");
+    tag.setAttribute("rel", "canonical");
+    document.head.appendChild(tag);
+  }
+  tag.setAttribute("href", href);
+}
+
+// Un seul <script type="application/ld+json"> par page — remplacé en entier à chaque appel plutôt
+// que d'en accumuler un par section, plus simple à faire cohabiter entre plusieurs composants qui
+// pourraient chacun vouloir poser leurs propres données structurées.
+function upsertStructuredData(data: Record<string, unknown> | Record<string, unknown>[]) {
+  let tag = document.head.querySelector<HTMLScriptElement>('script[type="application/ld+json"]');
+  if (!tag) {
+    tag = document.createElement("script");
+    tag.setAttribute("type", "application/ld+json");
+    document.head.appendChild(tag);
+  }
+  tag.textContent = JSON.stringify(data);
+}
+
+function removeStructuredData() {
+  document.head.querySelector('script[type="application/ld+json"]')?.remove();
+}
+
 // Titre d'onglet + meta description/Open Graph pour une page publique de tenant — pas de nettoyage
 // au démontage : la navigation entre pages publiques se fait par rechargement complet (pas de
 // react-router, voir App.tsx), donc il n'y a jamais d'état précédent à restaurer.
@@ -38,14 +74,14 @@ function upsertIcon(href: string) {
 // SiteContent.Description est du HTML riche depuis l'ajout de RichTextEditor sur ce champ (voir
 // SiteSection.tsx) — une balise meta ne doit contenir que du texte brut, d'où ce nettoyage avant
 // de l'utiliser comme description/og:description.
-function stripHtml(html: string): string {
+export function stripHtml(html: string): string {
   return html
     .replace(/<[^>]*>/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
 
-export function useDocumentMeta({ title, description, faviconUrl }: DocumentMetaOptions) {
+export function useDocumentMeta({ title, description, faviconUrl, canonicalUrl, structuredData }: DocumentMetaOptions) {
   useEffect(() => {
     document.title = title;
     upsertMeta("property", "og:title", title);
@@ -56,5 +92,13 @@ export function useDocumentMeta({ title, description, faviconUrl }: DocumentMeta
       upsertMeta("property", "og:description", plainDescription);
     }
     if (faviconUrl) upsertIcon(faviconUrl);
-  }, [title, description, faviconUrl]);
+    upsertCanonical(canonicalUrl || window.location.href.split("?")[0]);
+
+    const data = Array.isArray(structuredData) ? structuredData : structuredData ? [structuredData] : [];
+    if (data.length > 0) {
+      upsertStructuredData(data.length === 1 ? data[0] : data);
+    } else {
+      removeStructuredData();
+    }
+  }, [title, description, faviconUrl, canonicalUrl, structuredData]);
 }

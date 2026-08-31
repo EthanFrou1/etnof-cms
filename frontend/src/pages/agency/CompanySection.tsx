@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { API_BASE_URL } from "../../config";
 import { adminFetch } from "../../hooks/useAdminSession";
 import { AddressAutocomplete, inputClass } from "./shared";
+import SaveButton from "../../components/admin/SaveButton";
 
 type CompanyProfile = {
   id: string;
@@ -135,18 +136,7 @@ export default function CompanySection({ password }: { password: string }) {
             Infos utilisées sur tes devis et factures (mentions légales obligatoires en France).
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          {saveStatus === "saved" && <span className="text-sm text-green-accent">Enregistré</span>}
-          {saveStatus === "error" && <span className="text-sm text-red-500">Erreur lors de l'enregistrement.</span>}
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={!isDirty || saveStatus === "saving"}
-            className="rounded-button bg-brand-gradient px-4 py-2.5 font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            {saveStatus === "saving" ? "Enregistrement…" : "Enregistrer"}
-          </button>
-        </div>
+        <SaveButton status={saveStatus} onClick={handleSave} onIdle={() => setSaveStatus("idle")} disabled={!isDirty} />
       </div>
 
       <section className="grid gap-6 rounded-card bg-white p-8 shadow-card lg:grid-cols-[1fr_220px]">

@@ -4,6 +4,7 @@ import { adminFetch } from "../../hooks/useAdminSession";
 import { StatusLegend } from "../../components/admin/StatusLegend";
 import Select from "../../components/admin/Select";
 import { downloadCsv } from "../../utils/csv";
+import OrderDetailPanel from "../../components/admin/OrderDetailPanel";
 
 type OrderItem = {
   id: string;
@@ -282,18 +283,15 @@ export default function OrdersSection({ clientSiteId, password }: OrdersSectionP
                     </tr>
                     {expandedId === order.id && (
                       <tr className="border-b border-border-subtle bg-bg-page-start last:border-0">
-                        <td colSpan={6} className="px-4 py-3">
-                          <div className="flex flex-col gap-1">
-                            {order.items.map((item) => (
-                              <div key={item.id} className="flex justify-between text-sm text-gray-text">
-                                <span>
-                                  {item.quantity} × {item.productName}
-                                  {item.sizeLabel && ` (${item.sizeLabel})`}
-                                </span>
-                                <span>{formatPrice(item.unitPrice * item.quantity)}</span>
-                              </div>
-                            ))}
-                          </div>
+                        <td colSpan={6} className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                          <OrderDetailPanel
+                            clientSiteId={clientSiteId}
+                            password={password}
+                            orderId={order.id}
+                            orderCreatedAt={order.createdAt}
+                            items={order.items}
+                            total={order.total}
+                          />
                         </td>
                       </tr>
                     )}

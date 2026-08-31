@@ -7,6 +7,7 @@ import type { ModulesConfig } from "../hooks/useModules";
 const SocialLinks = lazy(() => import("@modules/reseaux-sociaux/frontend/SocialLinks"));
 
 type SiteFooterProps = {
+  clientSiteId: string;
   content: SiteContent | null;
   palette: { accent: string; background: string; ink: string };
   // Variante fond sombre (maquette Hestia, docs/10-templates.md) : le footer devient une bande
@@ -20,13 +21,59 @@ type SiteFooterProps = {
   // Facultatif comme `modules` (même raison) — sert uniquement au libellé "Suivez-nous" au-dessus
   // des icônes, retombe sur le français si un gabarit ne le passe pas encore.
   locale?: Locale;
+  // AccountPage.tsx rend sa propre LegalLinksBar juste sous le bloc "Mes commandes" (plus visible
+  // qu'en bas de page, demande d'Ethan) — évite de l'afficher une seconde fois ici pour cette page.
+  hideLegalLinks?: boolean;
 };
+
+// Barre fine de liens légaux (CGV, Mentions légales, Confidentialité) — sur la plupart des pages,
+// rendue par SiteFooter juste en dehors de la balise <footer> elle-même (demande d'Ethan de ne pas
+// la fondre dans le footer existant). Exportée : AccountPage.tsx la réutilise directement sous le
+// bloc "Mes commandes" plutôt qu'en bas de page, où elle passait facilement inaperçue (beaucoup
+// d'espace vide entre les commandes et le footer). Chaque lien n'apparaît que si le contenu
+// correspondant est renseigné — rien à afficher pour un tenant qui n'a encore rien rédigé.
+export function LegalLinksBar({
+  clientSiteId,
+  content,
+  color,
+  borderColor,
+  background,
+}: {
+  clientSiteId: string;
+  content: SiteContent | null;
+  color: string;
+  borderColor: string;
+  background?: string;
+}) {
+  const links = [
+    content?.cgvContent?.trim() && { href: `/t/${clientSiteId}/cgv`, label: "CGV" },
+    content?.legalNoticeContent?.trim() && { href: `/t/${clientSiteId}/mentions-legales`, label: "Mentions légales" },
+    content?.privacyPolicyContent?.trim() && {
+      href: `/t/${clientSiteId}/confidentialite`,
+      label: "Politique de confidentialité",
+    },
+  ].filter((link): link is { href: string; label: string } => Boolean(link));
+
+  if (links.length === 0) return null;
+
+  return (
+    <div className="border-t py-4" style={{ borderColor, backgroundColor: background }}>
+      <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-center gap-x-5 gap-y-1 px-4 text-xs sm:px-8" style={{ color }}>
+        {links.map((link) => (
+          <a key={link.href} href={link.href} className="hover:underline">
+            {link.label}
+          </a>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 // Les horaires ne sont plus affichés ici : ils ont leur propre section dédiée sur la page (gardée
 // par le module "horaires", voir TemplateHestia.tsx) — le footer ne garde que les faits qui n'ont
 // pas de section propre (nom, adresse, téléphone, email). Plus de lien vers l'admin (retiré à la
 // demande d'Ethan) : le site public ne renvoie plus vers `/admin`.
-export default function SiteFooter({ content, palette, dark = false, modules, locale }: SiteFooterProps) {
+export default function SiteFooter({ clientSiteId, content, palette, dark = false, modules, locale, hideLegalLinks = false }: SiteFooterProps) {
   const name = content?.establishmentName || content?.siteName;
   const hasContactInfo = Boolean(content?.address || content?.phone || content?.email);
   const socialConfig = modules?.["reseaux-sociaux"];
@@ -36,72 +83,88 @@ export default function SiteFooter({ content, palette, dark = false, modules, lo
 
   if (dark) {
     return (
-      <footer style={{ backgroundColor: palette.ink }}>
-        <div className="mx-auto flex max-w-7xl flex-col items-center gap-1.5 px-4 py-14 text-center text-sm sm:px-8">
-          {name && (
-            <span className="mb-1 text-lg font-black" style={{ color: palette.background }}>
-              {name}
+      <>
+        <footer style={{ backgroundColor: palette.ink }}>
+          <div className="mx-auto flex max-w-7xl flex-col items-center gap-1.5 px-4 py-14 text-center text-sm sm:px-8">
+            {name && (
+              <span className="mb-1 text-lg font-black" style={{ color: palette.background }}>
+                {name}
+              </span>
+            )}
+            {content?.address && <span style={{ color: `${palette.background}B3` }}>{content.address}</span>}
+            {content?.phone && <span style={{ color: `${palette.background}B3` }}>{content.phone}</span>}
+            {content?.email && <span style={{ color: `${palette.background}B3` }}>{content.email}</span>}
+            {showSocialLinks && (
+              <Suspense fallback={null}>
+                <div className="mt-3 flex flex-col items-center gap-2">
+                  <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: `${palette.background}80` }}>
+                    {t(locale, "footer.followUs")}
+                  </span>
+                  <SocialLinks
+                    facebookUrl={typeof socialConfig?.facebookUrl === "string" ? socialConfig.facebookUrl : ""}
+                    instagramUrl={typeof socialConfig?.instagramUrl === "string" ? socialConfig.instagramUrl : ""}
+                  />
+                </div>
+              </Suspense>
+            )}
+            <span className="mt-4 text-xs" style={{ color: `${palette.background}66` }}>
+              {t(locale, "footer.madeBy")}{" "}
+              <a href={AGENCY_WEBSITE_URL} target="_blank" rel="noreferrer" className="underline hover:no-underline">
+                etnof-web
+              </a>
             </span>
-          )}
-          {content?.address && <span style={{ color: `${palette.background}B3` }}>{content.address}</span>}
-          {content?.phone && <span style={{ color: `${palette.background}B3` }}>{content.phone}</span>}
-          {content?.email && <span style={{ color: `${palette.background}B3` }}>{content.email}</span>}
-          {showSocialLinks && (
-            <Suspense fallback={null}>
-              <div className="mt-3 flex flex-col items-center gap-2">
-                <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: `${palette.background}80` }}>
-                  {t(locale, "footer.followUs")}
-                </span>
-                <SocialLinks
-                  facebookUrl={typeof socialConfig?.facebookUrl === "string" ? socialConfig.facebookUrl : ""}
-                  instagramUrl={typeof socialConfig?.instagramUrl === "string" ? socialConfig.instagramUrl : ""}
-                />
-              </div>
-            </Suspense>
-          )}
-          <span className="mt-4 text-xs" style={{ color: `${palette.background}66` }}>
-            {t(locale, "footer.madeBy")}{" "}
-            <a href={AGENCY_WEBSITE_URL} target="_blank" rel="noreferrer" className="underline hover:no-underline">
-              etnof-web
-            </a>
-          </span>
-        </div>
-      </footer>
+          </div>
+        </footer>
+        {!hideLegalLinks && (
+          <LegalLinksBar
+            clientSiteId={clientSiteId}
+            content={content}
+            color={`${palette.background}80`}
+            borderColor={`${palette.background}1A`}
+            background={palette.ink}
+          />
+        )}
+      </>
     );
   }
 
   return (
-    <footer
-      className="flex flex-col gap-1.5 border-t pb-8 pt-8 text-sm"
-      style={{ borderColor: `${palette.ink}1A`, color: `${palette.ink}B3` }}
-    >
-      {name && (
-        <span className="text-base font-bold" style={{ color: palette.ink }}>
-          {name}
+    <>
+      <footer
+        className="flex flex-col gap-1.5 border-t pb-8 pt-8 text-sm"
+        style={{ borderColor: `${palette.ink}1A`, color: `${palette.ink}B3` }}
+      >
+        {name && (
+          <span className="text-base font-bold" style={{ color: palette.ink }}>
+            {name}
+          </span>
+        )}
+        {content?.address && <span>{content.address}</span>}
+        {content?.phone && <span>{content.phone}</span>}
+        {content?.email && <span>{content.email}</span>}
+        {showSocialLinks && (
+          <Suspense fallback={null}>
+            <div className="mt-2 flex flex-col items-start gap-1.5">
+              <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: `${palette.ink}80` }}>
+                {t(locale, "footer.followUs")}
+              </span>
+              <SocialLinks
+                facebookUrl={typeof socialConfig?.facebookUrl === "string" ? socialConfig.facebookUrl : ""}
+                instagramUrl={typeof socialConfig?.instagramUrl === "string" ? socialConfig.instagramUrl : ""}
+              />
+            </div>
+          </Suspense>
+        )}
+        <span className="mt-3 text-xs" style={{ color: `${palette.ink}66` }}>
+          {t(locale, "footer.madeBy")}{" "}
+          <a href={AGENCY_WEBSITE_URL} target="_blank" rel="noreferrer" className="underline hover:no-underline">
+            etnof-web
+          </a>
         </span>
+      </footer>
+      {!hideLegalLinks && (
+        <LegalLinksBar clientSiteId={clientSiteId} content={content} color={`${palette.ink}99`} borderColor={`${palette.ink}1A`} />
       )}
-      {content?.address && <span>{content.address}</span>}
-      {content?.phone && <span>{content.phone}</span>}
-      {content?.email && <span>{content.email}</span>}
-      {showSocialLinks && (
-        <Suspense fallback={null}>
-          <div className="mt-2 flex flex-col items-start gap-1.5">
-            <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: `${palette.ink}80` }}>
-              {t(locale, "footer.followUs")}
-            </span>
-            <SocialLinks
-              facebookUrl={typeof socialConfig?.facebookUrl === "string" ? socialConfig.facebookUrl : ""}
-              instagramUrl={typeof socialConfig?.instagramUrl === "string" ? socialConfig.instagramUrl : ""}
-            />
-          </div>
-        </Suspense>
-      )}
-      <span className="mt-3 text-xs" style={{ color: `${palette.ink}66` }}>
-        {t(locale, "footer.madeBy")}{" "}
-        <a href={AGENCY_WEBSITE_URL} target="_blank" rel="noreferrer" className="underline hover:no-underline">
-          etnof-web
-        </a>
-      </span>
-    </footer>
+    </>
   );
 }

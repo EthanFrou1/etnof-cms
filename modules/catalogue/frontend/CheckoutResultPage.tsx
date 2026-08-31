@@ -161,10 +161,10 @@ export default function CheckoutResultPage({ clientSiteId, apiBaseUrl }: Checkou
   const palette = { accent, background, ink };
 
   const footer = footerDark ? (
-    <SiteFooter content={content} palette={palette} modules={modules} locale={locale} dark />
+    <SiteFooter clientSiteId={clientSiteId} content={content} palette={palette} modules={modules} locale={locale} dark />
   ) : (
     <div className="mx-auto w-full max-w-7xl px-4 sm:px-8">
-      <SiteFooter content={content} palette={palette} modules={modules} locale={locale} />
+      <SiteFooter clientSiteId={clientSiteId} content={content} palette={palette} modules={modules} locale={locale} />
     </div>
   );
 

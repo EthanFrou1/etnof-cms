@@ -3,6 +3,7 @@ import { API_BASE_URL } from "../../config";
 import { adminFetch } from "../../hooks/useAdminSession";
 import SecretField from "../../components/SecretField";
 import { formatPrice, stripeInputClass } from "./shared";
+import SaveButton from "../../components/admin/SaveButton";
 
 type StripeAgencySettings = { secretKey: string; webhookSecret: string };
 
@@ -51,18 +52,7 @@ function StripePaymentPanel({ password }: { password: string }) {
           <h2 className="text-lg font-bold text-navy">Paiement en ligne</h2>
           <p className="text-sm text-gray-text">Permet à tes clients de payer une facture en ligne, par carte.</p>
         </div>
-        <div className="flex items-center gap-3">
-          {saveStatus === "saved" && <span className="text-sm text-green-accent">Enregistré</span>}
-          {saveStatus === "error" && <span className="text-sm text-red-500">Erreur lors de l'enregistrement.</span>}
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={saveStatus === "saving" || !isDirty}
-            className="rounded-button bg-brand-gradient px-4 py-2.5 font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            {saveStatus === "saving" ? "Enregistrement…" : "Enregistrer"}
-          </button>
-        </div>
+        <SaveButton status={saveStatus} onClick={handleSave} onIdle={() => setSaveStatus("idle")} disabled={!isDirty} />
       </div>
 
       <section className="flex flex-col gap-5 rounded-card bg-white p-8 shadow-card">
@@ -152,18 +142,7 @@ function EmailConfirmationPanel({ password }: { password: string }) {
             manuellement, avec la facture en pièce jointe.
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          {saveStatus === "saved" && <span className="text-sm text-green-accent">Enregistré</span>}
-          {saveStatus === "error" && <span className="text-sm text-red-500">Erreur lors de l'enregistrement.</span>}
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={saveStatus === "saving" || !isDirty}
-            className="rounded-button bg-brand-gradient px-4 py-2.5 font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            {saveStatus === "saving" ? "Enregistrement…" : "Enregistrer"}
-          </button>
-        </div>
+        <SaveButton status={saveStatus} onClick={handleSave} onIdle={() => setSaveStatus("idle")} disabled={!isDirty} />
       </div>
 
       <section className="flex flex-col gap-5 rounded-card bg-white p-8 shadow-card">
