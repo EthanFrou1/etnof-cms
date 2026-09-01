@@ -33,3 +33,4 @@ Ce n'est PAS un CMS multi-tenant. Chaque client = un déploiement indépendant g
 - `docs/03-modele-donnees.md` — schéma de base de données
 - `docs/04-catalogue-modules.md` — liste des modules prévus (alignés sur la grille tarifaire etnof-web)
 - `docs/05-roadmap-poc.md` — phases, todo list, checklists de validation
+- `JIRA.md` — conventions Jira (fichier générique, identique sur tous les repos d'Ethan et Noa)
