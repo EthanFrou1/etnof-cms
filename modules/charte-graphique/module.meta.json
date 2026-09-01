@@ -1,0 +1,6 @@
+{
+  "name": "charte-graphique",
+  "displayName": "Charte graphique",
+  "description": "Service agence : définition d'une charte graphique complète (couleurs, typographies, déclinaisons) pour l'établissement.",
+  "dependencies": []
+}

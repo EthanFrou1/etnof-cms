@@ -2,28 +2,23 @@
 
 Ce fichier résume où on en est pour reprendre rapidement. Le détail complet (technique, décisions, tests effectués) est dans `docs/05-roadmap-poc.md`.
 
+## PR précédente mergée
+
+La PR de la session précédente (#23, `feature/admin-content-restructure` — module Fidélité/cartes enregistrées, domaine personnalisé, retouches admin/Charis) a été validée et mergée dans `main` par Ethan pendant cette session. GitHub a supprimé la branche distante après le merge.
+
 ## PR de cette session
 
-Poussé sur `feature/admin-content-restructure` (`gh` toujours indisponible sur cette machine — PR à ouvrir manuellement) : https://github.com/EthanFrou1/etnof-cms/pull/new/feature/admin-content-restructure. **Ne pas merger avant validation d'Ethan.**
+Nouvelle branche `feature/admin-content-restructure` (recréée sous le même nom après suppression de la précédente) poussée sur GitHub — `gh` toujours indisponible sur cette machine, **PR à ouvrir manuellement** : https://github.com/EthanFrou1/etnof-cms/pull/new/feature/admin-content-restructure
 
-Le commit `d9811b4` regroupe **deux sessions distinctes** (voir `docs/05-roadmap-poc.md` pour le détail complet de chacune) :
+Contenu (commit `cac5a3f`) :
+- **Prix du module Blog corrigé** : 300€ → 250€, pour matcher la page marketing `tarifs.html` (déjà mise à jour par Ethan de son côté avec les nouveaux prix — voir cette page pour la grille complète).
+- **5 nouveaux modules-services** (catalogue pur, pas de fonctionnalité technique à activer — même pattern que `horaires`) : `seo-avance` (390€), `logo` (190€), `charte-graphique` (390€), `espace-gestion` (190€), `redaction-contenu` (sans prix chiffré, sur devis).
+- **Nouveau toggle "Visible"** dans `/admin/dashboard` → Tarifs des modules (`ModulePrice.Visible`, migration `AddModulePriceVisibility`) : masque un module du catalogue de **tous** les clients d'un coup, sans empêcher de l'autoriser quand même pour un client précis depuis sa fiche (l'autorisation par client prime toujours sur le masquage général).
+- **Décision prise avec Ethan** : "Page supplémentaire" (+80€ sur `tarifs.html`) reste volontairement hors du système de modules — ce n'est pas une fonctionnalité on/off, juste un tarif à l'unité pour la composition des forfaits sur la page marketing.
 
-1. **Module Fidélité + cartes bancaires enregistrées** (session du 2026-08-31) — testé de bout en bout par Claude Code (CDP), mais **jamais vérifié par Ethan en navigateur réel**. À tester en priorité avant de merger : créer un vrai compte client, passer commande, voir sa progression fidélité, repasser commande et vérifier qu'une carte enregistrée est bien proposée par Stripe Checkout.
-2. **Domaine personnalisé par client + retouches admin/Charis** (session du 2026-09-01) — colonne `CustomDomain`, résolution par nom de domaine, sélecteur de palette Charis remis, "Notre histoire" remontée, passe mobile admin. Compile proprement (`dotnet build`/`tsc -b`) mais **pas de vérification en navigateur réel non plus** (login admin/agence bloqué par le classifieur de permissions automatique de Claude Code dans ces deux sessions — voir mémoire `feedback-auth-flows-untestable`).
+**Bug piégé et corrigé pendant la session** : la migration EF Core générée pour `ModulePrice.Visible` mettait `DEFAULT FALSE` en base malgré le défaut C# `true`, ce qui aurait masqué silencieusement les 17 modules existants pour tous les clients non-autorisés. Corrigé (colonne, fichier de migration, données) avant tout impact réel.
 
-## Prix des modules mis à jour (2026-09-01)
-
-À la demande d'Ethan, `ModulePrices` en base a été mis à jour directement (SQL, pas via l'admin — login bloqué) : `catalogue` 690€ (était 450€), `compte-client` 250€, `fidelite` 190€, `galerie` 100€ (était "Gratuit"), `pages` 150€, `analytics` 120€. Le reste de la table n'a pas été touché.
-
-**Écart repéré, pas corrigé (hors scope de la demande)** : `blog` est à 300€ en base mais la page marketing publique (`https://website-etnof-web.vercel.app/tarifs.html`) annonce 250€ — à trancher par Ethan.
-
-## Page tarifs.html (projet séparé, pas ce repo)
-
-Un brief complet a été préparé pour une session Claude Code sur l'autre projet (site marketing etnof-web) — prix de lancement (690/1090/1990€ affichés) vs prix normal (990/1490/2490€ barré, date limite 31/12/2026), nouvelle grille de modules à la carte, retrait de PayPal/Chat IA/FAQ IA (jamais construits ou abandonnés), repositionnement de "CMS" et "SEO avancé" en services distincts plutôt que fonctionnalités techniques. Le brief complet est dans l'historique de conversation de cette session — pas sauvegardé en fichier dans ce repo (ça concerne un autre projet). **Ethan doit encore lancer cette session sur l'autre repo pour appliquer les changements.**
-
-## Nouveau doc : guide d'onboarding client
-
-`docs/14-nouveau-client.md` (+ version mise en page publiée en artifact privé pour Ethan) : check-list opérationnelle complète, du devis au site en ligne chez un vrai client — statuts, création du site, contenu, domaine, livraison, suivi, catalogue des modules.
+**Testé** (curl, backend local) : `dotnet build` et `tsc -b` propres ; masquage global d'un module → disparaît bien du catalogue d'un tenant non autorisé, mais reste visible pour un tenant explicitement autorisé pour ce module. **Pas encore vérifié par Ethan dans le navigateur** (toggle "Visible" sur les cards de `/admin/dashboard` → Tarifs des modules).
 
 ## État des tenants de test
 
@@ -45,4 +40,4 @@ Puis `http://localhost:5173/admin/dashboard`, mot de passe `admin123`.
 
 ## Migrations ajoutées cette branche (à appliquer si pas déjà fait : `dotnet ef database update`)
 
-`AddLoyaltyAndSavedCards`, `AddClientSiteCustomDomain`.
+`AddModulePriceVisibility`.

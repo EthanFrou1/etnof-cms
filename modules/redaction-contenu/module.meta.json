@@ -1,0 +1,6 @@
+{
+  "name": "redaction-contenu",
+  "displayName": "Rédaction de contenu",
+  "description": "Service agence : rédaction des textes du site (accueil, offres, à propos) par l'agence, sur devis.",
+  "dependencies": []
+}

@@ -11,4 +11,11 @@ public class ModulePrice
     [Key]
     public string ModuleName { get; set; } = string.Empty;
     public string Price { get; set; } = string.Empty;
+
+    // Visibilité globale dans le catalogue de tous les tenants (indépendante de l'autorisation par
+    // client, voir ModuleRegistry.IsAuthorized) : à false, le module n'apparaît plus dans l'admin
+    // d'aucun client SAUF ceux pour qui Ethan l'a explicitement autorisé (un module déjà autorisé
+    // pour un client reste visible chez lui même si Ethan le cache du catalogue général ensuite).
+    // Éditée depuis PricingSection.tsx (dashboard agence).
+    public bool Visible { get; set; } = true;
 }
