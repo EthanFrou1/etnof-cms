@@ -14,6 +14,7 @@ import {
   IconClose,
   IconCollections,
   IconExternalLink,
+  IconGift,
   IconGlobe,
   IconHistory,
   IconImage,
@@ -49,6 +50,7 @@ export type AdminSection =
   | "multilingue"
   | "galerie"
   | "pages"
+  | "fidelite"
   | "accounts"
   | "history";
 
@@ -67,6 +69,7 @@ export const MULTILINGUE_SECTIONS: AdminSection[] = ["multilingue"];
 export const GALERIE_SECTIONS: AdminSection[] = ["galerie"];
 export const PAGES_SECTIONS: AdminSection[] = ["pages"];
 export const OFFERS_SECTIONS: AdminSection[] = ["offers"];
+export const FIDELITE_SECTIONS: AdminSection[] = ["fidelite"];
 
 // Sections réservées au Propriétaire (+ agence) — un compte Employé ne les voit pas dans la nav et
 // se voit bloquer l'accès direct par URL (voir AdminPage.tsx). Même liste que ce que le backend
@@ -111,6 +114,7 @@ const NAV_ITEMS: NavEntry[] = [
       leaf("multilingue", "Multilingue", IconGlobe),
       leaf("galerie", "Galerie", IconImage),
       leaf("pages", "Pages personnalisées", IconPages),
+      leaf("fidelite", "Fidélité", IconGift),
       leaf("accounts", "Comptes", IconLock),
       leaf("history", "Historique", IconHistory),
     ],
@@ -120,6 +124,48 @@ const NAV_ITEMS: NavEntry[] = [
 
 function sectionHref(clientSiteId: string, section: AdminSection) {
   return section === "dashboard" ? `/admin/${clientSiteId}` : `/admin/${clientSiteId}/${section}`;
+}
+
+// Persistant en localStorage (pas sessionStorage) : la navigation admin recharge la page en entier à
+// chaque clic (liens <a>, voir plus haut) — un dismiss en simple état React ou en sessionStorage
+// réapparaîtrait donc dès le lien suivant, ce qui serait vite agaçant sur mobile.
+const MOBILE_NOTICE_DISMISSED_KEY = "etnof-admin-mobile-notice-dismissed";
+
+// Admin pensé pour un usage desktop (grilles, tableaux) — pas bloqué sur mobile (un client peut avoir
+// besoin de lire un message ou une commande depuis son téléphone) mais on le signale, avec un bandeau
+// fermable plutôt qu'un écran de blocage complet (demandé par Ethan).
+function MobileNotice() {
+  const [dismissed, setDismissed] = useState(() => {
+    try {
+      return localStorage.getItem(MOBILE_NOTICE_DISMISSED_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
+
+  if (dismissed) return null;
+
+  return (
+    <div className="flex items-center justify-between gap-3 bg-amber-50 px-4 py-2 text-xs text-amber-900 lg:hidden">
+      <span>Pour une meilleure expérience, nous te recommandons d'utiliser un ordinateur pour gérer ton site.</span>
+      <button
+        type="button"
+        onClick={() => {
+          try {
+            localStorage.setItem(MOBILE_NOTICE_DISMISSED_KEY, "1");
+          } catch {
+            // Stockage indisponible (navigation privée…) : le bandeau réapparaîtra à la prochaine
+            // page, tant pis — pas bloquant.
+          }
+          setDismissed(true);
+        }}
+        aria-label="Fermer ce message"
+        className="shrink-0 rounded-button p-1 text-amber-900/70 hover:bg-amber-900/10 hover:text-amber-900"
+      >
+        <IconClose className="h-4 w-4" />
+      </button>
+    </div>
+  );
 }
 
 type AdminLayoutProps = {
@@ -143,6 +189,7 @@ export default function AdminLayout({ clientSiteId, activeSection, password, chi
   const galerieActive = Boolean(modules?.galerie?.enabled);
   const pagesActive = Boolean(modules?.pages?.enabled);
   const offresActive = Boolean(modules?.offres?.enabled);
+  const fideliteActive = Boolean(modules?.fidelite?.enabled);
   const isEmployee = decodeTokenScope(password) === "tenant-employee";
 
   const isSectionVisible = (id: AdminSection) =>
@@ -155,6 +202,7 @@ export default function AdminLayout({ clientSiteId, activeSection, password, chi
     (!GALERIE_SECTIONS.includes(id) || galerieActive) &&
     (!PAGES_SECTIONS.includes(id) || pagesActive) &&
     (!OFFERS_SECTIONS.includes(id) || offresActive) &&
+    (!FIDELITE_SECTIONS.includes(id) || fideliteActive) &&
     (!OWNER_ONLY_SECTIONS.includes(id) || !isEmployee);
 
   // Un groupe contenant la section active s'ouvre automatiquement (calculé une seule fois au
@@ -213,6 +261,8 @@ export default function AdminLayout({ clientSiteId, activeSection, password, chi
           <IconMenu className="h-6 w-6" />
         </button>
       </div>
+
+      {!mobileMenuOpen && <MobileNotice />}
 
       {mobileMenuOpen && (
         <div
@@ -339,7 +389,7 @@ export default function AdminLayout({ clientSiteId, activeSection, password, chi
         </div>
       </aside>
 
-      <main className="flex-1 bg-bg-page-start px-8 pb-24 pt-8">
+      <main className="flex-1 bg-bg-page-start px-4 pb-24 pt-6 sm:px-8 sm:pt-8">
         <div className="w-full">{children}</div>
       </main>
 

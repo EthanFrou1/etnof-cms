@@ -6,6 +6,7 @@ using Modules.Blog;
 using Modules.Catalogue;
 using Modules.CompteClient;
 using Modules.Contact;
+using Modules.Fidelite;
 using Modules.Galerie;
 using Modules.Multilingue;
 using Modules.Newsletter;
@@ -130,6 +131,7 @@ AgencyEmailEndpoints.MapEndpoints(app);
 PackageOfferEndpoints.MapEndpoints(app);
 SeoEndpoints.MapEndpoints(app);
 AdminTokenEndpoints.MapEndpoints(app);
+DomainEndpoints.MapEndpoints(app);
 
 // La route reste mappée même si le module est désactivé ; le handler vérifie l'état courant et
 // renvoie 404 dynamiquement, pour qu'un toggle depuis l'admin du tenant prenne effet sans redémarrage.
@@ -152,5 +154,6 @@ StripeModule.MapEndpoints(app);
 StripeAdminEndpoints.MapEndpoints(app);
 MultilingueAdminEndpoints.MapEndpoints(app);
 CompteClientModule.MapEndpoints(app);
+FideliteModule.MapEndpoints(app);
 
 app.Run();

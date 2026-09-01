@@ -88,6 +88,12 @@ public static class AgencyDashboardEndpoints
             if (!AdminAuth.IsAuthorized(req, config)) return Results.Unauthorized();
             if (string.IsNullOrWhiteSpace(input.Password)) return Results.BadRequest("Un mot de passe est requis à la création.");
 
+            var customDomain = DomainEndpoints.NormalizeDomain(input.CustomDomain);
+            if (customDomain is not null && await db.ClientSites.AnyAsync(s => s.CustomDomain == customDomain))
+            {
+                return Results.BadRequest("Ce nom de domaine est déjà utilisé par un autre site.");
+            }
+
             var site = new ClientSite
             {
                 Id = Guid.NewGuid(),
@@ -100,6 +106,7 @@ public static class AgencyDashboardEndpoints
                 ModulesConfigJson = BuildModulesConfigJson(null, input.Modules),
                 TemplateId = TemplateEndpoints.KnownTemplateIds.Contains(input.TemplateId) ? input.TemplateId : "hestia",
                 CreatedAt = DateTime.UtcNow,
+                CustomDomain = customDomain,
             };
 
             db.ClientSites.Add(site);
@@ -123,12 +130,19 @@ public static class AgencyDashboardEndpoints
             var site = await db.ClientSites.FindAsync(id);
             if (site is null) return Results.NotFound();
 
+            var customDomain = DomainEndpoints.NormalizeDomain(input.CustomDomain);
+            if (customDomain is not null && await db.ClientSites.AnyAsync(s => s.Id != id && s.CustomDomain == customDomain))
+            {
+                return Results.BadRequest("Ce nom de domaine est déjà utilisé par un autre site.");
+            }
+
             site.Name = input.Name;
             site.SiteType = input.SiteType;
             site.Description = input.Description;
             site.Url = input.Url;
             site.Status = input.Status;
             site.ModulesConfigJson = BuildModulesConfigJson(site.ModulesConfigJson, input.Modules);
+            site.CustomDomain = customDomain;
             if (TemplateEndpoints.KnownTemplateIds.Contains(input.TemplateId))
             {
                 site.TemplateId = input.TemplateId;
@@ -232,6 +246,7 @@ public static class AgencyDashboardEndpoints
         site.TemplateId,
         site.PaletteId,
         site.CreatedAt,
+        site.CustomDomain,
     };
 
     // Même règle de rétrocompatibilité que ModuleRegistry.IsAuthorized : un module déjà présent
@@ -289,5 +304,6 @@ public record ClientSiteInput(
     string Status,
     List<string> Modules,
     string? Password,
-    string TemplateId
+    string TemplateId,
+    string? CustomDomain = null
 );

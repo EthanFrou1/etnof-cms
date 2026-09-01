@@ -5,7 +5,7 @@ import { useRevealOnScroll } from "../hooks/useRevealOnScroll";
 import { resolvePalette } from "./registry";
 import SiteFooter from "./SiteFooter";
 import SiteChrome from "./charis/SiteChrome";
-import ProductGrid from "./charis/ProductGrid";
+import { useCatalogueData, CatalogueTeaser, CatalogueCollections } from "./charis/ProductGrid";
 import StorySection from "./charis/StorySection";
 import type { TemplateProps } from "./types";
 
@@ -82,6 +82,8 @@ export default function TemplateCharis({ clientSiteId, modules, content, palette
   // dehors du module (comportement exclusif à ce template).
   const modulePalette = { accent, background, ink };
   const showMaps = Boolean(modules?.maps?.enabled) && typeof mapsAddress === "string";
+  const catalogueEnabled = Boolean(modules?.catalogue?.enabled);
+  const catalogueData = useCatalogueData(clientSiteId, catalogueEnabled);
   // Les modules partagés (Contact, Maps, Réseaux sociaux, Newsletter, Galerie, Blog, RDV, Avis
   // Google) rendent chacun leur propre libellé de section en text-xs (voir ces fichiers dans
   // modules/*/frontend) — taille commune à Hestia/Helios qu'on ne peut pas changer sans les
@@ -92,10 +94,10 @@ export default function TemplateCharis({ clientSiteId, modules, content, palette
   // est lui aussi codé en dur (text-2xl) — même traitement, ramené à une taille plus discrète.
   const sectionTitleSize = "[&>section>span:first-child]:!text-xl [&>section>h2]:!text-lg";
 
-  // Horaires + Maps affichés en paire, injectés dans ProductGrid juste après les produits mis en
-  // avant/le lien "voir le catalogue" et avant les aperçus par collection (demandé par Ethan) — même
-  // traitement de titre (petit libellé en majuscules, comme "OÙ NOUS TROUVER" du module Maps) et même
-  // style de carte, côte à côte avec un espace entre elles.
+  // Horaires + Maps affichés en paire, injectés dans CatalogueCollections (extras) juste avant les
+  // aperçus par collection, donc après "Notre histoire" (demandé par Ethan) — même traitement de titre
+  // (petit libellé en majuscules, comme "OÙ NOUS TROUVER" du module Maps) et même style de carte, côte
+  // à côte avec un espace entre elles.
   const horairesAndMaps = (showHours || showMaps) && (
     <Suspense fallback={null}>
       <Reveal>
@@ -173,18 +175,19 @@ export default function TemplateCharis({ clientSiteId, modules, content, palette
       </header>
 
       <div className="mx-auto flex max-w-7xl flex-col gap-24 px-4 pb-16 sm:px-8">
-        {/* Catalogue avant "Notre histoire" (inversé le 2026-08-28) : la troncature de "Notre
-            histoire" est passée de 4 à ~10 lignes le même jour (voir StorySection.tsx) à la demande
-            d'Ethan, ce qui a rendu le bloc bien plus haut — il fallait descendre trop loin pour
-            atteindre les produits. Les acheteurs arrivent maintenant directement sur le catalogue,
-            "Notre histoire" (contenu de marque, pas transactionnel) vient juste après. */}
-        {modules?.catalogue?.enabled && (
+        {/* Catalogue avant "Notre histoire" (inversé le 2026-08-28), puis Catalogue scindé en deux
+            (2026-09-01, demande d'Ethan) : le teaser (mis en avant + lien "voir le catalogue") reste
+            juste au-dessus de "Notre histoire", mais les aperçus par collection (potentiellement
+            nombreux/longs) sont repoussés après — sinon "Notre histoire" se retrouvait repoussée bien
+            plus bas que "juste sous le catalogue" sur un tenant avec plusieurs collections. Voir
+            CatalogueTeaser/CatalogueCollections dans ProductGrid.tsx. */}
+        {catalogueEnabled && (
           <Reveal>
             <section id="boutique" className="flex flex-col gap-6">
               <span className="text-xl font-semibold uppercase tracking-[0.2em]" style={{ color: accent }}>
                 {t(locale, "nav.catalogue")}
               </span>
-              <ProductGrid clientSiteId={clientSiteId} palette={modulePalette} locale={locale} afterFeatured={horairesAndMaps} />
+              <CatalogueTeaser data={catalogueData} clientSiteId={clientSiteId} palette={modulePalette} locale={locale} />
             </section>
           </Reveal>
         )}
@@ -198,6 +201,18 @@ export default function TemplateCharis({ clientSiteId, modules, content, palette
             locale={locale}
           />
         </Reveal>
+
+        {catalogueEnabled && (
+          <Reveal>
+            <CatalogueCollections
+              data={catalogueData}
+              clientSiteId={clientSiteId}
+              palette={modulePalette}
+              locale={locale}
+              extras={horairesAndMaps}
+            />
+          </Reveal>
+        )}
 
         <Suspense fallback={null}>
           <Reveal>

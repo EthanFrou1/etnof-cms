@@ -213,6 +213,11 @@ const fr: Dict = {
   "account.orderStatusFulfilled": "Traitée",
   "account.orderStatusCancelled": "Annulée",
   "account.orderTotal": "Total",
+  "account.loyaltyTitle": "Fidélité",
+  "account.loyaltyStampsUnit": "commandes",
+  "account.loyaltyPointsUnit": "points",
+  "account.loyaltyReward": "Récompense : {reward}",
+  "account.loyaltyReached": "Récompense débloquée ! Contactez-nous pour en profiter.",
 };
 
 const en: Dict = {
@@ -416,6 +421,11 @@ const en: Dict = {
   "account.orderStatusFulfilled": "Fulfilled",
   "account.orderStatusCancelled": "Cancelled",
   "account.orderTotal": "Total",
+  "account.loyaltyTitle": "Loyalty",
+  "account.loyaltyStampsUnit": "orders",
+  "account.loyaltyPointsUnit": "points",
+  "account.loyaltyReward": "Reward: {reward}",
+  "account.loyaltyReached": "Reward unlocked! Contact us to claim it.",
 };
 
 const es: Dict = {
@@ -619,6 +629,11 @@ const es: Dict = {
   "account.orderStatusFulfilled": "Completado",
   "account.orderStatusCancelled": "Cancelado",
   "account.orderTotal": "Total",
+  "account.loyaltyTitle": "Fidelidad",
+  "account.loyaltyStampsUnit": "pedidos",
+  "account.loyaltyPointsUnit": "puntos",
+  "account.loyaltyReward": "Recompensa: {reward}",
+  "account.loyaltyReached": "¡Recompensa desbloqueada! Contáctanos para conseguirla.",
 };
 
 const UI_STRINGS: Record<Locale, Dict> = { fr, en, es };

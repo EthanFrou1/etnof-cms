@@ -27,21 +27,22 @@ function TemplateCard({
   isSelected,
   onSelect,
   paletteId,
+  onPaletteChange,
   customAccent,
 }: {
   template: (typeof TEMPLATES)[number];
   isSelected: boolean;
   onSelect: () => void;
   paletteId: string | null;
+  onPaletteChange: (id: string) => void;
   customAccent: string | null;
 }) {
   const [imgFailed, setImgFailed] = useState(false);
 
-  // Sélecteur de palette retiré de l'UI (voir SiteSection.handleTemplateChange) — chaque template
-  // garde sa 1re palette. La card du template sélectionné suit quand même paletteId/customAccent tels
-  // que chargés, au cas où un site aurait déjà une palette non-défaut enregistrée avant ce retrait.
-  // Pour "custom", pas d'image dédiée (le fond reste celui du 1er preset, voir resolvePalette) — le
-  // dégradé de repli (fallbackGradient) reprend la couleur déjà enregistrée pour ce site.
+  // La card du template sélectionné suit la palette de brouillon en cours (choisie via les pastilles
+  // ci-dessous) ; les autres cards restent sur leur image par défaut (1re palette). Pour "custom", pas
+  // d'image dédiée (le fond reste celui du 1er preset, voir resolvePalette) — le dégradé de repli
+  // (fallbackGradient) reprend la couleur déjà enregistrée pour ce site.
   const activePalette =
     isSelected && template.palettes.length > 0
       ? resolvePalette(template.id, paletteId, customAccent)
@@ -91,6 +92,37 @@ function TemplateCard({
         <span className="absolute bottom-3 left-4 text-lg font-bold text-white drop-shadow-sm">
           {template.label}
         </span>
+
+        {/* Palette de couleurs en overlay, en bas à droite de la card — affichée sur chaque template
+            (pas seulement le sélectionné) pour permettre d'en prévisualiser/choisir la couleur sans
+            avoir à sélectionner le template au préalable. Cliquer une pastille sur une card non
+            sélectionnée sélectionne ce template ET applique la palette en un seul geste. */}
+        {template.palettes.length > 0 && (
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="absolute bottom-2.5 right-3 flex items-center gap-1.5 rounded-pill bg-navy/50 px-2 py-1.5 backdrop-blur-sm"
+          >
+            {template.palettes.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                title={p.label}
+                onClick={() => {
+                  if (!isSelected) onSelect();
+                  onPaletteChange(p.id);
+                }}
+                className={`h-5 w-5 overflow-hidden rounded-full border-2 transition-colors ${
+                  isSelected && paletteId === p.id ? "border-white" : "border-white/30 hover:border-white/70"
+                }`}
+              >
+                <span className="flex h-full w-full">
+                  <span className="h-full w-1/2" style={{ backgroundColor: p.background }} />
+                  <span className="h-full w-1/2" style={{ backgroundColor: p.accent }} />
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="p-4">
@@ -104,11 +136,13 @@ function TemplateTab({
   templateId,
   onTemplateChange,
   paletteId,
+  onPaletteChange,
   customAccent,
 }: {
   templateId: TemplateId | null;
   onTemplateChange: (id: TemplateId) => void;
   paletteId: string | null;
+  onPaletteChange: (id: string) => void;
   customAccent: string | null;
 }) {
   return (
@@ -122,6 +156,7 @@ function TemplateTab({
             isSelected={templateId === t.id}
             onSelect={() => onTemplateChange(t.id)}
             paletteId={paletteId}
+            onPaletteChange={onPaletteChange}
             customAccent={customAccent}
           />
         ))}
@@ -392,6 +427,7 @@ export default function SiteSection({ clientSiteId, password }: SiteSectionProps
           templateId={draftTemplateId}
           onTemplateChange={handleTemplateChange}
           paletteId={draftPaletteId}
+          onPaletteChange={setDraftPaletteId}
           customAccent={draftCustomAccent}
         />
       )}

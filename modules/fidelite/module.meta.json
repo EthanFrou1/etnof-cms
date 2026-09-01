@@ -1,0 +1,6 @@
+{
+  "name": "fidelite",
+  "displayName": "Fidélité",
+  "description": "Programme de fidélité configurable (points ou carte à tampons) — le client suit sa progression depuis son compte, la récompense se gère à la main",
+  "dependencies": ["compte-client"]
+}

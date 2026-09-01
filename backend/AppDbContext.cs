@@ -4,6 +4,7 @@ using Modules.Blog;
 using Modules.Catalogue;
 using Modules.CompteClient;
 using Modules.Contact;
+using Modules.Fidelite;
 using Modules.Galerie;
 using Modules.Multilingue;
 using Modules.Newsletter;
@@ -55,4 +56,5 @@ public class AppDbContext : DbContext
     public DbSet<AdminActionLog> AdminActionLogs => Set<AdminActionLog>();
     public DbSet<OrderStatusChange> OrderStatusChanges => Set<OrderStatusChange>();
     public DbSet<OrderComment> OrderComments => Set<OrderComment>();
+    public DbSet<LoyaltySettings> LoyaltySettings => Set<LoyaltySettings>();
 }

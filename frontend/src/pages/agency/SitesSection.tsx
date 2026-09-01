@@ -35,6 +35,7 @@ type ClientSite = {
   templateId: TemplateId;
   paletteId: string;
   createdAt: string;
+  customDomain: string | null;
 };
 
 function tenantSiteUrl(clientSiteId: string) {
@@ -57,6 +58,7 @@ const emptyForm = {
   modules: [] as string[],
   password: "",
   templateId: TEMPLATES[0].id as TemplateId,
+  customDomain: "",
 };
 
 function formFromSite(site: ClientSite) {
@@ -69,6 +71,7 @@ function formFromSite(site: ClientSite) {
     modules: site.modules,
     password: "",
     templateId: site.templateId,
+    customDomain: site.customDomain ?? "",
   };
 }
 
@@ -89,6 +92,7 @@ function SiteFormModal({
 }) {
   const [form, setForm] = useState(editing ? formFromSite(editing) : emptyForm);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
   const toggleModule = (name: string) =>
     setForm((f) => ({
@@ -103,13 +107,21 @@ function SiteFormModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
+    setError("");
     const path = editing ? `/api/admin/client-sites/${editing.id}` : "/api/admin/client-sites";
-    await adminFetch(API_BASE_URL, path, password, {
+    const res = await adminFetch(API_BASE_URL, path, password, {
       method: editing ? "PUT" : "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(form),
     });
     setSaving(false);
+    if (!res.ok) {
+      // Seule validation susceptible d'échouer ici pour de vrai : domaine personnalisé déjà pris
+      // par un autre site (voir AgencyDashboardEndpoints.cs) — le reste des champs n'a pas de
+      // contrainte d'unicité.
+      setError((await res.text()) || "Erreur lors de l'enregistrement.");
+      return;
+    }
     onSaved();
     onClose();
   };
@@ -164,6 +176,20 @@ function SiteFormModal({
               value={form.url}
               onChange={(e) => setForm({ ...form, url: e.target.value })}
             />
+          </label>
+          <label className="flex flex-col gap-1 text-sm font-medium text-gray-text">
+            Domaine personnalisé
+            <input
+              className={inputClass}
+              placeholder="boulangerie-dupont.fr"
+              value={form.customDomain}
+              onChange={(e) => setForm({ ...form, customDomain: e.target.value })}
+            />
+            <span className="text-xs font-normal text-gray-text/80">
+              Sans "https://" ni "www." — à renseigner une fois le DNS du client configuré (voir
+              docs/08-hebergement-domaines.md). Laisser vide tant que le site n'a pas son propre
+              domaine : il reste accessible seulement via le lien de prévisualisation ci-dessous.
+            </span>
           </label>
           <label className="flex flex-col gap-1 text-sm font-medium text-gray-text">
             Statut
@@ -226,6 +252,8 @@ function SiteFormModal({
               })}
             </div>
           </fieldset>
+
+          {error && <p className="text-sm text-red-500">{error}</p>}
 
           <div className="flex gap-2">
             <button
@@ -453,6 +481,25 @@ export default function SitesSection({ password }: { password: string }) {
                       {site.url}
                     </a>
                   )}
+
+                  {/* Domaine personnalisé : présent = le site est réellement en ligne sur son propre nom
+                      de domaine (pas juste un lien de prévisualisation /t/{id}) — voir CustomDomain
+                      dans ClientSite.cs et la décision d'Ethan de ne jamais publier sans domaine. */}
+                  <div className="flex items-center gap-1.5 text-xs font-medium">
+                    <span className={`h-2 w-2 shrink-0 rounded-full ${site.customDomain ? "bg-green-accent" : "bg-gray-text/30"}`} />
+                    {site.customDomain ? (
+                      <a
+                        href={`https://${site.customDomain}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="truncate text-brand-mid hover:underline"
+                      >
+                        {site.customDomain}
+                      </a>
+                    ) : (
+                      <span className="text-gray-text/70">Pas encore de domaine — non publié</span>
+                    )}
+                  </div>
 
                   <div className="mt-auto flex flex-col gap-3 pt-2">
                     <div className="flex flex-wrap gap-2">

@@ -663,13 +663,18 @@ export default function EstablishmentSection({ clientSiteId, password }: Establi
         </div>
       )}
 
-      <div className="flex gap-2 border-b border-border-subtle">
+      {/* overflow-x-auto + whitespace-nowrap plutôt qu'un simple flex : 5 onglets (dont deux
+          libellés à deux mots, "Livraison & CGV"/"Mentions légales") ne tiennent pas sur la largeur
+          d'un téléphone — sans ça, flexbox les compressait au point de faire retourner leur texte à
+          la ligne (remonté par Ethan sur capture mobile). Onglets à défilement horizontal, comme les
+          tableaux plus bas dans l'admin. */}
+      <div className="flex gap-2 overflow-x-auto border-b border-border-subtle [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {visibleTabs.map((tab) => (
           <button
             key={tab.id}
             type="button"
             onClick={() => setActiveTab(tab.id)}
-            className={`-mb-px border-b-2 px-4 py-2 text-sm font-semibold transition-colors ${
+            className={`-mb-px shrink-0 whitespace-nowrap border-b-2 px-4 py-2 text-sm font-semibold transition-colors ${
               activeTab === tab.id
                 ? "border-brand-mid text-navy"
                 : "border-transparent text-gray-text hover:text-navy"

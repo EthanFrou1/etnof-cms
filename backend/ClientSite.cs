@@ -47,4 +47,12 @@ public class ClientSite
     // "Rafraîchir le site", auquel cas l'endpoint public retombe sur LogoPath (voir TemplateEndpoints).
     public string? LogoPath { get; set; }
     public string? PublishedLogoPath { get; set; }
+
+    // Domaine personnalisé du client (ex. "boulangerie-dupont.fr"), toujours normalisé en minuscules
+    // sans protocole/chemin/"www." (voir DomainEndpoints.NormalizeDomain) — distinct de `Url` ci-dessus
+    // qui reste un simple lien informatif cliquable depuis le dashboard agence. Renseigné par Ethan
+    // (pas par le client lui-même) une fois le DNS du client configuré, voir docs/08-hebergement-domaines.md.
+    // Tant que ce champ est vide, le site n'est joignable que via /t/{clientSiteId} (décision d'Ethan :
+    // pas de sous-domaine gratuit en attendant — un site "en ligne" a forcément son propre domaine).
+    public string? CustomDomain { get; set; }
 }

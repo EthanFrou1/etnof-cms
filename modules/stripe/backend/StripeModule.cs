@@ -2,6 +2,7 @@ using System.Text.Json;
 using Backend;
 using Microsoft.EntityFrameworkCore;
 using Modules.Catalogue;
+using Modules.CompteClient;
 using Stripe;
 using Stripe.Checkout;
 
@@ -22,7 +23,8 @@ public static class StripeModule
     {
         // Public : crée une session Stripe Checkout et renvoie son URL. Le frontend redirige
         // (window.location.href) — pas de Stripe.js côté client, pas de clé publique nécessaire.
-        app.MapPost("/api/t/{clientSiteId:guid}/stripe/checkout", async (Guid clientSiteId, CheckoutInput input, AppDbContext db, ModuleRegistry registry) =>
+        app.MapPost("/api/t/{clientSiteId:guid}/stripe/checkout", async (
+            Guid clientSiteId, CheckoutInput input, HttpRequest request, AppDbContext db, ModuleRegistry registry, IConfiguration config) =>
         {
             if (!await registry.IsEnabledAsync(clientSiteId, "catalogue")) return Results.NotFound();
             if (!await registry.IsEnabledAsync(clientSiteId, Name)) return Results.NotFound();
@@ -117,11 +119,23 @@ public static class StripeModule
             var cartJson = JsonSerializer.Serialize(input.Items);
             var returnBaseUrl = string.IsNullOrWhiteSpace(input.ReturnBaseUrl) ? $"http://localhost:5173/t/{clientSiteId}" : input.ReturnBaseUrl;
 
+            // Réutilisation de carte (module Compte client, voir docs/05-roadmap-poc.md) : un visiteur
+            // connecté envoie son CustomerToken en Bearer sur cette requête (voir CartPage.tsx) — s'il
+            // a déjà un Customer Stripe lié, on le passe pour que Checkout propose directement ses
+            // cartes enregistrées ; sinon on laisse Stripe en créer un et enregistrer la carte de ce
+            // paiement pour la prochaine fois. Un achat invité (pas de token, ou token invalide) garde
+            // le comportement d'origine — aucune identité stable à laquelle rattacher une carte.
+            Modules.Catalogue.Customer? loggedInCustomer = null;
+            var customerToken = CustomerToken.FromAuthorizationHeader(request);
+            if (CustomerToken.TryValidate(config, customerToken, clientSiteId, out var tokenCustomerId))
+            {
+                loggedInCustomer = await db.Customers.FirstOrDefaultAsync(c => c.Id == tokenCustomerId && c.ClientSiteId == clientSiteId);
+            }
+
             var options = new SessionCreateOptions
             {
                 Mode = "payment",
                 LineItems = lineItems,
-                CustomerEmail = input.CustomerEmail,
                 SuccessUrl = $"{returnBaseUrl}?checkout=success&session_id={{CHECKOUT_SESSION_ID}}",
                 CancelUrl = $"{returnBaseUrl}?checkout=cancel",
                 Metadata = new Dictionary<string, string>
@@ -138,6 +152,25 @@ public static class StripeModule
                     ["cart"] = cartJson,
                 },
             };
+
+            if (loggedInCustomer is not null && !string.IsNullOrWhiteSpace(loggedInCustomer.StripeCustomerId))
+            {
+                // Stripe refuse Customer et CustomerEmail ensemble ; l'email du Customer existant fait
+                // foi. Checkout propose alors les cartes déjà enregistrées pour ce Customer.
+                options.Customer = loggedInCustomer.StripeCustomerId;
+            }
+            else
+            {
+                options.CustomerEmail = input.CustomerEmail;
+                if (loggedInCustomer is not null)
+                {
+                    // Premier paiement de ce client connecté : Stripe crée le Customer et enregistre la
+                    // carte de ce paiement pour la prochaine fois (voir le webhook plus bas, qui
+                    // rattache l'id Stripe obtenu à notre propre Customer).
+                    options.CustomerCreation = "always";
+                    options.PaymentIntentData = new SessionPaymentIntentDataOptions { SetupFutureUsage = "off_session" };
+                }
+            }
 
             try
             {
@@ -233,6 +266,16 @@ public static class StripeModule
                     CreatedAt = DateTime.UtcNow,
                 };
                 db.Customers.Add(customer);
+            }
+
+            // Rattache l'id Stripe obtenu (nouveau Customer créé par CustomerCreation="always", ou
+            // Customer déjà réutilisé, voir la création de session plus haut) — réutilisé au prochain
+            // paiement de ce client pour proposer directement sa carte enregistrée. Ne l'écrase jamais
+            // une fois posé : un même Customer côté etnof-cms doit toujours pointer vers le même
+            // Customer Stripe.
+            if (string.IsNullOrWhiteSpace(customer.StripeCustomerId) && !string.IsNullOrWhiteSpace(session.CustomerId))
+            {
+                customer.StripeCustomerId = session.CustomerId;
             }
 
             var order = new Order

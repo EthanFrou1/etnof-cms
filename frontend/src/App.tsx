@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import PublicSite from "./pages/PublicSite";
 import AdminPage from "./pages/AdminPage";
 import AgencyPage from "./pages/AgencyPage";
@@ -35,6 +35,7 @@ const ADMIN_SECTIONS: AdminSection[] = [
   "multilingue",
   "galerie",
   "pages",
+  "fidelite",
   "accounts",
   "history",
 ];
@@ -64,6 +65,125 @@ function Redirect({ to }: { to: string }) {
     window.location.replace(to);
   }, [to]);
   return null;
+}
+
+// Rendu du site public d'UN tenant déjà résolu, à partir des segments d'URL qui suivent son
+// identifiant — utilisé aussi bien par /t/{clientSiteId}/... (lien de prévisualisation interne, voir
+// plus bas) que par un domaine personnalisé de client résolu dynamiquement (voir DomainRouter
+// ci-dessous et DomainEndpoints.cs côté backend) : mêmes pages, seule la façon d'obtenir
+// `clientSiteId` change. Garder ces deux entrées synchronisées avec cette fonction plutôt qu'avec
+// une liste de routes dupliquée.
+function renderTenantSite(clientSiteId: string, segments: string[]) {
+  // {clientSiteId}/blog/{slug} — détail d'article d'un tenant
+  if (segments[0] === "blog" && segments[1]) {
+    return (
+      <Suspense fallback={null}>
+        <BlogPostPage slug={segments[1]} apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} />
+      </Suspense>
+    );
+  }
+
+  // {clientSiteId}/pages/{slug} — détail d'une page personnalisée d'un tenant
+  if (segments[0] === "pages" && segments[1]) {
+    return (
+      <Suspense fallback={null}>
+        <CustomPageView slug={segments[1]} apiBaseUrl={API_BASE_URL} clientSiteId={clientSiteId} />
+      </Suspense>
+    );
+  }
+
+  // {clientSiteId}/cgv — CGV du tenant, contenu "core" (SiteContent.CgvContent) pas un module,
+  // voir CgvPage.tsx.
+  if (segments[0] === "cgv") {
+    return <CgvPage clientSiteId={clientSiteId} />;
+  }
+
+  // {clientSiteId}/mentions-legales et /confidentialite — même principe que /cgv ci-dessus :
+  // contenu "core" (SiteContent.LegalNoticeContent/PrivacyPolicyContent), pas un module.
+  if (segments[0] === "mentions-legales") {
+    return <LegalNoticePage clientSiteId={clientSiteId} />;
+  }
+  if (segments[0] === "confidentialite") {
+    return <PrivacyPolicyPage clientSiteId={clientSiteId} />;
+  }
+
+  // {clientSiteId}/produits/{productId} — fiche produit dédiée (grande photo + slider), exclusive
+  // au template Charis, voir docs/10-templates.md
+  if (segments[0] === "produits" && segments[1]) {
+    return (
+      <Suspense fallback={null}>
+        <CharisProductPage clientSiteId={clientSiteId} productId={segments[1]} apiBaseUrl={API_BASE_URL} />
+      </Suspense>
+    );
+  }
+
+  // {clientSiteId}/boutique — page catalogue dédiée (tous les produits), riche avec filtre par
+  // collection sur Charis, simple sur Hestia/Helios — voir docs/10-templates.md et
+  // frontend/src/pages/CataloguePage.tsx (aiguilleur par template)
+  if (segments[0] === "boutique") {
+    return (
+      <Suspense fallback={null}>
+        <CataloguePage clientSiteId={clientSiteId} />
+      </Suspense>
+    );
+  }
+
+  // {clientSiteId}/panier — page panier du module Catalogue, identique pour tous les templates
+  // (voir docs/10-templates.md)
+  if (segments[0] === "panier") {
+    return (
+      <Suspense fallback={null}>
+        <CartPage clientSiteId={clientSiteId} apiBaseUrl={API_BASE_URL} />
+      </Suspense>
+    );
+  }
+
+  // {clientSiteId}/commande — page de retour de Stripe Checkout (succès/annulation), voir
+  // CheckoutResultPage.tsx. CartPage.tsx y pointe son `returnBaseUrl` ; remplace l'ancienne bannière
+  // affichée sur la home (retirée de CatalogueSection.tsx et charis/ProductGrid.tsx).
+  if (segments[0] === "commande") {
+    return (
+      <Suspense fallback={null}>
+        <CheckoutResultPage clientSiteId={clientSiteId} apiBaseUrl={API_BASE_URL} />
+      </Suspense>
+    );
+  }
+
+  // {clientSiteId}/compte — module compte-client (connexion par lien email, historique de
+  // commandes), identique pour tous les templates (même principe que /panier). Gère elle-même le
+  // paramètre ?token= du lien de connexion reçu par email.
+  if (segments[0] === "compte") {
+    return (
+      <Suspense fallback={null}>
+        <AccountPage clientSiteId={clientSiteId} apiBaseUrl={API_BASE_URL} />
+      </Suspense>
+    );
+  }
+
+  // Rien de plus spécifique : la home du tenant.
+  return <PublicSite clientSiteId={clientSiteId} />;
+}
+
+// Accès par nom de domaine personnalisé (voir docs/08-hebergement-domaines.md) : le nom d'hôte n'est
+// pas un GUID connu à l'avance comme /t/{clientSiteId}, donc il faut d'abord demander au backend à
+// quel tenant il correspond (GET /api/domain-resolve, voir backend/DomainEndpoints.cs) avant de
+// savoir quoi afficher — d'où l'aller-retour réseau et l'état de chargement, contrairement au reste
+// du routing ci-dessus qui reste synchrone. Un domaine inconnu (y compris le domaine de la
+// plateforme elle-même, jamais enregistré comme CustomDomain d'un tenant) retombe sur le dashboard
+// agence, comme l'absence de tenant dans l'URL plus bas.
+function DomainRouter({ segments }: { segments: string[] }) {
+  const [resolvedClientSiteId, setResolvedClientSiteId] = useState<string | null | undefined>(undefined);
+
+  useEffect(() => {
+    fetch(`${API_BASE_URL}/api/domain-resolve?host=${encodeURIComponent(window.location.hostname)}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { clientSiteId: string } | null) => setResolvedClientSiteId(data?.clientSiteId ?? null))
+      .catch(() => setResolvedClientSiteId(null));
+  }, []);
+
+  if (resolvedClientSiteId === undefined) return null; // le temps de l'aller-retour réseau
+  if (resolvedClientSiteId === null) return <Redirect to="/admin/dashboard" />;
+  return renderTenantSite(resolvedClientSiteId, segments);
 }
 
 function App() {
@@ -126,98 +246,22 @@ function App() {
     return <AdminPage clientSiteId={segments[1]} section={section} />;
   }
 
-  // /t/{clientSiteId}/blog/{slug} — détail d'article d'un tenant
-  if (segments[0] === "t" && segments[1] && segments[2] === "blog" && segments[3]) {
-    return (
-      <Suspense fallback={null}>
-        <BlogPostPage slug={segments[3]} apiBaseUrl={API_BASE_URL} clientSiteId={segments[1]} />
-      </Suspense>
-    );
-  }
-
-  // /t/{clientSiteId}/pages/{slug} — détail d'une page personnalisée d'un tenant
-  if (segments[0] === "t" && segments[1] && segments[2] === "pages" && segments[3]) {
-    return (
-      <Suspense fallback={null}>
-        <CustomPageView slug={segments[3]} apiBaseUrl={API_BASE_URL} clientSiteId={segments[1]} />
-      </Suspense>
-    );
-  }
-
-  // /t/{clientSiteId}/cgv — CGV du tenant, contenu "core" (SiteContent.CgvContent) pas un module,
-  // voir CgvPage.tsx.
-  if (segments[0] === "t" && segments[1] && segments[2] === "cgv") {
-    return <CgvPage clientSiteId={segments[1]} />;
-  }
-
-  // /t/{clientSiteId}/mentions-legales et /confidentialite — même principe que /cgv ci-dessus :
-  // contenu "core" (SiteContent.LegalNoticeContent/PrivacyPolicyContent), pas un module.
-  if (segments[0] === "t" && segments[1] && segments[2] === "mentions-legales") {
-    return <LegalNoticePage clientSiteId={segments[1]} />;
-  }
-  if (segments[0] === "t" && segments[1] && segments[2] === "confidentialite") {
-    return <PrivacyPolicyPage clientSiteId={segments[1]} />;
-  }
-
-  // /t/{clientSiteId}/produits/{productId} — fiche produit dédiée (grande photo + slider), exclusive
-  // au template Charis, voir docs/10-templates.md
-  if (segments[0] === "t" && segments[1] && segments[2] === "produits" && segments[3]) {
-    return (
-      <Suspense fallback={null}>
-        <CharisProductPage clientSiteId={segments[1]} productId={segments[3]} apiBaseUrl={API_BASE_URL} />
-      </Suspense>
-    );
-  }
-
-  // /t/{clientSiteId}/boutique — page catalogue dédiée (tous les produits), riche avec filtre par
-  // collection sur Charis, simple sur Hestia/Helios — voir docs/10-templates.md et
-  // frontend/src/pages/CataloguePage.tsx (aiguilleur par template)
-  if (segments[0] === "t" && segments[1] && segments[2] === "boutique") {
-    return (
-      <Suspense fallback={null}>
-        <CataloguePage clientSiteId={segments[1]} />
-      </Suspense>
-    );
-  }
-
-  // /t/{clientSiteId}/panier — page panier du module Catalogue, identique pour tous les templates
-  // (voir docs/10-templates.md)
-  if (segments[0] === "t" && segments[1] && segments[2] === "panier") {
-    return (
-      <Suspense fallback={null}>
-        <CartPage clientSiteId={segments[1]} apiBaseUrl={API_BASE_URL} />
-      </Suspense>
-    );
-  }
-
-  // /t/{clientSiteId}/commande — page de retour de Stripe Checkout (succès/annulation), voir
-  // CheckoutResultPage.tsx. CartPage.tsx y pointe son `returnBaseUrl` ; remplace l'ancienne bannière
-  // affichée sur la home (retirée de CatalogueSection.tsx et charis/ProductGrid.tsx).
-  if (segments[0] === "t" && segments[1] && segments[2] === "commande") {
-    return (
-      <Suspense fallback={null}>
-        <CheckoutResultPage clientSiteId={segments[1]} apiBaseUrl={API_BASE_URL} />
-      </Suspense>
-    );
-  }
-
-  // /t/{clientSiteId}/compte — module compte-client (connexion par lien email, historique de
-  // commandes), identique pour tous les templates (même principe que /panier). Gère elle-même le
-  // paramètre ?token= du lien de connexion reçu par email.
-  if (segments[0] === "t" && segments[1] && segments[2] === "compte") {
-    return (
-      <Suspense fallback={null}>
-        <AccountPage clientSiteId={segments[1]} apiBaseUrl={API_BASE_URL} />
-      </Suspense>
-    );
-  }
-
-  // /t/{clientSiteId} — site public d'un tenant
+  // /t/{clientSiteId}/... — lien de prévisualisation interne d'un tenant (jamais l'URL d'un vrai
+  // client en prod, voir docs/08-hebergement-domaines.md). Toutes les sous-pages sont gérées par
+  // renderTenantSite ci-dessus, partagée avec la résolution par domaine personnalisé juste en dessous.
   if (segments[0] === "t" && segments[1]) {
-    return <PublicSite clientSiteId={segments[1]} />;
+    return renderTenantSite(segments[1], segments.slice(2));
   }
 
-  // Pas de tenant dans l'URL (ex: "/") : rien à afficher côté site, direction la vue globale d'Ethan.
+  // Rien de reconnu ci-dessus (y compris "/" tout seul) : soit ce nom de domaine est celui d'un
+  // client (voir DomainRouter), soit c'est le domaine de la plateforme elle-même ou un domaine
+  // inconnu — DomainRouter retombe alors sur la vue globale d'Ethan. localhost/127.0.0.1 exclus de
+  // cette tentative : rien d'utile à résoudre en dev, on va direct au repli habituel.
+  const hostname = window.location.hostname;
+  if (hostname !== "localhost" && hostname !== "127.0.0.1") {
+    return <DomainRouter segments={segments} />;
+  }
+
   return <Redirect to="/admin/dashboard" />;
 }
 

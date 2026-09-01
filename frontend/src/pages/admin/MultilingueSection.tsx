@@ -348,13 +348,13 @@ export default function MultilingueSection({ clientSiteId, password }: Multiling
         </p>
       </div>
 
-      <div className="flex gap-2 border-b border-border-subtle">
+      <div className="flex gap-2 overflow-x-auto border-b border-border-subtle [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {LOCALES.map((l) => (
           <button
             key={l.id}
             type="button"
             onClick={() => setLocale(l.id)}
-            className={`-mb-px border-b-2 px-4 py-2 text-sm font-semibold transition-colors ${
+            className={`-mb-px shrink-0 whitespace-nowrap border-b-2 px-4 py-2 text-sm font-semibold transition-colors ${
               locale === l.id ? "border-brand-mid text-navy" : "border-transparent text-gray-text hover:text-navy"
             }`}
           >

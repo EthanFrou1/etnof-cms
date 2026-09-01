@@ -263,9 +263,17 @@ function CartPageContent({
     setStatus("sending");
     setError(null);
 
+    // Client connecté (module Compte client) : son token est transmis pour que le backend rattache/
+    // réutilise son Customer Stripe et lui propose sa carte déjà enregistrée — voir StripeModule.cs.
+    // Un achat invité n'a simplement pas ce header, comportement inchangé.
+    const customerToken = localStorage.getItem(`etnof-customer-session-${clientSiteId}`);
+
     const res = await fetch(`${apiBaseUrl}/api/t/${clientSiteId}/stripe/checkout`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(customerToken ? { Authorization: `Bearer ${customerToken}` } : {}),
+      },
       body: JSON.stringify({
         customerName: `${firstName.trim()} ${lastName.trim()}`.trim(),
         customerEmail,

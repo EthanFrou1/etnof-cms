@@ -58,14 +58,81 @@ const inputClass =
 
 const formatPrice = (value: number) => value.toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
 
+type LoyaltyState = {
+  configured: boolean;
+  mode: "points" | "stamps";
+  threshold: number;
+  rewardDescription: string;
+  current: number;
+  reached: boolean;
+  redeemedAt: string | null;
+};
+
+// Progression fidélité de ce client (module Fidélité) — n'apparaît que si le module est activé pour
+// ce tenant, gating fait par le composant appelant (voir CustomerDetailPage.tsx plus bas).
+function LoyaltyCard({ clientSiteId, customerId, password }: { clientSiteId: string; customerId: string; password: string }) {
+  const [state, setState] = useState<LoyaltyState | null>(null);
+  const [redeeming, setRedeeming] = useState(false);
+
+  const load = () =>
+    adminFetch(API_BASE_URL, `/api/t/${clientSiteId}/admin/loyalty/customers/${customerId}`, password)
+      .then((res) => (res.ok ? res.json() : null))
+      .then(setState);
+
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  if (!state || !state.configured) return null;
+
+  const handleRedeem = async () => {
+    setRedeeming(true);
+    await adminFetch(API_BASE_URL, `/api/t/${clientSiteId}/admin/loyalty/customers/${customerId}/redeem`, password, { method: "POST" });
+    await load();
+    setRedeeming(false);
+  };
+
+  const unit = state.mode === "points" ? "points" : "commande" + (state.threshold > 1 ? "s" : "");
+
+  return (
+    <section className="rounded-card bg-white p-8 shadow-card">
+      <h2 className="mb-3 text-lg font-bold text-navy">Fidélité</h2>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-col gap-1">
+          <span className="text-sm text-gray-text">
+            {state.current} / {state.threshold} {unit}
+            {state.rewardDescription && <> — {state.rewardDescription}</>}
+          </span>
+          {state.reached && (
+            <span className="text-sm font-semibold text-green-accent">Récompense débloquée</span>
+          )}
+        </div>
+        {state.reached && (
+          <button
+            type="button"
+            onClick={handleRedeem}
+            disabled={redeeming}
+            className="rounded-button border border-border-subtle px-4 py-2 text-sm font-semibold text-navy hover:bg-bg-page-start disabled:opacity-50"
+          >
+            Marquer la récompense comme utilisée
+          </button>
+        )}
+      </div>
+    </section>
+  );
+}
+
 function CustomerDetailContent({
   clientSiteId,
   customerId,
   password,
+  fideliteActive,
 }: {
   clientSiteId: string;
   customerId: string;
   password: string;
+  fideliteActive: boolean;
 }) {
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [orders, setOrders] = useState<Order[] | null>(null);
@@ -192,6 +259,8 @@ function CustomerDetailContent({
         </div>
       </section>
 
+      {fideliteActive && <LoyaltyCard clientSiteId={clientSiteId} customerId={customerId} password={password} />}
+
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-bold text-navy">
           Commandes {orders && orders.length > 0 && `(${orders.length})`}
@@ -259,7 +328,12 @@ export default function CustomerDetailPage({ clientSiteId, customerId }: Custome
           <p className="text-gray-text">Le module Catalogue n'est pas activé pour ce site — cette page n'est pas disponible.</p>
         </div>
       ) : (
-        <CustomerDetailContent clientSiteId={clientSiteId} customerId={customerId} password={password} />
+        <CustomerDetailContent
+          clientSiteId={clientSiteId}
+          customerId={customerId}
+          password={password}
+          fideliteActive={Boolean(modules?.fidelite?.enabled)}
+        />
       )}
     </AdminLayout>
   );
