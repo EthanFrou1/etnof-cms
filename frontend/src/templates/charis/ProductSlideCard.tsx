@@ -5,11 +5,15 @@ import { useCart } from "@modules/catalogue/frontend/CartContext";
 import { formatPrice, CartIcon, type Product, type ModulePalette } from "./ProductCard";
 
 // Card utilisée uniquement dans les sliders "produits d'une collection" (FeaturedSlider, voir
-// ProductGrid.tsx) — demandé par Ethan, inspiré de karminecorp.fr : une grande photo principale en
-// haut (fixe, plus de hover-swap comme ProductCard) puis, en dessous, jusqu'à 2 vignettes
-// secondaires toujours visibles (aperçu rapide d'autres angles sans avoir à ouvrir la fiche
-// produit). La grille statique (`grid-cols-*` par collection/repli) garde `ProductCard` tel quel —
-// ce nouveau format est propre aux sliders, jugé trop haut pour une grille dense de plusieurs lignes.
+// ProductGrid.tsx) — demandé par Ethan, inspiré de karminecorp.fr. Deux présentations selon le
+// nombre de photos du produit :
+//  - exactement 3 photos : photo principale fixe (images[0]) + 2 vignettes fixes en dessous
+//    (images[1], images[2]) toujours visibles, pas de hover-swap (les 3 photos sont déjà montrées).
+//  - tout autre cas (1, 2, ou 4+ photos) : la photo principale bascule sur images[1] au survol
+//    (comme ProductCard) pour montrer un second angle, et si le produit a une 3ᵉ/4ᵉ photo
+//    (images[2], images[3]), elles s'affichent en vignettes fixes sous la photo principale.
+// La grille statique (`grid-cols-*` par collection/repli) garde `ProductCard` tel quel — ce format
+// est propre aux sliders, jugé trop haut pour une grille dense de plusieurs lignes.
 export default function ProductSlideCard({
   clientSiteId,
   product,
@@ -28,9 +32,13 @@ export default function ProductSlideCard({
   const hasSizes = Boolean(product.sizes && product.sizes.length > 0);
   const inStock = hasSizes ? product.sizes!.some((s) => s.stock > 0) : product.stock > 0;
   const primary = product.images[0];
-  // Jusqu'à 2 vignettes secondaires (images[1], images[2]) — jamais plus, même si le produit a plus
-  // de photos (le carrousel complet reste réservé à la fiche produit).
-  const thumbnails = product.images.slice(1, 3);
+  const secondary = product.images[1];
+  // Cas "exactement 3 photos" : vignettes = images[1]/[2] (voir commentaire en tête de fichier),
+  // pas de hover. Sinon, la 3ᵉ et 4ᵉ photo (images[2]/[3]) servent de vignettes fixes sous la photo
+  // principale qui, elle, bascule sur images[1] au survol.
+  const isThreeCase = product.images.length === 3;
+  const thumbnails = isThreeCase ? product.images.slice(1, 3) : product.images.slice(2, 4);
+  const shown = !isThreeCase && hovered && secondary ? secondary : primary;
 
   return (
     <a
@@ -43,8 +51,8 @@ export default function ProductSlideCard({
         className="relative aspect-[3/4] overflow-hidden border"
         style={{ backgroundColor: palette.background, borderColor: `${palette.ink}14` }}
       >
-        {primary ? (
-          <img src={`${API_BASE_URL}${primary.path}`} alt={product.name} className="h-full w-full object-cover" />
+        {shown ? (
+          <img src={`${API_BASE_URL}${shown.path}`} alt={product.name} className="h-full w-full object-cover" />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-sm" style={{ color: `${palette.ink}66` }}>
             {t(locale, "catalogue.noPhoto")}
@@ -113,10 +121,8 @@ export default function ProductSlideCard({
         )}
       </div>
 
-      {/* Seulement si les 2 vignettes sont disponibles (3 photos ou plus au total) — une vignette
-          seule, étirée en pleine largeur pour occuper la rangée, rendait le rendu déséquilibré
-          (remonté par Ethan sur un produit à 2 photos) : mieux vaut n'afficher que la photo
-          principale dans ce cas plutôt qu'une vignette solitaire trop grande. */}
+      {/* images[1]/[2] si exactement 3 photos, sinon images[2]/[3] — voir isThreeCase ci-dessus.
+          Absentes si le produit n'a pas assez de photos pour la paire correspondante. */}
       {thumbnails.length === 2 && (
         <div className="grid grid-cols-2 gap-2">
           {thumbnails.map((image) => (
