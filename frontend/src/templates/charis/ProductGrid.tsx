@@ -170,27 +170,28 @@ export function staticGridClass(count: number) {
   return `${mobileCols} sm:[grid-template-columns:repeat(auto-fill,24rem)]`;
 }
 
-type ProductGridProps = {
-  clientSiteId: string;
-  palette: ModulePalette;
-  locale?: Locale;
-  // Injecté par TemplateCharis (Horaires + Maps) : demandé par Ethan pour s'intercaler juste après
-  // les produits mis en avant/le lien "voir le catalogue" et avant les aperçus par collection —
-  // ProductGrid n'a lui-même aucune notion de ces modules (voir docs/02-architecture-modules.md).
-  afterFeatured?: ReactNode;
+type CatalogueData = {
+  products: Product[];
+  highlighted: Product[];
+  collectionsById: Record<string, string>;
+  collectionSections: { collection: Collection; items: Product[] }[];
+  fallback: Product[];
+  showFallback: boolean;
+  // Aucun produit (et pas de retour Stripe en cours) : les deux blocs ci-dessous (CatalogueTeaser /
+  // CatalogueCollections) doivent alors s'effacer complètement — pas juste une grille vide.
+  isEmpty: boolean;
 };
 
-// Teaser Catalogue affiché sur la home de Charis — jamais la liste complète (voir
-// docs/10-templates.md, "beaucoup de produits") : slider des produits "mis en avant" si le client en
-// a défini, puis un aperçu par collection si le client en a créé (voir CataloguePage.tsx pour le
-// rendu complet), et seulement à défaut des deux (aucune mise en avant, aucune collection) repli sur
-// les FALLBACK_COUNT premiers produits en grille statique. Toujours suivi d'un lien vers la page
-// boutique complète (/t/{clientSiteId}/boutique).
-export default function ProductGrid({ clientSiteId, palette, locale, afterFeatured }: ProductGridProps) {
+// Charge produits + collections une seule fois — partagé entre CatalogueTeaser et
+// CatalogueCollections, que TemplateCharis affiche de part et d'autre de "Notre histoire" (voir
+// commentaire dans TemplateCharis.tsx). `enabled` évite l'appel réseau quand le module Catalogue est
+// désactivé pour ce tenant (même optimisation que l'ancien early-return de ProductGrid).
+export function useCatalogueData(clientSiteId: string, enabled: boolean): CatalogueData {
   const [products, setProducts] = useState<Product[]>([]);
   const [collections, setCollections] = useState<Collection[]>([]);
 
   useEffect(() => {
+    if (!enabled) return;
     fetch(`${API_BASE_URL}/api/t/${clientSiteId}/catalogue/products`)
       .then((res) => (res.ok ? res.json() : []))
       .then(setProducts)
@@ -199,13 +200,11 @@ export default function ProductGrid({ clientSiteId, palette, locale, afterFeatur
       .then((res) => (res.ok ? res.json() : []))
       .then(setCollections)
       .catch(() => setCollections([]));
-  }, [clientSiteId]);
+  }, [clientSiteId, enabled]);
 
   // Un client peut revenir de Stripe (?checkout=...) alors que la liste de produits n'a pas encore
   // fini de charger, ou est vide — la bannière de confirmation doit s'afficher quoi qu'il arrive.
   const hasCheckoutReturn = new URLSearchParams(window.location.search).has("checkout");
-
-  if (products.length === 0 && !hasCheckoutReturn) return null;
 
   const highlighted = products.filter((p) => p.highlighted);
   // Utilisé pour le badge collection sur ProductCard (voir plus bas) — construit une fois plutôt que
@@ -223,130 +222,180 @@ export default function ProductGrid({ clientSiteId, palette, locale, afterFeatur
   const fallback = products.slice(0, FALLBACK_COUNT);
   const showFallback = highlighted.length === 0 && collectionSections.length === 0;
 
+  return {
+    products,
+    highlighted,
+    collectionsById,
+    collectionSections,
+    fallback,
+    showFallback,
+    isEmpty: products.length === 0 && !hasCheckoutReturn,
+  };
+}
+
+type CatalogueSectionProps = {
+  data: CatalogueData;
+  clientSiteId: string;
+  palette: ModulePalette;
+  locale?: Locale;
+};
+
+// Partie haute du teaser Catalogue affiché sur la home de Charis, juste au-dessus de "Notre histoire"
+// (voir TemplateCharis.tsx) — jamais la liste complète (voir docs/10-templates.md, "beaucoup de
+// produits") : slider des produits "mis en avant" si le client en a défini, et seulement à défaut
+// (aucune mise en avant, aucune collection) repli sur les FALLBACK_COUNT premiers produits en grille
+// statique. Toujours suivi d'un lien vers la page boutique complète (/t/{clientSiteId}/boutique). Les
+// aperçus par collection, plus longs, sont dans CatalogueCollections ci-dessous, affichés après
+// "Notre histoire" plutôt qu'ici pour ne pas repousser cette dernière trop bas sur les tenants avec
+// plusieurs collections (demandé par Ethan).
+export function CatalogueTeaser({ data, clientSiteId, palette, locale }: CatalogueSectionProps) {
+  const { products, highlighted, collectionsById, showFallback, fallback, isEmpty } = data;
+  if (isEmpty) return null;
+
   return (
-      <div className="flex flex-col gap-16">
-        {highlighted.length > SLIDER_THRESHOLD ? (
-          <FeaturedSlider
-            products={highlighted}
-            clientSiteId={clientSiteId}
-            palette={palette}
-            locale={locale}
-            collectionsById={collectionsById}
-          />
-        ) : (
-          highlighted.length > 0 && (
+    <div className="flex flex-col gap-16">
+      {highlighted.length > SLIDER_THRESHOLD ? (
+        <FeaturedSlider
+          products={highlighted}
+          clientSiteId={clientSiteId}
+          palette={palette}
+          locale={locale}
+          collectionsById={collectionsById}
+        />
+      ) : (
+        highlighted.length > 0 && (
+          <>
+            {/* Mobile : toujours le slider, même à ≤ SLIDER_THRESHOLD produits — la grille
+                statique avec la nouvelle card plus haute (photo + vignettes, voir
+                ProductSlideCard.tsx) rendait mal en dessous de 3 produits sur un écran étroit
+                (remonté par Ethan). Desktop garde la grille pleine largeur. */}
+            <div className="sm:hidden">
+              <FeaturedSlider
+                products={highlighted}
+                clientSiteId={clientSiteId}
+                palette={palette}
+                locale={locale}
+                collectionsById={collectionsById}
+              />
+            </div>
+            <div className={`hidden gap-x-8 gap-y-12 sm:grid ${staticGridClass(highlighted.length)}`}>
+              {highlighted.map((product) => (
+                <ProductCard
+                  key={product.id}
+                  clientSiteId={clientSiteId}
+                  product={product}
+                  palette={palette}
+                  locale={locale}
+                  collectionName={product.collectionId ? collectionsById[product.collectionId] : undefined}
+                />
+              ))}
+            </div>
+          </>
+        )
+      )}
+
+      {products.length > 0 && (
+        <a
+          href={`/t/${clientSiteId}/boutique`}
+          className="group flex flex-col items-center gap-1.5 self-center text-sm font-semibold uppercase tracking-[0.12em] transition-opacity duration-200 hover:opacity-60"
+          style={{ color: palette.ink }}
+        >
+          <span>{t(locale, "catalogue.viewShop")} →</span>
+          <span className="h-px w-10" style={{ backgroundColor: `${palette.ink}55` }} />
+        </a>
+      )}
+
+      {showFallback && (
+        <div className={`grid gap-x-8 gap-y-12 ${staticGridClass(fallback.length)}`}>
+          {fallback.map((product) => (
+            <ProductCard
+              key={product.id}
+              clientSiteId={clientSiteId}
+              product={product}
+              palette={palette}
+              locale={locale}
+              collectionName={product.collectionId ? collectionsById[product.collectionId] : undefined}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Partie basse du teaser Catalogue : aperçus par collection, affichés après "Notre histoire". `extras`
+// (Horaires + Maps, injectés par TemplateCharis — cette fonction n'a elle-même aucune notion de ces
+// modules, voir docs/02-architecture-modules.md) reprend la même place qu'avant ce découpage, juste
+// avant les collections.
+export function CatalogueCollections({
+  data,
+  clientSiteId,
+  palette,
+  locale,
+  extras,
+}: CatalogueSectionProps & { extras?: ReactNode }) {
+  const { collectionSections, isEmpty } = data;
+  if (isEmpty) return null;
+  if (collectionSections.length === 0 && !extras) return null;
+
+  return (
+    <div className="flex flex-col gap-16">
+      {extras}
+
+      {collectionSections.length > 0 && (
+        <span className="text-xl font-semibold uppercase tracking-[0.1em]" style={{ color: palette.accent }}>
+          {t(locale, "catalogue.featuredCollections")}
+        </span>
+      )}
+
+      {collectionSections.map(({ collection, items }) => (
+        <div key={collection.id} className="flex flex-col gap-4">
+          <h3 className="text-base font-semibold sm:text-lg" style={{ color: palette.ink }}>
+            {collection.name}
+          </h3>
+          {/* Pas de badge collection sur ces cards (`collectionsById={{}}` / pas de `collectionName`) :
+              le titre de la section (juste au-dessus) annonce déjà la collection, le répéter sur
+              chaque card était redondant (remonté par Ethan) — contrairement au slider "mis en
+              avant" ou "Nos autres produits" (ProductPage.tsx), qui mélangent plusieurs collections
+              et où le badge reste informatif. */}
+          {items.length > SLIDER_THRESHOLD ? (
+            <FeaturedSlider
+              products={items}
+              clientSiteId={clientSiteId}
+              palette={palette}
+              locale={locale}
+              cta={{ label: t(locale, "catalogue.viewMore"), href: `/t/${clientSiteId}/boutique?collection=${collection.id}` }}
+              collectionsById={{}}
+            />
+          ) : (
             <>
-              {/* Mobile : toujours le slider, même à ≤ SLIDER_THRESHOLD produits — la grille
-                  statique avec la nouvelle card plus haute (photo + vignettes, voir
-                  ProductSlideCard.tsx) rendait mal en dessous de 3 produits sur un écran étroit
-                  (remonté par Ethan). Desktop garde la grille pleine largeur. */}
+              {/* Même traitement que le slider "mis en avant" ci-dessus : toujours un slider en
+                  mobile, la grille statique réservée à sm+. */}
               <div className="sm:hidden">
                 <FeaturedSlider
-                  products={highlighted}
+                  products={items}
                   clientSiteId={clientSiteId}
                   palette={palette}
                   locale={locale}
-                  collectionsById={collectionsById}
+                  cta={{ label: t(locale, "catalogue.viewMore"), href: `/t/${clientSiteId}/boutique?collection=${collection.id}` }}
+                  collectionsById={{}}
                 />
               </div>
-              <div className={`hidden gap-x-8 gap-y-12 sm:grid ${staticGridClass(highlighted.length)}`}>
-                {highlighted.map((product) => (
+              <div className={`hidden gap-x-8 gap-y-12 sm:grid ${staticGridClass(items.length)}`}>
+                {items.map((product) => (
                   <ProductCard
                     key={product.id}
                     clientSiteId={clientSiteId}
                     product={product}
                     palette={palette}
                     locale={locale}
-                    collectionName={product.collectionId ? collectionsById[product.collectionId] : undefined}
                   />
                 ))}
               </div>
             </>
-          )
-        )}
-
-        {products.length > 0 && (
-          <a
-            href={`/t/${clientSiteId}/boutique`}
-            className="group flex flex-col items-center gap-1.5 self-center text-sm font-semibold uppercase tracking-[0.12em] transition-opacity duration-200 hover:opacity-60"
-            style={{ color: palette.ink }}
-          >
-            <span>{t(locale, "catalogue.viewShop")} →</span>
-            <span className="h-px w-10" style={{ backgroundColor: `${palette.ink}55` }} />
-          </a>
-        )}
-
-        {afterFeatured}
-
-        {collectionSections.length > 0 && (
-          <span className="text-xl font-semibold uppercase tracking-[0.1em]" style={{ color: palette.accent }}>
-            {t(locale, "catalogue.featuredCollections")}
-          </span>
-        )}
-
-        {collectionSections.map(({ collection, items }) => (
-          <div key={collection.id} className="flex flex-col gap-4">
-            <h3 className="text-base font-semibold sm:text-lg" style={{ color: palette.ink }}>
-              {collection.name}
-            </h3>
-            {/* Pas de badge collection sur ces cards (`collectionsById={{}}` / pas de `collectionName`) :
-                le titre de la section (juste au-dessus) annonce déjà la collection, le répéter sur
-                chaque card était redondant (remonté par Ethan) — contrairement au slider "mis en
-                avant" ou "Nos autres produits" (ProductPage.tsx), qui mélangent plusieurs collections
-                et où le badge reste informatif. */}
-            {items.length > SLIDER_THRESHOLD ? (
-              <FeaturedSlider
-                products={items}
-                clientSiteId={clientSiteId}
-                palette={palette}
-                locale={locale}
-                cta={{ label: t(locale, "catalogue.viewMore"), href: `/t/${clientSiteId}/boutique?collection=${collection.id}` }}
-                collectionsById={{}}
-              />
-            ) : (
-              <>
-                {/* Même traitement que le slider "mis en avant" ci-dessus : toujours un slider en
-                    mobile, la grille statique réservée à sm+. */}
-                <div className="sm:hidden">
-                  <FeaturedSlider
-                    products={items}
-                    clientSiteId={clientSiteId}
-                    palette={palette}
-                    locale={locale}
-                    cta={{ label: t(locale, "catalogue.viewMore"), href: `/t/${clientSiteId}/boutique?collection=${collection.id}` }}
-                    collectionsById={{}}
-                  />
-                </div>
-                <div className={`hidden gap-x-8 gap-y-12 sm:grid ${staticGridClass(items.length)}`}>
-                  {items.map((product) => (
-                    <ProductCard
-                      key={product.id}
-                      clientSiteId={clientSiteId}
-                      product={product}
-                      palette={palette}
-                      locale={locale}
-                    />
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-        ))}
-
-        {showFallback && (
-          <div className={`grid gap-x-8 gap-y-12 ${staticGridClass(fallback.length)}`}>
-            {fallback.map((product) => (
-              <ProductCard
-                key={product.id}
-                clientSiteId={clientSiteId}
-                product={product}
-                palette={palette}
-                locale={locale}
-                collectionName={product.collectionId ? collectionsById[product.collectionId] : undefined}
-              />
-            ))}
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      ))}
+    </div>
   );
 }

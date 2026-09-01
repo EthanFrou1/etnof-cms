@@ -12,6 +12,7 @@ import AdminLayout, {
   GALERIE_SECTIONS,
   PAGES_SECTIONS,
   OFFERS_SECTIONS,
+  FIDELITE_SECTIONS,
   OWNER_ONLY_SECTIONS,
   type AdminSection,
 } from "../components/admin/AdminLayout";
@@ -33,6 +34,7 @@ import BlogSection from "./admin/BlogSection";
 import MultilingueSection from "./admin/MultilingueSection";
 import GallerySection from "./admin/GallerySection";
 import PagesSection from "./admin/PagesSection";
+import FideliteSection from "./admin/FideliteSection";
 import AccountsSection from "./admin/AccountsSection";
 import HistorySection from "./admin/HistorySection";
 
@@ -69,6 +71,7 @@ export default function AdminPage({ clientSiteId, section }: AdminPageProps) {
     : GALERIE_SECTIONS.includes(section) && !modules?.galerie?.enabled ? "Galerie"
     : PAGES_SECTIONS.includes(section) && !modules?.pages?.enabled ? "Pages personnalisées"
     : OFFERS_SECTIONS.includes(section) && !modules?.offres?.enabled ? "Offres"
+    : FIDELITE_SECTIONS.includes(section) && !modules?.fidelite?.enabled ? "Fidélité"
     : null;
 
   // Accès direct par URL à une section réservée au Propriétaire (Modules, Paiement Stripe, gestion
@@ -109,6 +112,7 @@ export default function AdminPage({ clientSiteId, section }: AdminPageProps) {
           {section === "multilingue" && <MultilingueSection clientSiteId={clientSiteId} password={password} />}
           {section === "galerie" && <GallerySection clientSiteId={clientSiteId} password={password} />}
           {section === "pages" && <PagesSection clientSiteId={clientSiteId} password={password} />}
+          {section === "fidelite" && <FideliteSection clientSiteId={clientSiteId} password={password} />}
           {section === "accounts" && <AccountsSection clientSiteId={clientSiteId} password={password} />}
           {section === "history" && <HistorySection clientSiteId={clientSiteId} password={password} />}
           {section === "messages" && <MessagesSection clientSiteId={clientSiteId} password={password} />}

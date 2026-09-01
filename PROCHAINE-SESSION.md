@@ -1,38 +1,35 @@
-# Reprise de session — dernière mise à jour 2026-08-31
+# Reprise de session — dernière mise à jour 2026-09-01
 
 Ce fichier résume où on en est pour reprendre rapidement. Le détail complet (technique, décisions, tests effectués) est dans `docs/05-roadmap-poc.md`.
 
-## PR précédente
-
-La PR de la session du 2026-08-28 (`feature/admin-content-restructure`, commit `7243f0e`) a été **acceptée et mergée par Ethan**. Tous les points "à vérifier" de cette session sont bons.
-
-On reste sur la branche `feature/admin-content-restructure` pour la suite (convention habituelle du projet).
-
 ## PR de cette session
 
-Poussé sur `feature/admin-content-restructure` (`gh` toujours indisponible sur cette machine — PR à ouvrir manuellement) : https://github.com/EthanFrou1/etnof-cms/pull/new/feature/admin-content-restructure. **Ne pas merger avant validation d'Ethan** — session très dense, rien vérifié visuellement côté Claude Code (pas d'outil de capture d'écran dans cet environnement cette fois), tout reste à confirmer.
+Poussé sur `feature/admin-content-restructure` (`gh` toujours indisponible sur cette machine — PR à ouvrir manuellement) : https://github.com/EthanFrou1/etnof-cms/pull/new/feature/admin-content-restructure. **Ne pas merger avant validation d'Ethan.**
 
-## Ce qui a été fait cette session (2026-08-31) — voir `docs/05-roadmap-poc.md`, section datée pour le détail complet
+Le commit `d9811b4` regroupe **deux sessions distinctes** (voir `docs/05-roadmap-poc.md` pour le détail complet de chacune) :
 
-- **Module Offres** (bascule d'un champ core toujours actif vers un vrai module, gratuit) + sentinelle **"Gratuit"** pour les prix de modules (Maps/Horaires basculés au passage).
-- **Mentions légales / Politique de confidentialité** : champs core comme les CGV, pages publiques dédiées, nouvelle barre de liens légaux sous le footer (et sous "Mes commandes" sur la page Compte client).
-- **Paiement bloqué côté serveur** si CGV ou Politique de confidentialité manquantes (avant : seulement caché côté front) — nouveau statut de site **"Prospection"** qui échappe à ce garde-fou pour les sites de démo/test.
-- **`SaveButton`** : composant partagé (spinner, couleur succès/erreur, retour auto après 3s) déployé sur tout l'admin (tenant + agence + boutons par ligne).
-- **Page "Mon compte" client** retravaillée (labels, adresse pleine largeur, lecture seule + bouton "Modifier"), photo produit dans l'historique de commandes, bouton "Contacter l'établissement".
-- **Multi-comptes admin — rôle "Employé"** : compte nommé (email + mot de passe **choisi par l'employé lui-même** via un lien d'invitation envoyé par email, jamais transmis par le Propriétaire), accès restreint côté serveur (pas de Modules/Stripe/gestion des comptes).
-- **Session admin** : renouvellement automatique tant que l'utilisateur est actif (déco après 1h d'inactivité réelle), bouton "Se déconnecter" ajouté, formulaires de connexion compatibles avec l'enregistrement de mot de passe du navigateur.
-- **Historique des actions** (`AdminActionLog`) : capture générique de toute action d'écriture sur l'admin d'un tenant (qui, quoi, quand), y compris les connexions de l'agence via le mot de passe passe-partout — jamais masquées. Visible côté tenant (owner-only) et côté agence.
-- **Suivi + commentaires par commande** : timeline des changements de statut + notes internes, dans la ligne dépliée de la page Commandes.
-- **SEO avancé** : lien canonique, données structurées JSON-LD (LocalBusiness/Product/BlogPosting), `sitemap.xml`/`robots.txt` par tenant.
-- **Divers** : favicon par défaut du socle, KPI dashboard "Offres"→"Produits" si le module n'est pas actif, Chat IA/FAQ IA marqués abandonnés, images des modules Offres/Compte client ajoutées.
+1. **Module Fidélité + cartes bancaires enregistrées** (session du 2026-08-31) — testé de bout en bout par Claude Code (CDP), mais **jamais vérifié par Ethan en navigateur réel**. À tester en priorité avant de merger : créer un vrai compte client, passer commande, voir sa progression fidélité, repasser commande et vérifier qu'une carte enregistrée est bien proposée par Stripe Checkout.
+2. **Domaine personnalisé par client + retouches admin/Charis** (session du 2026-09-01) — colonne `CustomDomain`, résolution par nom de domaine, sélecteur de palette Charis remis, "Notre histoire" remontée, passe mobile admin. Compile proprement (`dotnet build`/`tsc -b`) mais **pas de vérification en navigateur réel non plus** (login admin/agence bloqué par le classifieur de permissions automatique de Claude Code dans ces deux sessions — voir mémoire `feedback-auth-flows-untestable`).
 
-**Reste à faire, pas commencé cette session** : liste de souhaits (module Compte client), moyens de paiement enregistrés, programme de fidélité, création de compte client sans commande préalable.
+## Prix des modules mis à jour (2026-09-01)
+
+À la demande d'Ethan, `ModulePrices` en base a été mis à jour directement (SQL, pas via l'admin — login bloqué) : `catalogue` 690€ (était 450€), `compte-client` 250€, `fidelite` 190€, `galerie` 100€ (était "Gratuit"), `pages` 150€, `analytics` 120€. Le reste de la table n'a pas été touché.
+
+**Écart repéré, pas corrigé (hors scope de la demande)** : `blog` est à 300€ en base mais la page marketing publique (`https://website-etnof-web.vercel.app/tarifs.html`) annonce 250€ — à trancher par Ethan.
+
+## Page tarifs.html (projet séparé, pas ce repo)
+
+Un brief complet a été préparé pour une session Claude Code sur l'autre projet (site marketing etnof-web) — prix de lancement (690/1090/1990€ affichés) vs prix normal (990/1490/2490€ barré, date limite 31/12/2026), nouvelle grille de modules à la carte, retrait de PayPal/Chat IA/FAQ IA (jamais construits ou abandonnés), repositionnement de "CMS" et "SEO avancé" en services distincts plutôt que fonctionnalités techniques. Le brief complet est dans l'historique de conversation de cette session — pas sauvegardé en fichier dans ce repo (ça concerne un autre projet). **Ethan doit encore lancer cette session sur l'autre repo pour appliquer les changements.**
+
+## Nouveau doc : guide d'onboarding client
+
+`docs/14-nouveau-client.md` (+ version mise en page publiée en artifact privé pour Ethan) : check-list opérationnelle complète, du devis au site en ligne chez un vrai client — statuts, création du site, contenu, domaine, livraison, suivi, catalogue des modules.
 
 ## État des tenants de test
 
 - **Historique** (`11111111-1111-1111-1111-111111111111`) : Hestia/Olivier, mot de passe `admin123`.
 - **Boulangerie Dupont** (`e5d113ff-a734-47e9-8aae-78dea8d6102a`) : Hestia/Argile.
-- **Atelier Lumen** (`36d1b5f8-d5a4-493a-9ff3-d46616816adb`) : Charis/Noir, mot de passe `admin123`. Module Compte client actif. Un compte Employé de test a pu être créé pendant cette session — vérifier dans Comptes et nettoyer si besoin.
+- **Atelier Lumen** (`36d1b5f8-d5a4-493a-9ff3-d46616816adb`) : Charis (palette en base : `argile`, invalide pour Charis → retombe sur Noir), mot de passe `admin123`. Module Compte client actif.
 - **Aucun tenant Helios** n'existe encore.
 
 ## Pour reprendre rapidement
@@ -46,6 +43,6 @@ cd frontend && pnpm dev
 
 Puis `http://localhost:5173/admin/dashboard`, mot de passe `admin123`.
 
-## Migrations ajoutées cette session (à appliquer si pas déjà fait : `dotnet ef database update`)
+## Migrations ajoutées cette branche (à appliquer si pas déjà fait : `dotnet ef database update`)
 
-`AddSiteContentLegalPages`, `AddOrderItemImagePath`, `AddTenantAdminAccounts`, `AddAdminActionLog`, `AddOrderStatusChangesAndComments`.
+`AddLoyaltyAndSavedCards`, `AddClientSiteCustomDomain`.

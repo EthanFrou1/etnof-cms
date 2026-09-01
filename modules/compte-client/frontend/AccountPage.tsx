@@ -189,6 +189,72 @@ const ORDER_STATUS_KEY: Record<Order["status"], string> = {
   cancelled: "account.orderStatusCancelled",
 };
 
+type LoyaltyState = {
+  configured: boolean;
+  mode: "points" | "stamps";
+  threshold: number;
+  rewardDescription: string;
+  current: number;
+  reached: boolean;
+};
+
+// Progression fidélité (module Fidélité, affichage seul — voir FideliteModule.cs) : n'apparaît que si
+// le module est activé pour ce tenant ET que le tenant a bien enregistré sa page Fidélité admin
+// (`configured`, sinon la carte n'a aucune valeur pour tromper un client sur une récompense qui n'a
+// jamais été définie).
+function LoyaltySection({
+  clientSiteId,
+  apiBaseUrl,
+  sessionToken,
+  palette,
+  locale,
+}: {
+  clientSiteId: string;
+  apiBaseUrl: string;
+  sessionToken: string;
+  palette: { accent: string; ink: string };
+  locale: Locale;
+}) {
+  const [state, setState] = useState<LoyaltyState | null>(null);
+
+  useEffect(() => {
+    fetch(`${apiBaseUrl}/api/t/${clientSiteId}/account/loyalty`, {
+      headers: { Authorization: `Bearer ${sessionToken}` },
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then(setState)
+      .catch(() => {});
+  }, [apiBaseUrl, clientSiteId, sessionToken]);
+
+  if (!state || !state.configured) return null;
+
+  const unit = t(locale, state.mode === "points" ? "account.loyaltyPointsUnit" : "account.loyaltyStampsUnit");
+  const ratio = Math.min(1, state.current / state.threshold);
+
+  return (
+    <section className="flex flex-col gap-3 rounded-card border p-6" style={{ borderColor: `${palette.ink}1A` }}>
+      <h2 className="text-lg font-semibold" style={{ color: palette.ink }}>
+        {t(locale, "account.loyaltyTitle")}
+      </h2>
+
+      <div className="flex items-center justify-between text-sm" style={{ color: `${palette.ink}99` }}>
+        <span>
+          {state.current} / {state.threshold} {unit}
+        </span>
+      </div>
+      <div className="h-2 w-full overflow-hidden rounded-full" style={{ backgroundColor: `${palette.ink}0D` }}>
+        <div className="h-full rounded-full" style={{ width: `${ratio * 100}%`, backgroundColor: palette.accent }} />
+      </div>
+
+      {state.rewardDescription && (
+        <p className="text-sm" style={{ color: state.reached ? palette.accent : `${palette.ink}99` }}>
+          {state.reached ? t(locale, "account.loyaltyReached") : t(locale, "account.loyaltyReward", { reward: state.rewardDescription })}
+        </p>
+      )}
+    </section>
+  );
+}
+
 // Vue connectée : profil éditable + historique de commandes. Aucune modification de l'email en
 // self-service (voir CompteClientModule.cs) — reste modifiable uniquement par le tenant depuis son
 // admin (CRM Clients).
@@ -199,6 +265,7 @@ function AccountDashboard({
   palette,
   locale,
   content,
+  modules,
   onLogout,
 }: {
   clientSiteId: string;
@@ -207,6 +274,7 @@ function AccountDashboard({
   palette: { accent: string; ink: string };
   locale: Locale;
   content: SiteContent | null;
+  modules: ReturnType<typeof useModules>;
   onLogout: () => void;
 }) {
   const [customer, setCustomer] = useState<Customer | null>(null);
@@ -375,6 +443,10 @@ function AccountDashboard({
         )}
       </section>
 
+      {modules?.fidelite?.enabled && (
+        <LoyaltySection clientSiteId={clientSiteId} apiBaseUrl={apiBaseUrl} sessionToken={sessionToken} palette={palette} locale={locale} />
+      )}
+
       <section className="flex flex-col gap-4">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-lg font-semibold" style={{ color: palette.ink }}>
@@ -523,6 +595,7 @@ export default function AccountPage({ clientSiteId, apiBaseUrl }: AccountPagePro
               palette={{ accent, ink }}
               locale={locale}
               content={content}
+              modules={modules}
               onLogout={handleLogout}
             />
           ) : urlToken ? (

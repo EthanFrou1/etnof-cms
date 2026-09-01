@@ -200,6 +200,18 @@ export function IconStar({ className = base }: IconProps) {
   );
 }
 
+export function IconGift({ className = base }: IconProps) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinejoin="round">
+      <rect x="3" y="9" width="18" height="4" rx="1" />
+      <rect x="5" y="13" width="14" height="8" rx="1" />
+      <line x1="12" y1="9" x2="12" y2="21" />
+      <path d="M12 9C12 9 9 8.5 8 6.5C7.3 5.1 8.5 3.5 10 4C11.5 4.5 12 7 12 9Z" />
+      <path d="M12 9C12 9 15 8.5 16 6.5C16.7 5.1 15.5 3.5 14 4C12.5 4.5 12 7 12 9Z" />
+    </svg>
+  );
+}
+
 export function IconCard({ className = base }: IconProps) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">

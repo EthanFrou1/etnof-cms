@@ -20,4 +20,15 @@ public class Customer
 
     public string Notes { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
+
+    // Identifiant du Customer Stripe correspondant (module Stripe) — rempli au premier paiement d'un
+    // client connecté (voir modules/stripe/backend/StripeModule.cs), réutilisé aux paiements suivants
+    // pour que Stripe Checkout propose directement les cartes déjà enregistrées. Jamais renseigné pour
+    // un achat invité (pas d'identité stable à laquelle rattacher la carte d'une fois sur l'autre).
+    public string? StripeCustomerId { get; set; }
+
+    // Date à laquelle le tenant a marqué la récompense fidélité comme "utilisée" (module Fidélité) —
+    // seules les commandes postérieures comptent dans la progression suivante. Nullable : jamais
+    // encore réclamée. Voir modules/fidelite/backend/FideliteModule.cs pour le calcul complet.
+    public DateTime? LoyaltyRedeemedAt { get; set; }
 }
