@@ -56,12 +56,11 @@ public static class AgencyDashboardEndpoints
         {
             if (!AdminAuth.IsAuthorized(req, config)) return Results.Unauthorized();
 
-            var prices = await db.ModulePrices.ToDictionaryAsync(p => p.ModuleName, p => p.Price);
-            var modules = metaRegistry.GetAll().Select(m => new
+            var prices = await db.ModulePrices.ToDictionaryAsync(p => p.ModuleName);
+            var modules = metaRegistry.GetAll().Select(m =>
             {
-                m.Name,
-                m.DisplayName,
-                Price = prices.GetValueOrDefault(m.Name, ""),
+                prices.TryGetValue(m.Name, out var price);
+                return new { m.Name, m.DisplayName, Price = price?.Price ?? "", Visible = price?.Visible ?? true };
             });
 
             return Results.Ok(modules);
@@ -78,6 +77,25 @@ public static class AgencyDashboardEndpoints
                 db.ModulePrices.Add(price);
             }
             price.Price = input.Price;
+            await db.SaveChangesAsync();
+
+            return Results.Ok(price);
+        });
+
+        // Visibilité globale du module dans le catalogue de tous les clients — voir le commentaire
+        // sur ModulePrice.Visible. Distinct du "/price" ci-dessus pour que le toggle de la card se
+        // sauvegarde immédiatement, sans dépendre du bouton "Enregistrer" du prix.
+        app.MapPut("/api/admin/modules/{name}/visibility", async (string name, ModuleVisibilityInput input, HttpRequest req, IConfiguration config, AppDbContext db) =>
+        {
+            if (!AdminAuth.IsAuthorized(req, config)) return Results.Unauthorized();
+
+            var price = await db.ModulePrices.FindAsync(name);
+            if (price is null)
+            {
+                price = new ModulePrice { ModuleName = name };
+                db.ModulePrices.Add(price);
+            }
+            price.Visible = input.Visible;
             await db.SaveChangesAsync();
 
             return Results.Ok(price);
@@ -295,6 +313,7 @@ public static class AgencyDashboardEndpoints
 }
 
 public record ModulePriceInput(string Price);
+public record ModuleVisibilityInput(bool Visible);
 
 public record ClientSiteInput(
     string Name,

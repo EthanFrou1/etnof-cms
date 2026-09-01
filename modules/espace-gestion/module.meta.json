@@ -1,0 +1,6 @@
+{
+  "name": "espace-gestion",
+  "displayName": "Accès espace de gestion",
+  "description": "Service agence : accès du client à son espace d'administration pour gérer lui-même le contenu de son site.",
+  "dependencies": []
+}

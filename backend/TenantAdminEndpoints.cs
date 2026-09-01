@@ -64,7 +64,7 @@ public static class TenantAdminEndpoints
             if (!await TenantAdminAuth.IsOwnerAuthorizedAsync(req, config, clientSiteId)) return Results.Unauthorized();
 
             var modules = await registry.GetModulesAsync(clientSiteId);
-            var prices = await db.ModulePrices.ToDictionaryAsync(p => p.ModuleName, p => p.Price);
+            var prices = await db.ModulePrices.ToDictionaryAsync(p => p.ModuleName);
             var result = new JsonObject();
 
             // Union avec tous les modules connus du socle (module.meta.json) : un module ajouté
@@ -74,6 +74,14 @@ public static class TenantAdminEndpoints
 
             foreach (var name in allNames)
             {
+                var authorized = ModuleRegistry.IsAuthorized(modules, name);
+                prices.TryGetValue(name, out var price);
+
+                // Visibilité globale du catalogue (voir ModulePrice.Visible) : un module masqué par
+                // Ethan disparaît du catalogue de tous les clients, sauf ceux pour qui il l'a
+                // explicitement autorisé (sinon un client déjà autorisé le perdrait de son admin).
+                if (!authorized && price?.Visible == false) continue;
+
                 var node = modules.TryGetValue(name, out var element)
                     ? JsonNode.Parse(element.GetRawText())!.AsObject()
                     : new JsonObject { ["enabled"] = false };
@@ -82,10 +90,10 @@ public static class TenantAdminEndpoints
                 node["description"] = meta?.Description ?? "";
                 // Autorisation décidée par l'agence (voir ModuleRegistry.IsAuthorized) : le client
                 // ne peut activer/désactiver que ce qu'Ethan lui a autorisé.
-                node["authorized"] = ModuleRegistry.IsAuthorized(modules, name);
+                node["authorized"] = authorized;
                 // Affiché sur la card d'un module non autorisé ("Activer pour {price}"), éditable
                 // depuis le dashboard agence — voir AgencyDashboardEndpoints.MapPut("/price").
-                node["price"] = prices.GetValueOrDefault(name, "");
+                node["price"] = price?.Price ?? "";
                 result[name] = node;
             }
 

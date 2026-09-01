@@ -22,7 +22,7 @@ export type PackageOffer = {
   highlighted: boolean;
 };
 
-export type ModuleMeta = { name: string; displayName: string; price: string };
+export type ModuleMeta = { name: string; displayName: string; price: string; visible: boolean };
 
 export type BillingClient = {
   id: string;
